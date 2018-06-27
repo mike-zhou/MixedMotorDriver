@@ -306,9 +306,9 @@ void ecd300TestDFU(void)
 	PORTD.PIN2CTRL=PORT_OPC_PULLDOWN_gc;
 	disableJtagPort();
 	
-	if((PORTD.IN&0x04)==0)
+	if((PORTD.IN&0x02)==0)
 	{
-		//PIN3 of PORTD is low, then launch application.
+		//PIN1 of PORTD is low, then launch application.
 		ecd300StartApp();
 	}
 	

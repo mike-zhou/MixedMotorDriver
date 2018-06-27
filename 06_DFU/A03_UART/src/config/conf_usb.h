@@ -66,9 +66,9 @@
 //	(USB_CONFIG_ATTR_REMOTE_WAKEUP|USB_CONFIG_ATTR_BUS_POWERED)
 
 //! USB Device string definitions (Optional)
-#define  USB_DEVICE_MANUFACTURE_NAME      "ECD300"
-#define  USB_DEVICE_PRODUCT_NAME          "DFU-ECD300"
-#define  USB_DEVICE_SERIAL_NAME           "0.1"
+#define  USB_DEVICE_MANUFACTURE_NAME      "Deeply Customized Devices"
+#define  USB_DEVICE_PRODUCT_NAME          "DFU-D.C.D."
+#define  USB_DEVICE_SERIAL_NAME           "1.0"
 
 /**
  * Device speeds support
