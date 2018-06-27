@@ -1,0 +1,3 @@
+---- stubSetClockFrequency Matches (2 in 2 files) ----
+ECD100AppDlg.cpp:long stubSetClockFrequency(unsigned long maxFrequencyHz)
+stub_implement.h (source):long stubSetClockFrequency(unsigned long maxFrequencyHz);

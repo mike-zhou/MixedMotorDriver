@@ -1,0 +1,3 @@
+---- USARTC0_RXC_vect Matches (2 in 2 files) ----
+ECD300_usart.c:ISR(USARTC0_RXC_vect)
+iox128a1u.h (D:\perforce_workspaces\user1_workspace_1\atmega128\Applications\A03_UART\SI\avr):#define USARTC0_RXC_vect      _VECTOR(25)  /* Reception Complete Interrupt */

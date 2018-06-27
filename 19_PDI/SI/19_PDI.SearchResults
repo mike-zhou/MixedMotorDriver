@@ -1,0 +1,9 @@
+---- pdi_disable_rx Matches (8 in 1 files) ----
+ECD300_pdi_physic.c:static inline void pdi_disable_rx( void )
+ECD300_pdi_physic.c:			pdi_disable_rx();
+ECD300_pdi_physic.c:	pdi_disable_rx();
+ECD300_pdi_physic.c:			pdi_disable_rx();
+ECD300_pdi_physic.c:	pdi_disable_rx();
+ECD300_pdi_physic.c:			pdi_disable_rx();
+ECD300_pdi_physic.c:	pdi_disable_rx();
+ECD300_pdi_physic.c:	pdi_disable_rx();

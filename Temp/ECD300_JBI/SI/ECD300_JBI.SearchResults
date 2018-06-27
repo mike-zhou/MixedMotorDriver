@@ -1,0 +1,4 @@
+---- jbi_export_boolean_array Matches (3 in 3 files) ----
+JBIEXPRT.H (source):void jbi_export_boolean_array
+JBIMAIN.CPP (source):				jbi_export_boolean_array(name_address, charptr_temp_address, long_count);
+JBISTUB.CPP (source):void jbi_export_boolean_array(unsigned long key_address, unsigned char *data, long count)

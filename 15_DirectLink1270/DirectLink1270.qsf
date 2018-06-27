@@ -1,0 +1,121 @@
+# Copyright (C) 1991-2007 Altera Corporation
+# Your use of Altera Corporation's design tools, logic functions 
+# and other software and tools, and its AMPP partner logic 
+# functions, and any output files from any of the foregoing 
+# (including device programming or simulation files), and any 
+# associated documentation or information are expressly subject 
+# to the terms and conditions of the Altera Program License 
+# Subscription Agreement, Altera MegaCore Function License 
+# Agreement, or other applicable license agreement, including, 
+# without limitation, that your use is for the sole purpose of 
+# programming logic devices manufactured by Altera and sold by 
+# Altera or its authorized distributors.  Please refer to the 
+# applicable agreement for further details.
+
+
+# The default values for assignments are stored in the file
+#		DirectLink1270_assignment_defaults.qdf
+# If this file doesn't exist, and for assignments not listed, see file
+#		assignment_defaults.qdf
+
+# Altera recommends that you do not modify this file. This
+# file is updated automatically by the Quartus II software
+# and any changes you make may be lost or overwritten.
+
+
+set_global_assignment -name FAMILY "MAX II"
+set_global_assignment -name DEVICE EPM1270T144C5
+set_global_assignment -name TOP_LEVEL_ENTITY DirectLink1270
+set_global_assignment -name ORIGINAL_QUARTUS_VERSION "7.2 SP3"
+set_global_assignment -name PROJECT_CREATION_TIME_DATE "00:37:38  MARCH 24, 2010"
+set_global_assignment -name LAST_QUARTUS_VERSION 9.1
+set_global_assignment -name EDA_SIMULATION_TOOL "ModelSim-Altera (Verilog)"
+set_global_assignment -name EDA_TIME_SCALE "1 ps" -section_id eda_simulation
+set_global_assignment -name EDA_OUTPUT_DATA_FORMAT VERILOG -section_id eda_simulation
+set_global_assignment -name USE_GENERATED_PHYSICAL_CONSTRAINTS OFF -section_id eda_palace
+set_global_assignment -name VERILOG_FILE DirectLink1270.v
+set_global_assignment -name LL_ROOT_REGION ON -section_id "Root Region"
+set_global_assignment -name LL_MEMBER_STATE LOCKED -section_id "Root Region"
+set_location_assignment PIN_144 -to in[0]
+set_location_assignment PIN_143 -to in[1]
+set_location_assignment PIN_142 -to in[2]
+set_location_assignment PIN_141 -to in[3]
+set_location_assignment PIN_140 -to in[4]
+set_location_assignment PIN_139 -to in[5]
+set_location_assignment PIN_138 -to in[6]
+set_location_assignment PIN_137 -to in[7]
+set_location_assignment PIN_134 -to in[8]
+set_location_assignment PIN_133 -to in[9]
+set_location_assignment PIN_132 -to in[10]
+set_location_assignment PIN_131 -to in[11]
+set_location_assignment PIN_130 -to in[12]
+set_location_assignment PIN_129 -to in[13]
+set_location_assignment PIN_127 -to in[14]
+set_location_assignment PIN_125 -to in[15]
+set_location_assignment PIN_124 -to in[16]
+set_location_assignment PIN_123 -to in[17]
+set_location_assignment PIN_122 -to in[18]
+set_location_assignment PIN_121 -to in[19]
+set_location_assignment PIN_120 -to in[20]
+set_location_assignment PIN_119 -to in[21]
+set_location_assignment PIN_118 -to in[22]
+set_location_assignment PIN_117 -to in[23]
+set_location_assignment PIN_114 -to in[24]
+set_location_assignment PIN_113 -to in[25]
+set_location_assignment PIN_112 -to in[26]
+set_location_assignment PIN_111 -to in[27]
+set_location_assignment PIN_110 -to in[28]
+set_location_assignment PIN_109 -to in[29]
+set_location_assignment PIN_108 -to in[30]
+set_location_assignment PIN_107 -to in[31]
+set_location_assignment PIN_91 -to in[32]
+set_location_assignment PIN_7 -to out[0]
+set_location_assignment PIN_11 -to out[1]
+set_location_assignment PIN_12 -to out[2]
+set_location_assignment PIN_13 -to out[3]
+set_location_assignment PIN_14 -to out[4]
+set_location_assignment PIN_15 -to out[5]
+set_location_assignment PIN_16 -to out[6]
+set_location_assignment PIN_21 -to out[7]
+set_location_assignment PIN_22 -to out[8]
+set_location_assignment PIN_23 -to out[9]
+set_location_assignment PIN_27 -to out[10]
+set_location_assignment PIN_28 -to out[11]
+set_location_assignment PIN_29 -to out[12]
+set_location_assignment PIN_30 -to out[13]
+set_location_assignment PIN_31 -to out[14]
+set_location_assignment PIN_32 -to out[15]
+set_global_assignment -name AUTO_RESTART_CONFIGURATION OFF
+set_global_assignment -name GENERATE_JAM_FILE ON
+set_global_assignment -name GENERATE_JBC_FILE ON
+set_global_assignment -name RESERVE_ALL_UNUSED_PINS "AS INPUT TRI-STATED"
+set_global_assignment -name USE_CONFIGURATION_DEVICE ON
+set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "3.3-V LVTTL"
+set_global_assignment -name MISC_FILE "Z:/user1_workspace_1/atmega128/Applications/15_DirectLink1270/DirectLink1270.dpf"
+set_global_assignment -name RESERVE_ALL_UNUSED_PINS_NO_OUTPUT_GND "AS INPUT TRI-STATED"
+set_location_assignment PIN_37 -to out[16]
+set_location_assignment PIN_38 -to out[17]
+set_location_assignment PIN_39 -to out[18]
+set_location_assignment PIN_40 -to out[19]
+set_location_assignment PIN_41 -to out[20]
+set_location_assignment PIN_42 -to out[21]
+set_location_assignment PIN_43 -to out[22]
+set_location_assignment PIN_44 -to out[23]
+set_location_assignment PIN_48 -to out[24]
+set_location_assignment PIN_49 -to out[25]
+set_location_assignment PIN_50 -to out[26]
+set_location_assignment PIN_51 -to out[27]
+set_location_assignment PIN_52 -to out[28]
+set_location_assignment PIN_53 -to out[29]
+set_location_assignment PIN_57 -to out[30]
+set_location_assignment PIN_58 -to out[31]
+set_location_assignment PIN_59 -to out[32]
+set_location_assignment PIN_62 -to out[33]
+set_location_assignment PIN_63 -to out[34]
+set_location_assignment PIN_66 -to out[35]
+set_location_assignment PIN_67 -to out[36]
+set_location_assignment PIN_68 -to out[37]
+set_location_assignment PIN_69 -to out[38]
+set_location_assignment PIN_70 -to out[39]
+set_location_assignment PIN_71 -to out[40]
+set_location_assignment PIN_72 -to out[41]

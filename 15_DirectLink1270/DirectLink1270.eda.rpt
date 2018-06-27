@@ -1,0 +1,94 @@
+EDA Netlist Writer report for DirectLink1270
+Fri Feb 13 22:29:14 2015
+Quartus II Version 9.1 Build 222 10/21/2009 SJ Web Edition
+
+
+---------------------
+; Table of Contents ;
+---------------------
+  1. Legal Notice
+  2. EDA Netlist Writer Summary
+  3. Simulation Settings
+  4. Simulation Generated Files
+  5. EDA Netlist Writer Messages
+
+
+
+----------------
+; Legal Notice ;
+----------------
+Copyright (C) 1991-2009 Altera Corporation
+Your use of Altera Corporation's design tools, logic functions 
+and other software and tools, and its AMPP partner logic 
+functions, and any output files from any of the foregoing 
+(including device programming or simulation files), and any 
+associated documentation or information are expressly subject 
+to the terms and conditions of the Altera Program License 
+Subscription Agreement, Altera MegaCore Function License 
+Agreement, or other applicable license agreement, including, 
+without limitation, that your use is for the sole purpose of 
+programming logic devices manufactured by Altera and sold by 
+Altera or its authorized distributors.  Please refer to the 
+applicable agreement for further details.
+
+
+
++-------------------------------------------------------------------+
+; EDA Netlist Writer Summary                                        ;
++---------------------------+---------------------------------------+
+; EDA Netlist Writer Status ; Successful - Fri Feb 13 22:29:13 2015 ;
+; Revision Name             ; DirectLink1270                        ;
+; Top-level Entity Name     ; DirectLink1270                        ;
+; Family                    ; MAX II                                ;
+; Simulation Files Creation ; Successful                            ;
++---------------------------+---------------------------------------+
+
+
++-------------------------------------------------------------------------------------------------------------------------------+
+; Simulation Settings                                                                                                           ;
++---------------------------------------------------------------------------------------------------+---------------------------+
+; Option                                                                                            ; Setting                   ;
++---------------------------------------------------------------------------------------------------+---------------------------+
+; Tool Name                                                                                         ; ModelSim-Altera (Verilog) ;
+; Generate netlist for functional simulation only                                                   ; Off                       ;
+; Time scale                                                                                        ; 1 ps                      ;
+; Truncate long hierarchy paths                                                                     ; Off                       ;
+; Map illegal HDL characters                                                                        ; Off                       ;
+; Flatten buses into individual nodes                                                               ; Off                       ;
+; Maintain hierarchy                                                                                ; Off                       ;
+; Bring out device-wide set/reset signals as ports                                                  ; Off                       ;
+; Enable glitch filtering                                                                           ; Off                       ;
+; Do not write top level VHDL entity                                                                ; Off                       ;
+; Disable detection of setup and hold time violations in the input registers of bi-directional pins ; Off                       ;
+; Architecture name in VHDL output netlist                                                          ; structure                 ;
+; Generate third-party EDA tool command script for RTL functional simulation                        ; Off                       ;
+; Generate third-party EDA tool command script for gate-level simulation                            ; Off                       ;
++---------------------------------------------------------------------------------------------------+---------------------------+
+
+
++--------------------------------------------------------------------------------------------------------+
+; Simulation Generated Files                                                                             ;
++--------------------------------------------------------------------------------------------------------+
+; Generated Files                                                                                        ;
++--------------------------------------------------------------------------------------------------------+
+; Z:/user1_workspace_1/atmega128/Applications/15_DirectLink1270/simulation/modelsim/DirectLink1270.vo    ;
+; Z:/user1_workspace_1/atmega128/Applications/15_DirectLink1270/simulation/modelsim/DirectLink1270_v.sdo ;
++--------------------------------------------------------------------------------------------------------+
+
+
++-----------------------------+
+; EDA Netlist Writer Messages ;
++-----------------------------+
+Info: *******************************************************************
+Info: Running Quartus II EDA Netlist Writer
+    Info: Version 9.1 Build 222 10/21/2009 SJ Web Edition
+    Info: Processing started: Fri Feb 13 22:29:09 2015
+Info: Command: quartus_eda --read_settings_files=off --write_settings_files=off DirectLink1270 -c DirectLink1270
+Info: Generated files "DirectLink1270.vo" and "DirectLink1270_v.sdo" in directory "Z:/user1_workspace_1/atmega128/Applications/15_DirectLink1270/simulation/modelsim/" for EDA simulation tool
+Info: Quartus II EDA Netlist Writer was successful. 0 errors, 0 warnings
+    Info: Peak virtual memory: 134 megabytes
+    Info: Processing ended: Fri Feb 13 22:29:14 2015
+    Info: Elapsed time: 00:00:05
+    Info: Total CPU time (on all processors): 00:00:02
+
+

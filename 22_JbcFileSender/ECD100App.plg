@@ -1,0 +1,86 @@
+<html>
+<body>
+<pre>
+<h1>Build Log</h1>
+<h3>
+--------------------Configuration: ECD100App - Win32 Debug--------------------
+</h3>
+<h3>Command Lines</h3>
+Creating temporary file "C:\DOCUME~1\owner\LOCALS~1\Temp\RSP33.tmp" with contents
+[
+/nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /FR"Debug/" /Fo"Debug/" /Fd"Debug/" /FD /GZ /c 
+"Z:\user1_workspace_1\atmega128\Applications\22_JbcFileSender\ECD100AppDlg.cpp"
+]
+Creating command line "cl.exe @C:\DOCUME~1\owner\LOCALS~1\Temp\RSP33.tmp" 
+Creating temporary file "C:\DOCUME~1\owner\LOCALS~1\Temp\RSP34.tmp" with contents
+[
+/nologo /subsystem:windows /incremental:yes /pdb:"Debug/ECD300JbcFileSender.pdb" /debug /machine:I386 /out:"Debug/ECD300JbcFileSender.exe" /pdbtype:sept /verbose:lib 
+.\Debug\ECD100App.obj
+.\Debug\ECD100AppDlg.obj
+.\Debug\StdAfx.obj
+.\Debug\ECD100App.res
+]
+Creating command line "link.exe @C:\DOCUME~1\owner\LOCALS~1\Temp\RSP34.tmp"
+<h3>Output Window</h3>
+Compiling...
+ECD100AppDlg.cpp
+z:\user1_workspace_1\atmega128\applications\22_jbcfilesender\ecd100appdlg.cpp(242) : warning C4101: 'bufferRx' : unreferenced local variable
+z:\user1_workspace_1\atmega128\applications\22_jbcfilesender\ecd100appdlg.cpp(241) : warning C4101: 'bufferTx' : unreferenced local variable
+Linking...
+
+Searching Libraries
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\MFC\LIB\nafxcwd.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\libcmtd.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\kernel32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\user32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\gdi32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\comdlg32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\winspool.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\advapi32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\shell32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\comctl32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\uuid.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\oledlg.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\ole32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\olepro32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\oleaut32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\urlmon.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\OLDNAMES.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\wininet.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\ctl3d32s.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\imagehlp.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\libcpmtd.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\MFC\LIB\nafxcwd.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\libcmtd.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\kernel32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\user32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\gdi32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\comdlg32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\winspool.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\advapi32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\shell32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\comctl32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\uuid.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\oledlg.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\ole32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\olepro32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\oleaut32.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\urlmon.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\OLDNAMES.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\wininet.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\ctl3d32s.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\imagehlp.lib:
+    Searching C:\Program Files\Microsoft Visual Studio\VC98\LIB\libcpmtd.lib:
+
+Done Searching Libraries
+Creating command line "bscmake.exe /nologo /o"Debug/ECD100App.bsc"  .\Debug\StdAfx.sbr .\Debug\ECD100App.sbr .\Debug\ECD100AppDlg.sbr"
+Creating browse info file...
+<h3>Output Window</h3>
+
+
+
+<h3>Results</h3>
+ECD300JbcFileSender.exe - 0 error(s), 2 warning(s)
+</pre>
+</body>
+</html>

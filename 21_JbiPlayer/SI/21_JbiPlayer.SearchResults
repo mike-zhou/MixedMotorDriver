@@ -1,0 +1,14 @@
+---- USB_DEVICE_MANUFACTURE_NAME Matches (13 in 4 files) ----
+conf_usb.h (config):// #define  USB_DEVICE_MANUFACTURE_NAME      "Manufacture name"
+udc.c (ASF\common\services\usb\udc): * String is allocated only if USB_DEVICE_MANUFACTURE_NAME is declared
+udc.c (ASF\common\services\usb\udc):#ifdef USB_DEVICE_MANUFACTURE_NAME
+udc.c (ASF\common\services\usb\udc):static uint8_t udc_string_manufacturer_name[] = USB_DEVICE_MANUFACTURE_NAME;
+udc.c (ASF\common\services\usb\udc):#  define USB_DEVICE_MANUFACTURE_NAME_SIZE  \
+udc.c (ASF\common\services\usb\udc):#  define USB_DEVICE_MANUFACTURE_NAME_SIZE  0
+udc.c (ASF\common\services\usb\udc):	le16_t string[Max(Max(USB_DEVICE_MANUFACTURE_NAME_SIZE, \
+udc.c (ASF\common\services\usb\udc):#ifdef USB_DEVICE_MANUFACTURE_NAME
+udc.c (ASF\common\services\usb\udc):		str_length = USB_DEVICE_MANUFACTURE_NAME_SIZE;
+udc.h (ASF\common\services\usb\udc): * USB_DEVICE_MANUFACTURE_NAME (string)<br>
+udc.h (ASF\common\services\usb\udc): * #define  USB_DEVICE_MANUFACTURE_NAME      "Manufacture name"
+udc.h (ASF\common\services\usb\udc): * #define  USB_DEVICE_MANUFACTURE_NAME "Manufacture name" \endcode
+udi_cdc_desc.c (ASF\common\services\usb\class\cdc\device):#ifdef USB_DEVICE_MANUFACTURE_NAME

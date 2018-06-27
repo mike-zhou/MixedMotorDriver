@@ -1,0 +1,43 @@
+---- JAMC_OUT_OF_MEMORY Matches (42 in 8 files) ----
+jamarray.cpp (source):		status = JAMC_OUT_OF_MEMORY;
+jamexec.cpp (source):			status = JAMC_OUT_OF_MEMORY;
+jamexec.cpp (source):			status = JAMC_OUT_OF_MEMORY;
+jamexec.cpp (source):			status = JAMC_OUT_OF_MEMORY;
+jamexec.cpp (source):			status = JAMC_OUT_OF_MEMORY;
+jamexec.cpp (source):		status = JAMC_OUT_OF_MEMORY;
+jamexec.cpp (source):			status = JAMC_OUT_OF_MEMORY;
+jamexprt.h (source):#define JAMC_OUT_OF_MEMORY     1
+jamheap.cpp (source):/*	Returns:		JAMC_SUCCESS for success, or JAMC_OUT_OF_MEMORY if no	*/
+jamheap.cpp (source):			status = JAMC_OUT_OF_MEMORY;
+jamheap.cpp (source):/*	Returns:		JAMC_SUCCESS for success, or JAMC_OUT_OF_MEMORY if not	*/
+jamheap.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamheap.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):					status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):					status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):					status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):					status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamjtag.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamstack.cpp (source):			return_code = JAMC_OUT_OF_MEMORY;
+jamstack.cpp (source):			return_code = JAMC_OUT_OF_MEMORY;
+jamstack.cpp (source):/*	Returns:		JAMC_SUCCESS for success, or JAMC_OUT_OF_MEMORY if		*/
+jamstack.cpp (source):	JAM_RETURN_TYPE return_code = JAMC_OUT_OF_MEMORY;
+jamstack.cpp (source):/*	Returns:		JAMC_SUCCESS for success, or JAMC_OUT_OF_MEMORY if the	*/
+jamstack.cpp (source):	JAM_RETURN_TYPE return_code = JAMC_OUT_OF_MEMORY;
+jamstub.cpp (source):/* JAMC_OUT_OF_MEMORY      1 */ "out of memory",
+jamsym.cpp (source):/*	Returns:		JAMC_SUCCESS for success, or JAMC_OUT_OF_MEMORY if the	*/
+jamsym.cpp (source):			status = JAMC_OUT_OF_MEMORY;
+jamsym.cpp (source):			status = JAMC_OUT_OF_MEMORY;
+jamsym.cpp (source):/*					JAMC_OUT_OF_MEMORY if symbol table is full.				*/
+jamsym.cpp (source):				status = JAMC_OUT_OF_MEMORY;
+jamsym.cpp (source):				status = JAMC_OUT_OF_MEMORY;

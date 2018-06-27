@@ -1,0 +1,11 @@
+---- main_cdc_enable Matches (3 in 2 files) ----
+conf_usb.h (config):extern bool main_cdc_enable(uint8_t port);
+conf_usb.h (config):#define  UDI_CDC_ENABLE_EXT(port)         main_cdc_enable(port)
+ECD300_test.c:bool main_cdc_enable(uint8_t port)
+---- UDI_CDC_ENABLE_EXT Matches (6 in 3 files) ----
+conf_usb.h (config):#define  UDI_CDC_ENABLE_EXT(port)         main_cdc_enable(port)
+conf_usb.h (config): * #define UDI_CDC_ENABLE_EXT(port) my_callback_cdc_enable()
+udi_cdc.c (ASF\common\services\usb\class\cdc\device):	if (!UDI_CDC_ENABLE_EXT(port)) {
+udi_cdc.h (ASF\common\services\usb\class\cdc\device): * #define UDI_CDC_ENABLE_EXT(port) my_callback_cdc_enable()
+udi_cdc.h (ASF\common\services\usb\class\cdc\device): *   - \code #define UDI_CDC_ENABLE_EXT(port) my_callback_cdc_enable()
+udi_cdc.h (ASF\common\services\usb\class\cdc\device): *     UDI_CDC_ENABLE_EXT() callback function is called and return true.

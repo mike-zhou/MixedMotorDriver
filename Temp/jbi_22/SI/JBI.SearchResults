@@ -1,0 +1,15 @@
+---- jbi_workspace Matches (14 in 3 files) ----
+JBIEXPRT.H (jbi):extern char *jbi_workspace;
+JBIJTAG.C (jbi):static char *jbi_workspace = NULL;
+JBIJTAG.C (jbi):	if (jbi_workspace != NULL)
+JBIJTAG.C (jbi):		jbi_dr_preamble_data = (unsigned char *) jbi_workspace;
+JBIJTAG.C (jbi):	if (jbi_workspace != NULL)
+JBIJTAG.C (jbi):	if (jbi_workspace != NULL)
+JBIJTAG.C (jbi):	if (jbi_workspace != NULL)
+JBIJTAG.C (jbi):	if (jbi_workspace != NULL)
+JBIJTAG.C (jbi):		if (jbi_workspace != NULL)
+JBIJTAG.C (jbi):		if (jbi_workspace != NULL)
+JBIJTAG.C (jbi):		if (jbi_workspace != NULL)
+JBIJTAG.C (jbi):		if (jbi_workspace != NULL)
+JBIJTAG.C (jbi):	if (jbi_workspace == NULL)
+JBIMAIN.C (jbi):	jbi_workspace = workspace;
