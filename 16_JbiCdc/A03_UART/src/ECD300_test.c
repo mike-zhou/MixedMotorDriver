@@ -208,6 +208,8 @@ void ecd300TestJbi(void)
 	ecd300InitUart(ECD300_UART_2, &uartOption);
 	printString("Serial Port in Power Allocator was initialized\r\n");
 
+	//PD0 works as indicator of host output
+	PORTD_DIRSET = 0x01;
 
 #if 1
 	//cooperate with the programmer to program EPM1270.
@@ -225,6 +227,14 @@ void ecd300TestJbi(void)
 			
 			printHex(c);
 			printString("\r\n");
+			
+			//toggle PD0 to indicate character reception.
+			if(PORTD_IN&0x01) {
+				PORTD_OUTCLR = 0x01;
+			}
+			else {
+				PORTD_OUTSET = 0x01;
+			}
 		}
 	}
 #endif
