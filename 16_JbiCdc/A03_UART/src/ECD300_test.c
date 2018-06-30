@@ -10,25 +10,18 @@
 #include "ECD300_test.h"
 #include "usb_protocol_cdc.h"
 
-int jbi_main(unsigned long file_buffer_address, long file_length, char *action);
-int jbi_jtag_io(int tms, int tdi, int read_tdo);
-
-#define ECD300_JTAG_CMD_TMS_BIT 0x02
-#define ECD300_JTAG_CMD_TDI_BIT 0x01
-#define ECD300_JTAG_CMD_TDO_BIT 0x80
-
 void printString(char * pString);
 void printHex(unsigned char hex);
 unsigned char getChar(void);
 
 void printString(char * pString)
 {
-	ecd300PutString(ECD300_UART_1, pString);
+	ecd300PutString(ECD300_UART_2, pString);
 }
 
 void printHex(unsigned char hex)
 {
-	ecd300PutHexChar(ECD300_UART_1, hex);
+	ecd300PutHexChar(ECD300_UART_2, hex);
 }
 
 unsigned char getChar(void)
@@ -38,7 +31,7 @@ unsigned char getChar(void)
 
 	for(rc=0;rc!=1;)
 	{
-		rc=ecd300PollChar(ECD300_UART_1, &c);
+		rc=ecd300PollChar(ECD300_UART_2, &c);
 	}
 
 	return c;
@@ -53,7 +46,7 @@ static bool _pollHexChar(unsigned char * p)
 		return false;
 	}
 	
-	rc=ecd300PollChar(ECD300_UART_1, p);
+	rc=ecd300PollChar(ECD300_UART_2, p);
 
 	if(rc==1)
 		return true;
@@ -193,23 +186,6 @@ void ecd300TestJbi(void)
 	unsigned long pJbc;
 	unsigned char c;
 
-	{
-		unsigned long i;
-
-		PORTA_DIR=0xff;
-		for(i=0;i<0x100000; i++)
-		{
-			if(i&0x10000)
-			{
-				PORTA_OUT=0xff;
-			}
-			else
-			{
-				PORTA_OUT=0x00;
-			}
-		}
-	}
-
 	PORTA_DIR=0x00;
 	PORTB_DIR=0x00;
 	PORTD_DIR=0x00;
@@ -229,8 +205,8 @@ void ecd300TestJbi(void)
 	uartOption.charlength=USART_CHSIZE_8BIT_gc;
 	uartOption.paritytype=USART_PMODE_DISABLED_gc;
 	uartOption.stopbits=false;
-	ecd300InitUart(ECD300_UART_1, &uartOption);
-	printString("UART1 was initialized 9\r\n");
+	ecd300InitUart(ECD300_UART_2, &uartOption);
+	printString("Serial Port in Power Allocator was initialized\r\n");
 
 
 #if 1
