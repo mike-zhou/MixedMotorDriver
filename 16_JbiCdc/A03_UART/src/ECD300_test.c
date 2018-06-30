@@ -212,10 +212,6 @@ void ecd300TestJbi(void)
 #if 1
 	//cooperate with the programmer to program EPM1270.
 	udc_start();
-	
-	//PORTB works as a counter of characters coming from host.
-	PORTB_OUT = 0;
-	PORTB_DIR = 0xff;
 		
 	while(1)
 	{
@@ -229,7 +225,6 @@ void ecd300TestJbi(void)
 			
 			printHex(c);
 			printString("\r\n");
-			PORTB_OUT = PORTB_IN + 1;
 		}
 	}
 #endif
