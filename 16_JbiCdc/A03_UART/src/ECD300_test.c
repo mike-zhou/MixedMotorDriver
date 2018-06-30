@@ -212,7 +212,7 @@ void ecd300TestJbi(void)
 
 	PORTA_DIR=0x00;
 	PORTB_DIR=0x00;
-	PORTD_DIRCLR=0x10;
+	PORTD_DIR=0x00;
 	PORTF_DIR=0x00;
 	PORTH_DIR=0x00;
 	PORTJ_DIR=0x00;
@@ -231,166 +231,31 @@ void ecd300TestJbi(void)
 	uartOption.stopbits=false;
 	ecd300InitUart(ECD300_UART_1, &uartOption);
 	printString("UART1 was initialized 9\r\n");
-	
-#if 0
-	printString("size of unsigned char *:");
-	printHex(sizeof(unsigned char *));
-	printString("\r\n");
-	printString("size of void *:");
-	printHex(sizeof(void *));
-	printString("\r\n");
-	printString("size of unsigned long:");
-	printHex(sizeof(unsigned long));
-	printString("\r\n");
-	printString("size of unsigned long *:");
-	printHex(sizeof(unsigned long *));
-	printString("\r\n");
-	printString("size of int:");
-	printHex(sizeof(int));
-	printString("\r\n");
-#endif
 
-	_ecd300ConfigEbi();
+
 #if 1
 	//cooperate with the programmer to program EPM1270.
 	udc_start();
+	
+	//PORTB works as a counter of characters coming from host.
+	PORTB_OUT = 0;
+	PORTB_DIR = 0xff;
+		
 	while(1)
 	{
 		unsigned char c, tdo;
+		
 		
 		if (udi_cdc_is_rx_ready()) 
 		{
 			//read a command from USB buffer.
 			c = (unsigned char)udi_cdc_getc();
 			
-			tdo=jbi_jtag_io(c&ECD300_JTAG_CMD_TMS_BIT, c&ECD300_JTAG_CMD_TDI_BIT, c&ECD300_JTAG_CMD_TDO_BIT);
-			
-			if(c&ECD300_JTAG_CMD_TDO_BIT)
-			{// the programmer is waiting for the TDO.
-				while(1)
-				{
-					if(udi_cdc_is_tx_ready())
-					{
-						udi_cdc_putc(tdo);
-						break;
-					}
-				}
-			}
+			printHex(c);
+			printString("\r\n");
+			PORTB_OUT = PORTB_IN + 1;
 		}
 	}
-#endif
-	
-	pJbc=BOARD_EBI_SRAM_BASE;
-	jbcAmount=0;
-
-#if 0
-	udc_start();
-
-	printString("\r\n Press 1 to receive the jbc file, other key to Program the EPM1270\r\n");
-	c=getChar();
-	if('1'==c)
-	{
-		unsigned char buffer[512];
-		unsigned long index;
-		unsigned long i;
-		bool bJbcTransferStart;
-		
-		bJbcTransferStart=false;
-		printString("Wait for the jbc file ... \r\n");
-		while(1)
-		{
-			if (udi_cdc_is_rx_ready()) 
-			{
-				//read a command from USB buffer.
-				c = (unsigned char)udi_cdc_getc();
-				
-				hugemem_write8(pJbc+jbcAmount, c);
-				jbcAmount++;
-				bJbcTransferStart=true;
-				i=0;
-			}
-			if(bJbcTransferStart)
-			{
-				i++;
-				if(i>=0x100000)
-				{
-					break;
-				}
-			}
-		}
-
-		printString("\r\n");
-		printHex(jbcAmount>>8);
-		printString(", ");
-		printHex(jbcAmount);
-		printString(" bytes recieved\r\n");
-
-		printString("Save jbc file to Nand ...\r\n");
-		//init NAND driver
-		ecd300InitNand();
-		//erase the block of NAND.
-		ecd300EraseNandBlockEx(0, 1, true);
-		//save the length of jbc content to page 0 of block 1.
-		buffer[0]=jbcAmount;
-		buffer[1]=jbcAmount>>8;
-		buffer[2]=jbcAmount>>16;
-		buffer[3]=jbcAmount>>24;
-		ecd300ProgramNandPageEx(0, 1, 0, 0, buffer, 4, true);
-		//save the content of jbc since page 1 of block 1.
-		for(index=0; index<=(jbcAmount+511); index+=512)
-		{
-			for(i=0;i<512;i++)
-			{
-				buffer[i]=hugemem_read8(pJbc+index+i);
-			}
-			ecd300ProgramNandPageEx(0, 			//plane
-									1, 				//block
-									(index>>11)+1, 	//page	
-									index&0x7ff,		//col
-									buffer,
-									512,
-									true);
-		}
-		printString("jbc content is saved to block 1 of NAND chip\r\n");
-	}
-
-#else
-	//tranfer jbc content from NAND to external SRAM
-	{
-		unsigned char buffer[512];
-		unsigned long index;
-		unsigned long i;
-
-		//init NAND driver
-		ecd300InitNand();
-		//read the length of jbc
-		ecd300ReadNandPageEx(0, 1, 0, 0, buffer, 4, true);
-		jbcAmount=buffer[3];
-		jbcAmount<<=8;
-		jbcAmount+=buffer[2];
-		jbcAmount<<=8;
-		jbcAmount+=buffer[1];
-		jbcAmount<<=8;
-		jbcAmount+=buffer[0];
-		//read the content of jbc.
-		for(index=0; index<=(jbcAmount+511); index+=512)
-		{
-			ecd300ReadNandPageEx(0,
-									1,
-									(index>>11)+1, 	//page	
-									index&0x7ff,		//col
-									buffer,
-									512,
-									true);
-			for(i=0; i<512; i++)
-			{
-				hugemem_write8(pJbc+index+i, buffer[i]);
-			}
-									
-		}
-	}
-
-	jbi_main(pJbc, jbcAmount, "PROGRAM");
 #endif
 
 	while(1)
