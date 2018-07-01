@@ -302,13 +302,13 @@ void ecd300TestSysClk(void)
 
 void ecd300TestDFU(void)
 {
-	//enable the pull-down resistor with the pin.
-	PORTD.PIN2CTRL=PORT_OPC_PULLDOWN_gc;
+	//enable the pull-down resistor with the PIN1.
+	PORTD.PIN1CTRL=PORT_OPC_PULLDOWN_gc;
 	disableJtagPort();
 	
 	if((PORTD.IN&0x02)==0)
 	{
-		//PIN1 of PORTD is low, then launch application.
+		//PD1 is low, then launch application.
 		ecd300StartApp();
 	}
 	
