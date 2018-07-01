@@ -72,7 +72,7 @@ UDC_DESC_STORAGE usb_dev_desc_t udc_device_desc = {
 #else
 	.bDeviceClass              = CDC_CLASS_DEVICE,
 #endif
-	.bDeviceSubClass           = 0,
+	.bDeviceSubClass           = CDC_SUBCLASS_ACM,
 	.bDeviceProtocol           = 0,
 	.bMaxPacketSize0           = USB_DEVICE_EP_CTRL_SIZE,
 	.idVendor                  = LE16(USB_DEVICE_VENDOR_ID),
