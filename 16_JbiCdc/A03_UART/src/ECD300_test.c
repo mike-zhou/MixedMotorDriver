@@ -181,9 +181,15 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 
 void ecd300TestJbi(void)
 {
+	const unsigned char bufferLength=255;
+	unsigned char inputBuffer[bufferLength];
+	unsigned char outputBuffer[bufferLength];
+	unsigned char inputProducerIndex=0;
+	unsigned char inputConsumerIndex=0;
+	unsigned char outputProducerIndex=0;
+	unsigned char outputConsumerIndex=0;
+	
 	usart_rs232_options_t uartOption;
-	unsigned long jbcAmount;
-	unsigned long pJbc;
 	unsigned char c;
 
 	PORTA_DIR=0x00;
@@ -225,6 +231,12 @@ void ecd300TestJbi(void)
 			//read a command from USB buffer.
 			c = (unsigned char)udi_cdc_getc();
 			
+			// !!! buffer overflow is not checked for reason of simplicity.
+			inputBuffer[inputProducerIndex] = c;
+			outputBuffer[outputProducerIndex] = c;
+			inputProducerIndex = (inputProducerIndex + 1) % bufferLength;
+			outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+			
 			printHex(c);
 			printString("\r\n");
 			
@@ -234,6 +246,16 @@ void ecd300TestJbi(void)
 			}
 			else {
 				PORTD_OUTSET = 0x01;
+			}
+			
+			
+		}
+		
+		if(outputConsumerIndex != outputProducerIndex)
+		{
+			if(udi_cdc_is_tx_ready()) {
+				udi_cdc_putc(outputBuffer[outputConsumerIndex]);
+				outputConsumerIndex = (outputConsumerIndex + 1) % bufferLength;
 			}
 		}
 	}
