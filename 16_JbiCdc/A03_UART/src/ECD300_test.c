@@ -179,6 +179,165 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 	printString("\r\n");
 }
 
+
+static void disable_all_channels(){
+	PORTC_DIR=0x00;
+	PORTB_DIR=0x00;
+	PORTA_DIR=0x00;
+	PORTK_DIR=0x00;
+	PORTJ_DIR=0x00;
+	PORTH_DIR=0x00;
+	PORTF_DIR=0x00;
+	PORTE_DIR=0x00;
+	PORTC_OUT=0x00;
+	PORTB_OUT=0x00;
+	PORTA_OUT=0x00;
+	PORTK_OUT=0x00;
+	PORTJ_OUT=0x00;
+	PORTH_OUT=0x00;
+	PORTF_OUT=0x00;
+	PORTE_OUT=0x00;
+}
+
+static void enable_channel(unsigned char channel)
+{
+	disable_all_channels();
+	
+	switch(channel)
+	{
+		case 1: //pc7
+			PORTC_OUT=0x80;
+			PORTC_DIR=0x80;
+			break;
+		case 2: //pc5
+			PORTC_OUT=0x20;
+			PORTC_DIR=0x20;
+			break;
+		case 3: //pc3
+			PORTC_OUT=0x08;
+			PORTC_DIR=0x08;
+			break;
+		case 4: //pc1
+			PORTC_OUT=0x02;
+			PORTC_DIR=0x02;
+			break;
+		case 5: //pb7
+			PORTB_OUT=0x80;
+			PORTB_DIR=0x80;
+			break;
+		case 6: //pb5
+			PORTB_OUT=0x20;
+			PORTB_DIR=0x20;
+			break;
+		case 7: //pb3
+			PORTB_OUT=0x08;
+			PORTB_DIR=0x08;
+			break;
+		case 8: //pb1
+			PORTB_OUT=0x02;
+			PORTB_DIR=0x02;
+			break;
+		case 9: //pa7
+			PORTA_OUT=0x80;
+			PORTA_DIR=0x80;
+			break;
+		case 10: //pa5
+			PORTA_OUT=0x20;
+			PORTA_DIR=0x20;
+			break;
+		case 11: //pa3
+			PORTA_OUT=0x08;
+			PORTA_DIR=0x08;
+			break;
+		case 12: //pa1
+			PORTA_OUT=0x02;
+			PORTA_DIR=0x02;
+			break;
+		case 13: //pk7
+			PORTK_OUT=0x80;
+			PORTK_DIR=0x80;
+			break;
+		case 14: //pk5
+			PORTK_OUT=0x20;
+			PORTK_DIR=0x20;
+			break;
+		case 15: //pk3
+			PORTK_OUT=0x08;
+			PORTK_DIR=0x08;
+			break;
+		case 16: //pk1
+			PORTK_OUT=0x02;
+			PORTK_DIR=0x02;
+			break;
+		case 17: //pj7
+			PORTJ_OUT=0x80;
+			PORTJ_DIR=0x80;
+			break;
+		case 18: //pj5
+			PORTJ_OUT=0x20;
+			PORTJ_DIR=0x20;
+			break;
+		case 19: //pj3
+			PORTJ_OUT=0x08;
+			PORTJ_DIR=0x08;
+			break;
+		case 20: //pj1
+			PORTJ_OUT=0x02;
+			PORTJ_DIR=0x02;
+			break;
+		case 21: //ph7
+			PORTH_OUT=0x80;
+			PORTH_DIR=0x80;
+			break;
+		case 22: //ph5
+			PORTH_OUT=0x20;
+			PORTH_DIR=0x20;
+			break;
+		case 23: //ph3
+			PORTH_OUT=0x08;
+			PORTH_DIR=0x08;
+			break;
+		case 24: //ph1
+			PORTH_OUT=0x02;
+			PORTH_DIR=0x02;
+			break;
+		case 25: //pf7
+			PORTF_OUT=0x80;
+			PORTF_DIR=0x80;
+			break;
+		case 26: //pf5
+			PORTF_OUT=0x20;
+			PORTF_DIR=0x20;
+			break;
+		case 27: //pf3
+			PORTF_OUT=0x08;
+			PORTF_DIR=0x08;
+			break;
+		case 28: //pf1
+			PORTF_OUT=0x02;
+			PORTF_DIR=0x02;
+			break;
+		case 29: //pe7
+			PORTE_OUT=0x80;
+			PORTE_DIR=0x80;
+			break;
+		case 30: //pe5
+			PORTE_OUT=0x20;
+			PORTE_DIR=0x20;
+			break;
+		case 31: //pe3
+			PORTE_OUT=0x08;
+			PORTE_DIR=0x08;
+			break;
+		case 32: //pe1
+			PORTE_OUT=0x02;
+			PORTE_DIR=0x02;
+			break;
+		default:
+			break;
+	}
+}
+
 void ecd300TestJbi(void)
 {
 	const unsigned char bufferLength=255;
@@ -194,7 +353,9 @@ void ecd300TestJbi(void)
 
 	PORTA_DIR=0x00;
 	PORTB_DIR=0x00;
+	PORTC_DIR=0x00;
 	PORTD_DIR=0x00;
+	PORTE_DIR=0x00;
 	PORTF_DIR=0x00;
 	PORTH_DIR=0x00;
 	PORTJ_DIR=0x00;
@@ -223,21 +384,25 @@ void ecd300TestJbi(void)
 		
 	while(1)
 	{
-		unsigned char c, tdo;
+		unsigned char key, tdo;
 		
 		
 		if (udi_cdc_is_rx_ready()) 
 		{
 			//read a command from USB buffer.
-			c = (unsigned char)udi_cdc_getc();
+			key = (unsigned char)udi_cdc_getc();
 			
 			// !!! buffer overflow is not checked for reason of simplicity.
-			inputBuffer[inputProducerIndex] = c;
-			outputBuffer[outputProducerIndex] = c;
+			inputBuffer[inputProducerIndex] = key;
+			outputBuffer[outputProducerIndex] = key;
 			inputProducerIndex = (inputProducerIndex + 1) % bufferLength;
 			outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+			if(key == 0x0D) {
+				outputBuffer[outputProducerIndex] = 0x0A;// Line Feed.
+				outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+			}
 			
-			printHex(c);
+			printHex(key);
 			printString("\r\n");
 			
 			//toggle PD0 to indicate character reception.
@@ -248,7 +413,28 @@ void ecd300TestJbi(void)
 				PORTD_OUTSET = 0x01;
 			}
 			
-			
+			if(key == 0x0D) { // \n
+				unsigned char channel = 0;
+				if(inputConsumerIndex != inputProducerIndex) {
+					while(inputConsumerIndex != inputProducerIndex) {
+						unsigned char c = inputBuffer[inputConsumerIndex];
+						if((c >= '0') && (c <= '9')) {
+							channel =  channel * 10 + c - '0';
+							inputConsumerIndex = (inputConsumerIndex + 1) % bufferLength;
+						}
+						else {
+							if(c != 0x0D) {
+								// illegal character
+								printString("Illegal command\r\n");
+								channel = 0;
+							}
+							inputConsumerIndex = inputProducerIndex; //discard all content in inputBuffer.
+							break;
+						}
+					}
+				}
+				enable_channel(channel);
+			}
 		}
 		
 		if(outputConsumerIndex != outputProducerIndex)
