@@ -9,6 +9,7 @@
 #include "ECD300.h"
 #include "ECD300_test.h"
 #include "usb_protocol_cdc.h"
+#include "tc.h"
 
 void printString(char * pString);
 void printHex(unsigned char hex);
@@ -180,7 +181,7 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 }
 
 
-static void disable_all_channels(){
+static void deactivate_all_channels(){
 	PORTC_DIR=0x00;
 	PORTB_DIR=0x00;
 	PORTA_DIR=0x00;
@@ -199,9 +200,10 @@ static void disable_all_channels(){
 	PORTE_OUT=0x00;
 }
 
-static void enable_channel(unsigned char channel)
+//return true if any channel is enabled, otherwise return false.
+static bool activate_channel(unsigned char channel)
 {
-	disable_all_channels();
+	deactivate_all_channels();
 	
 	switch(channel)
 	{
@@ -334,8 +336,10 @@ static void enable_channel(unsigned char channel)
 			PORTE_DIR=0x02;
 			break;
 		default:
+			return false;
 			break;
 	}
+	return true;
 }
 
 void ecd300TestJbi(void)
@@ -350,6 +354,12 @@ void ecd300TestJbi(void)
 	
 	usart_rs232_options_t uartOption;
 	unsigned char c;
+	
+	uint32_t resolution;
+	
+	bool channelActivated = false;
+	unsigned short activationLength;
+	unsigned short initialCounter;
 
 	PORTA_DIR=0x00;
 	PORTB_DIR=0x00;
@@ -377,10 +387,19 @@ void ecd300TestJbi(void)
 
 	//PD0 works as indicator of host output
 	PORTD_DIRSET = 0x01;
-
-#if 1
-	//cooperate with the programmer to program EPM1270.
 	udc_start();
+	
+	//set counter. The resolution should be 31MHz/1024.
+	tc_enable(&TCC0);
+	tc_set_resolution(&TCC0, 1);
+	resolution=tc_get_resolution(&TCC0);
+	resolution=tc_get_resolution(&TCC0);
+	printHex((resolution>>24)&0xff);
+	printHex((resolution>>16)&0xff);
+	printHex((resolution>>8)&0xff);
+	printHex(resolution&0xff);
+	printString("\r\n");
+	activationLength = resolution/2; // 1/2 second.
 		
 	while(1)
 	{
@@ -413,8 +432,10 @@ void ecd300TestJbi(void)
 				PORTD_OUTSET = 0x01;
 			}
 			
-			if(key == 0x0D) { // \n
+			if((key == 0x0D) && (!channelActivated)) 
+			{ 
 				unsigned char channel = 0;
+				unsigned short counter;
 				if(inputConsumerIndex != inputProducerIndex) {
 					while(inputConsumerIndex != inputProducerIndex) {
 						unsigned char c = inputBuffer[inputConsumerIndex];
@@ -433,7 +454,30 @@ void ecd300TestJbi(void)
 						}
 					}
 				}
-				enable_channel(channel);
+				channelActivated = activate_channel(channel);
+				if(channelActivated) {
+					initialCounter = tc_read_count(&TCC0);
+				}
+			}
+		}
+		
+		if(channelActivated)
+		{
+			// at 31MHz, 16-bit counter takes 2 seconds to overflow.
+			// the following code should have been executed many times in 2 seconds period,
+			// so only 1 wrap around is considered in the following code.
+			unsigned short currentCounter = tc_read_count(&TCC0);
+			
+			if(currentCounter > initialCounter) {
+				if((currentCounter - initialCounter) > activationLength) {
+					channelActivated = activate_channel(0);//deactivate all channel.
+				}
+			}
+			else if(currentCounter < initialCounter) {
+				// a wrap around
+				if(((0xffff - initialCounter) + currentCounter) > activationLength) {
+					channelActivated = activate_channel(0);//deactivate all channel.
+				}
 			}
 		}
 		
@@ -445,7 +489,6 @@ void ecd300TestJbi(void)
 			}
 		}
 	}
-#endif
 
 	while(1)
 	{
