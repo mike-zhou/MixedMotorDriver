@@ -175,35 +175,29 @@ void main_uart_rx_notify(uint8_t port)
 
 void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 {
-	printString("Host is configuring seiral port: ");
+	printString("Host is configuring serial port: ");
 	printHex(port);
 	printString("\r\n");
 }
 
 
-static void deactivate_all_channels(){
+static void deactivate_all_solenoids(){
 	PORTC_DIR=0x00;
-	PORTB_DIR=0x00;
-	PORTA_DIR=0x00;
-	PORTK_DIR=0x00;
-	PORTJ_DIR=0x00;
-	PORTH_DIR=0x00;
-	PORTF_DIR=0x00;
-	PORTE_DIR=0x00;
 	PORTC_OUT=0x00;
-	PORTB_OUT=0x00;
-	PORTA_OUT=0x00;
-	PORTK_OUT=0x00;
-	PORTJ_OUT=0x00;
-	PORTH_OUT=0x00;
-	PORTF_OUT=0x00;
-	PORTE_OUT=0x00;
 }
 
-//return true if any channel is enabled, otherwise return false.
-static bool activate_channel(unsigned char channel)
+static void disconnect_all_smart_card()
 {
-	deactivate_all_channels();
+	PORTA_DIR=0x00;
+	PORTK_DIR=0x00;
+	PORTA_OUT=0x00;
+	PORTK_OUT=0x00;
+}
+
+//return true if any solenoid is enabled, otherwise return false.
+static bool activate_solenoid(unsigned char channel)
+{
+	deactivate_all_solenoids();
 	
 	switch(channel)
 	{
@@ -223,122 +217,385 @@ static bool activate_channel(unsigned char channel)
 			PORTC_OUT=0x02;
 			PORTC_DIR=0x02;
 			break;
-		case 5: //pb7
-			PORTB_OUT=0x80;
-			PORTB_DIR=0x80;
-			break;
-		case 6: //pb5
-			PORTB_OUT=0x20;
-			PORTB_DIR=0x20;
-			break;
-		case 7: //pb3
-			PORTB_OUT=0x08;
-			PORTB_DIR=0x08;
-			break;
-		case 8: //pb1
-			PORTB_OUT=0x02;
-			PORTB_DIR=0x02;
-			break;
-		case 9: //pa7
-			PORTA_OUT=0x80;
-			PORTA_DIR=0x80;
-			break;
-		case 10: //pa5
-			PORTA_OUT=0x20;
-			PORTA_DIR=0x20;
-			break;
-		case 11: //pa3
-			PORTA_OUT=0x08;
-			PORTA_DIR=0x08;
-			break;
-		case 12: //pa1
-			PORTA_OUT=0x02;
-			PORTA_DIR=0x02;
-			break;
-		case 13: //pk7
-			PORTK_OUT=0x80;
-			PORTK_DIR=0x80;
-			break;
-		case 14: //pk5
-			PORTK_OUT=0x20;
-			PORTK_DIR=0x20;
-			break;
-		case 15: //pk3
-			PORTK_OUT=0x08;
-			PORTK_DIR=0x08;
-			break;
-		case 16: //pk1
-			PORTK_OUT=0x02;
-			PORTK_DIR=0x02;
-			break;
-		case 17: //pj7
-			PORTJ_OUT=0x80;
-			PORTJ_DIR=0x80;
-			break;
-		case 18: //pj5
-			PORTJ_OUT=0x20;
-			PORTJ_DIR=0x20;
-			break;
-		case 19: //pj3
-			PORTJ_OUT=0x08;
-			PORTJ_DIR=0x08;
-			break;
-		case 20: //pj1
-			PORTJ_OUT=0x02;
-			PORTJ_DIR=0x02;
-			break;
-		case 21: //ph7
-			PORTH_OUT=0x80;
-			PORTH_DIR=0x80;
-			break;
-		case 22: //ph5
-			PORTH_OUT=0x20;
-			PORTH_DIR=0x20;
-			break;
-		case 23: //ph3
-			PORTH_OUT=0x08;
-			PORTH_DIR=0x08;
-			break;
-		case 24: //ph1
-			PORTH_OUT=0x02;
-			PORTH_DIR=0x02;
-			break;
-		case 25: //pf7
-			PORTF_OUT=0x80;
-			PORTF_DIR=0x80;
-			break;
-		case 26: //pf5
-			PORTF_OUT=0x20;
-			PORTF_DIR=0x20;
-			break;
-		case 27: //pf3
-			PORTF_OUT=0x08;
-			PORTF_DIR=0x08;
-			break;
-		case 28: //pf1
-			PORTF_OUT=0x02;
-			PORTF_DIR=0x02;
-			break;
-		case 29: //pe7
-			PORTE_OUT=0x80;
-			PORTE_DIR=0x80;
-			break;
-		case 30: //pe5
-			PORTE_OUT=0x20;
-			PORTE_DIR=0x20;
-			break;
-		case 31: //pe3
-			PORTE_OUT=0x08;
-			PORTE_DIR=0x08;
-			break;
-		case 32: //pe1
-			PORTE_OUT=0x02;
-			PORTE_DIR=0x02;
-			break;
 		default:
 			return false;
 			break;
 	}
+	return true;
+}
+
+static bool activate_smart_card(unsigned char index)
+{
+	disconnect_all_smart_card();
+	
+	switch(index)
+	{
+		case 1:
+			PORTA_OUTSET = 0x80;
+			PORTA_DIRSET = 0x80;
+			break;
+		case 2:
+			PORTA_OUTSET = 0x40;
+			PORTA_DIRSET = 0x40;
+			break;
+		case 3:
+			PORTA_OUTSET = 0x20;
+			PORTA_DIRSET = 0x20;
+			break;
+		case 4:
+			PORTA_OUTSET = 0x10;
+			PORTA_DIRSET = 0x10;
+			break;
+		case 5:
+			PORTA_OUTSET = 0x08;
+			PORTA_DIRSET = 0x08;
+			break;
+		case 6:
+			PORTA_OUTSET = 0x04;
+			PORTA_DIRSET = 0x04;
+			break;
+		case 7:
+			PORTA_OUTSET = 0x02;
+			PORTA_DIRSET = 0x02;
+			break;
+		case 8:
+			PORTA_OUTSET = 0x01;
+			PORTA_DIRSET = 0x01;
+			break;
+		case 9:
+			PORTK_OUTSET = 0x80;
+			PORTK_DIRSET = 0x80;
+			break;
+		case 10:
+			PORTK_OUTSET = 0x40;
+			PORTK_DIRSET = 0x40;
+			break;
+		case 11:
+			PORTK_OUTSET = 0x20;
+			PORTK_DIRSET = 0x20;
+			break;
+		case 12:
+			PORTK_OUTSET = 0x10;
+			PORTK_DIRSET = 0x10;
+			break;
+		case 13:
+			PORTK_OUTSET = 0x08;
+			PORTK_DIRSET = 0x08;
+			break;
+		case 14:
+			PORTK_OUTSET = 0x04;
+			PORTK_DIRSET = 0x04;
+			break;
+		case 15:
+			PORTK_OUTSET = 0x02;
+			PORTK_DIRSET = 0x02;
+			break;
+		case 16:
+			PORTK_OUTSET = 0x01;
+			PORTK_DIRSET = 0x01;
+			break;		
+		default:
+			return false;
+			break;
+	}
+	
+	return true;
+}
+
+static bool test_smart_card_connection(void)
+{
+	PORTB_DIR = 0x0F;
+	
+	PORTB_OUT = 0x00;
+	if((PORTB_IN & 0xF0) != 0) {
+		return false;
+	}
+	
+	PORTB_OUT = 0x0F;
+	if((PORTB_IN & 0xF0) != 0xF0) {
+		return false;
+	}
+	
+	PORTB_OUT = 0x01;
+	if((PORTB_IN & 0xF0) != 0x10) {
+		return false;
+	}
+
+	PORTB_OUT = 0x02;
+	if((PORTB_IN & 0xF0) != 0x20) {
+		return false;
+	}
+
+	PORTB_OUT = 0x04;
+	if((PORTB_IN & 0xF0) != 0x40) {
+		return false;
+	}
+
+	PORTB_OUT = 0x08;
+	if((PORTB_IN & 0xF0) != 0x80) {
+		return false;
+	}
+
+	PORTB_OUT = 0x0E;
+	if((PORTB_IN & 0xF0) != 0xE0) {
+		return false;
+	}
+
+	PORTB_OUT = 0x0D;
+	if((PORTB_IN & 0xF0) != 0xD0) {
+		return false;
+	}
+
+	PORTB_OUT = 0x0B;
+	if((PORTB_IN & 0xF0) != 0xB0) {
+		return false;
+	}
+
+	PORTB_OUT = 0x07;
+	if((PORTB_IN & 0xF0) != 0x70) {
+		return false;
+	}
+
+	return true;
+}
+
+static bool test_smart_card_connection_slow(void)
+{
+	unsigned short initialCounter;
+	unsigned short currentCounter;
+			
+	PORTB_DIR = 0x0F;
+	
+	PORTB_OUT = 0x00;
+	//wait for 1 second
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+	}
+	if((PORTB_IN & 0xF0) != 0) {
+		return false;
+	}
+	
+	PORTB_OUT = 0x0F;
+	//wait for 1 second
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+	}
+	if((PORTB_IN & 0xF0) != 0xF0) {
+		return false;
+	}
+	
+	PORTB_OUT = 0x01;
+	//wait for 1 second
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+	}
+	if((PORTB_IN & 0xF0) != 0x10) {
+		return false;
+	}
+
+	PORTB_OUT = 0x02;
+	//wait for 1 second
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+	}
+	if((PORTB_IN & 0xF0) != 0x20) {
+		return false;
+	}
+
+	PORTB_OUT = 0x04;
+	//wait for 1 second
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+	}
+	if((PORTB_IN & 0xF0) != 0x40) {
+		return false;
+	}
+
+	PORTB_OUT = 0x08;
+	//wait for 1 second
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+	}
+	if((PORTB_IN & 0xF0) != 0x80) {
+		return false;
+	}
+
+	PORTB_OUT = 0x0E;
+	//wait for 1 second
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+	}
+	if((PORTB_IN & 0xF0) != 0xE0) {
+		return false;
+	}
+
+	PORTB_OUT = 0x0D;
+	//wait for 1 second
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+	}
+	if((PORTB_IN & 0xF0) != 0xD0) {
+		return false;
+	}
+
+	PORTB_OUT = 0x0B;
+	//wait for 1 second
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+	}
+	if((PORTB_IN & 0xF0) != 0xB0) {
+		return false;
+	}
+
+	PORTB_OUT = 0x07;
+	//wait for 1 second
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > tc_get_resolution(&TCC0)) {
+				break;
+			}
+		}
+	}
+	if((PORTB_IN & 0xF0) != 0x70) {
+		return false;
+	}
+
 	return true;
 }
 
@@ -357,7 +614,7 @@ void ecd300TestJbi(void)
 	
 	uint32_t resolution;
 	
-	bool channelActivated = false;
+	bool soleniodActivated = false;
 	unsigned short activationLength;
 	unsigned short initialCounter;
 
@@ -432,36 +689,109 @@ void ecd300TestJbi(void)
 				PORTD_OUTSET = 0x01;
 			}
 			
-			if((key == 0x0D) && (!channelActivated)) 
+			if((key == 0x0D) && (!soleniodActivated)) 
 			{ 
-				unsigned char channel = 0;
-				unsigned short counter;
+				unsigned char cmd;
+				unsigned char param = 0;
+				
 				if(inputConsumerIndex != inputProducerIndex) {
+					cmd = inputBuffer[inputConsumerIndex];
+					inputConsumerIndex = (inputConsumerIndex + 1) % bufferLength;
+					
 					while(inputConsumerIndex != inputProducerIndex) {
 						unsigned char c = inputBuffer[inputConsumerIndex];
 						if((c >= '0') && (c <= '9')) {
-							channel =  channel * 10 + c - '0';
+							param =  param * 10 + c - '0';
 							inputConsumerIndex = (inputConsumerIndex + 1) % bufferLength;
 						}
 						else {
 							if(c != 0x0D) {
 								// illegal character
 								printString("Illegal command\r\n");
-								channel = 0;
+								param = 0;
 							}
 							inputConsumerIndex = inputProducerIndex; //discard all content in inputBuffer.
 							break;
 						}
 					}
 				}
-				channelActivated = activate_channel(channel);
-				if(channelActivated) {
-					initialCounter = tc_read_count(&TCC0);
+				
+				if(0 == param)
+				{
+					deactivate_all_solenoids();
+					disconnect_all_smart_card();
+				}
+				else
+				{
+					switch(cmd)
+					{
+						case 'A':
+						case 'a':
+							// activate solenoid.
+							soleniodActivated = activate_solenoid(param);
+							if(soleniodActivated) {
+								initialCounter = tc_read_count(&TCC0);
+							}
+							break;
+						case 'C':
+						case 'c':
+							//connect smart card
+							activate_smart_card(param);
+							break;
+						case 'T':
+							activate_smart_card(param);
+							if(test_smart_card_connection()) {
+								outputBuffer[outputProducerIndex] = 'O';
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+								outputBuffer[outputProducerIndex] = 'K';
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+								outputBuffer[outputProducerIndex] = 0x0A;// Line Feed.
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+								outputBuffer[outputProducerIndex] = 0x0D;
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+							}
+							else {
+								outputBuffer[outputProducerIndex] = 'K';
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+								outputBuffer[outputProducerIndex] = 'O';
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+								outputBuffer[outputProducerIndex] = 0x0A;// Line Feed.
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+								outputBuffer[outputProducerIndex] = 0x0D;
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+							}
+							break;
+						case 't':
+							activate_smart_card(param);
+							if(test_smart_card_connection_slow()) {
+								outputBuffer[outputProducerIndex] = 'O';
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+								outputBuffer[outputProducerIndex] = 'K';
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+								outputBuffer[outputProducerIndex] = 0x0A;// Line Feed.
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+								outputBuffer[outputProducerIndex] = 0x0D;
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+							}
+							else {
+								outputBuffer[outputProducerIndex] = 'K';
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+								outputBuffer[outputProducerIndex] = 'O';
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+								outputBuffer[outputProducerIndex] = 0x0A;// Line Feed.
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+								outputBuffer[outputProducerIndex] = 0x0D;
+								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+							}
+							break;
+						default:
+							break;						
+					}
 				}
 			}
 		}
 		
-		if(channelActivated)
+		if(soleniodActivated)
 		{
 			// at 31MHz, 16-bit counter takes 2 seconds to overflow.
 			// the following code should have been executed many times in 2 seconds period,
@@ -470,13 +800,13 @@ void ecd300TestJbi(void)
 			
 			if(currentCounter > initialCounter) {
 				if((currentCounter - initialCounter) > activationLength) {
-					channelActivated = activate_channel(0);//deactivate all channel.
+					soleniodActivated = activate_solenoid(0);//deactivate all channel.
 				}
 			}
 			else if(currentCounter < initialCounter) {
 				// a wrap around
 				if(((0xffff - initialCounter) + currentCounter) > activationLength) {
-					channelActivated = activate_channel(0);//deactivate all channel.
+					soleniodActivated = activate_solenoid(0);//deactivate all channel.
 				}
 			}
 		}
