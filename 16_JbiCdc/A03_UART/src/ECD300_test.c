@@ -656,7 +656,7 @@ void ecd300TestJbi(void)
 	printHex((resolution>>8)&0xff);
 	printHex(resolution&0xff);
 	printString("\r\n");
-	activationLength = resolution/2; // 1/2 second.
+	activationLength = resolution/8; // 1/8 second.
 		
 	while(1)
 	{
