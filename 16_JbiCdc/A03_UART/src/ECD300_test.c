@@ -180,6 +180,17 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 	printString("\r\n");
 }
 
+static void activate_smart_card_status()
+{
+	PORTF_DIRSET = 0x01;
+	PORTF_OUTSET = 0x01;
+}
+
+static void deactivate_smart_card_status() 
+{
+	PORTF_DIRCLR = 0x01;
+	PORTF_OUTCLR = 0x01;
+}
 
 static void deactivate_all_solenoids(){
 	PORTC_DIR=0x00;
@@ -192,6 +203,7 @@ static void disconnect_all_smart_card()
 	PORTK_DIR=0x00;
 	PORTA_OUT=0x00;
 	PORTK_OUT=0x00;
+	deactivate_smart_card_status();
 }
 
 //return true if any solenoid is enabled, otherwise return false.
@@ -299,6 +311,7 @@ static bool activate_smart_card(unsigned char index)
 			break;
 	}
 	
+	activate_smart_card_status();
 	return true;
 }
 
@@ -599,15 +612,96 @@ static bool test_smart_card_connection_slow(void)
 	return true;
 }
 
+//bufferLength must not exceed 255.
+#define BUFFER_LENGTH 255 
+static	unsigned char inputBuffer[BUFFER_LENGTH];
+static	unsigned char outputBuffer[BUFFER_LENGTH];
+static	unsigned char inputProducerIndex=0;
+static	unsigned char inputConsumerIndex=0;
+static	unsigned char outputProducerIndex=0;
+static	unsigned char outputConsumerIndex=0;
+
+inline void clearInputBuffer()
+{
+	inputProducerIndex = 0;
+	inputConsumerIndex = 0;
+}
+
+//write a character to input buffer.
+//return true if parameter is saved successfully.
+//return false if input buffer overflows.
+bool writeInputBuffer(unsigned char c) 
+{
+	unsigned char nextProducerIndex = (inputProducerIndex + 1) % BUFFER_LENGTH;
+	
+	if(nextProducerIndex != inputConsumerIndex) {
+		inputBuffer[inputProducerIndex] = c;
+		inputProducerIndex = nextProducerIndex;
+		return true;
+	}
+	else {
+		//overflow.
+		clearInputBuffer();
+		return false;
+	}
+}
+
+// read a character from input buffer.
+// return the first character in input buffer,
+// return 0 if there is nothing in the input buffer.
+unsigned char readInputBuffer()
+{
+	if(inputConsumerIndex != inputProducerIndex) {
+		unsigned char c = inputBuffer[inputConsumerIndex];
+		inputConsumerIndex = (inputConsumerIndex + 1) % BUFFER_LENGTH;
+		return c;
+	}
+	else {
+		return 0;
+	}
+}
+
+//write a character to output buffer
+//return true if parameter is saved successfully
+//return false if output buffer overflows
+bool writeOutputBufferChar(unsigned char c)
+{
+	unsigned char nextProducerIndex;
+	
+	nextProducerIndex = (outputProducerIndex + 1) % BUFFER_LENGTH;
+	if(nextProducerIndex == outputConsumerIndex) {
+		//outputBuffer is full, change the last character to * to indicate character loss
+		outputBuffer[outputProducerIndex] = '*';
+		return false;
+	}
+	else {
+		outputBuffer[outputProducerIndex] = c;
+		outputProducerIndex = nextProducerIndex;
+		return true;
+	}
+}
+
+//write a string to output buffer
+void writeOutputBufferString(unsigned char * pString)
+{
+	unsigned char c;
+	
+	for(; ;) {
+		c = *pString++;
+		if(0 == c) {
+			writeOutputBufferChar('\r');
+			writeOutputBufferChar('\n');
+			break;
+		}
+		else {
+			writeOutputBufferChar(c);
+		}
+	}
+}
+
+
 void ecd300TestJbi(void)
 {
-	const unsigned char bufferLength=255;
-	unsigned char inputBuffer[bufferLength];
-	unsigned char outputBuffer[bufferLength];
-	unsigned char inputProducerIndex=0;
-	unsigned char inputConsumerIndex=0;
-	unsigned char outputProducerIndex=0;
-	unsigned char outputConsumerIndex=0;
 	
 	usart_rs232_options_t uartOption;
 	unsigned char c;
@@ -662,20 +756,15 @@ void ecd300TestJbi(void)
 	{
 		unsigned char key, tdo;
 		
-		
 		if (udi_cdc_is_rx_ready()) 
 		{
 			//read a command from USB buffer.
 			key = (unsigned char)udi_cdc_getc();
 			
-			// !!! buffer overflow is not checked for reason of simplicity.
-			inputBuffer[inputProducerIndex] = key;
-			outputBuffer[outputProducerIndex] = key;
-			inputProducerIndex = (inputProducerIndex + 1) % bufferLength;
-			outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+			writeInputBuffer(key);
+			writeOutputBufferChar(key);
 			if(key == 0x0D) {
-				outputBuffer[outputProducerIndex] = 0x0A;// Line Feed.
-				outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+				writeOutputBufferChar(0x0A); //append a line feed.
 			}
 			
 			printHex(key);
@@ -689,104 +778,99 @@ void ecd300TestJbi(void)
 				PORTD_OUTSET = 0x01;
 			}
 			
+			// 0x0D is command terminator
 			if((key == 0x0D) && (!soleniodActivated)) 
 			{ 
 				unsigned char cmd;
 				unsigned char param = 0;
+				bool validCmd = true;
 				
-				if(inputConsumerIndex != inputProducerIndex) {
-					cmd = inputBuffer[inputConsumerIndex];
-					inputConsumerIndex = (inputConsumerIndex + 1) % bufferLength;
-					
-					while(inputConsumerIndex != inputProducerIndex) {
-						unsigned char c = inputBuffer[inputConsumerIndex];
+				cmd = readInputBuffer();
+				printString("CMD:");printHex(cmd);printString("\r\n");
+				if(0 == cmd) {
+					validCmd = false;
+				}
+				else if(0x0D == cmd) {
+					validCmd = false;
+				}
+				else {
+					//read parameter of the command
+					for(;;) {
+						unsigned char c;
+						c = readInputBuffer();
+						
 						if((c >= '0') && (c <= '9')) {
 							param =  param * 10 + c - '0';
-							inputConsumerIndex = (inputConsumerIndex + 1) % bufferLength;
+						}
+						else if(0x0D == c) {
+							break; //end of a command
 						}
 						else {
-							if(c != 0x0D) {
-								// illegal character
-								printString("Illegal command\r\n");
-								param = 0;
-							}
-							inputConsumerIndex = inputProducerIndex; //discard all content in inputBuffer.
+							//illegal character in parameter
+							writeOutputBufferString("Illegal parameters\r\n");
+							clearInputBuffer();
+							validCmd = false;
 							break;
 						}
 					}
 				}
 				
-				if(0 == param)
-				{
+				printString("param:");printHex(param);printString("\r\n");
+				if(!validCmd) {
 					deactivate_all_solenoids();
 					disconnect_all_smart_card();
 				}
-				else
+				else 
 				{
 					switch(cmd)
 					{
-						case 'A':
-						case 'a':
-							// activate solenoid.
-							soleniodActivated = activate_solenoid(param);
-							if(soleniodActivated) {
-								initialCounter = tc_read_count(&TCC0);
-							}
-							break;
-						case 'C':
-						case 'c':
-							//connect smart card
+					case 'A':
+					case 'a':
+						// activate solenoid.
+						soleniodActivated = activate_solenoid(param);
+						if(soleniodActivated) {
+							initialCounter = tc_read_count(&TCC0);
+						}
+						break;
+					case 'C':
+					case 'c':
+						//connect smart card
+						activate_smart_card(param);
+						break;
+					case 'T':
+						for(param = 1; param <= 16; param++)
+						{
 							activate_smart_card(param);
-							break;
-						case 'T':
+							if(false == test_smart_card_connection()) {
+								writeOutputBufferChar(param);
+								writeOutputBufferString(":KO\r\n");
+								break;
+							}
+						}
+						if(16 == param){
+							writeOutputBufferString("OK\r\n");
+						}
+						break;
+					case 't':
+						for(param = 1; param <= 16; param++)
+						{
 							activate_smart_card(param);
-							if(test_smart_card_connection()) {
-								outputBuffer[outputProducerIndex] = 'O';
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-								outputBuffer[outputProducerIndex] = 'K';
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-								outputBuffer[outputProducerIndex] = 0x0A;// Line Feed.
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-								outputBuffer[outputProducerIndex] = 0x0D;
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
+							if(false == test_smart_card_connection_slow()) {
+								writeOutputBufferChar(param);
+								writeOutputBufferString(":KO\r\n");
+								break;
 							}
-							else {
-								outputBuffer[outputProducerIndex] = 'K';
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-								outputBuffer[outputProducerIndex] = 'O';
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-								outputBuffer[outputProducerIndex] = 0x0A;// Line Feed.
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-								outputBuffer[outputProducerIndex] = 0x0D;
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-							}
-							break;
-						case 't':
-							activate_smart_card(param);
-							if(test_smart_card_connection_slow()) {
-								outputBuffer[outputProducerIndex] = 'O';
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-								outputBuffer[outputProducerIndex] = 'K';
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-								outputBuffer[outputProducerIndex] = 0x0A;// Line Feed.
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-								outputBuffer[outputProducerIndex] = 0x0D;
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-							}
-							else {
-								outputBuffer[outputProducerIndex] = 'K';
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-								outputBuffer[outputProducerIndex] = 'O';
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-								outputBuffer[outputProducerIndex] = 0x0A;// Line Feed.
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-								outputBuffer[outputProducerIndex] = 0x0D;
-								outputProducerIndex = (outputProducerIndex + 1) % bufferLength;
-							}
-							break;
-						default:
-							break;						
-					}
+						}
+						if(16 == param){
+							writeOutputBufferString("OK\r\n");
+						}
+						break;
+					default:
+						writeOutputBufferString("Invalid command\r\n");
+						deactivate_all_solenoids();
+						disconnect_all_smart_card();
+						break;
+					}	
 				}
 			}
 		}
@@ -813,9 +897,10 @@ void ecd300TestJbi(void)
 		
 		if(outputConsumerIndex != outputProducerIndex)
 		{
+			// echo content of input.
 			if(udi_cdc_is_tx_ready()) {
 				udi_cdc_putc(outputBuffer[outputConsumerIndex]);
-				outputConsumerIndex = (outputConsumerIndex + 1) % bufferLength;
+				outputConsumerIndex = (outputConsumerIndex + 1) % BUFFER_LENGTH;
 			}
 		}
 	}
