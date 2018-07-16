@@ -236,6 +236,37 @@ static bool activate_solenoid(unsigned char channel)
 	return true;
 }
 
+// return true if the designated solenoid is activated
+// return false if the designated solenoid is not activated
+static bool is_solenoid_activated(unsigned char channel)
+{
+	switch(channel)
+	{
+		case 1: //pc6
+			if(PORTC_IN & 0x40)
+				return false;
+			else
+				return true;
+		case 2: //pc4
+			if(PORTC_IN & 0x10)
+				return false;
+			else
+				return true;
+		case 3: //pc2
+			if(PORTC_IN & 0x04)
+				return false;
+			else
+				return true;
+		case 4: //pc0
+			if(PORTC_IN & 0x01)
+				return false;
+			else
+				return true;
+		default:
+			return false;
+	}
+}
+
 static bool activate_smart_card(unsigned char index)
 {
 	disconnect_all_smart_card();
@@ -612,6 +643,29 @@ static bool test_smart_card_connection_slow(void)
 	return true;
 }
 
+// is power available
+bool is_power_ok()
+{
+	//PD5
+	if(PORTD_IN	& 0x20) {
+		return false;
+	}
+	else {
+		return true;
+	}
+}
+
+bool is_power_fuse_ok() 
+{
+	//PD4
+	if(PORTD_IN & 0x10)
+		return true;
+	else 
+		return false;
+}
+
+#define PRODUCT_NAME "SmartCardSwitchV1.0\r\n"
+
 //bufferLength must not exceed 255.
 #define BUFFER_LENGTH 255 
 static	unsigned char inputBuffer[BUFFER_LENGTH];
@@ -689,8 +743,6 @@ void writeOutputBufferString(unsigned char * pString)
 	for(; ;) {
 		c = *pString++;
 		if(0 == c) {
-			writeOutputBufferChar('\r');
-			writeOutputBufferChar('\n');
 			break;
 		}
 		else {
@@ -709,8 +761,10 @@ void ecd300TestJbi(void)
 	uint32_t resolution;
 	
 	bool soleniodActivated = false;
-	unsigned short activationLength;
 	unsigned short initialCounter;
+	unsigned short activationLength;
+	unsigned char solenoidIndex = 0;
+	bool solenoidActivationStatusReported;
 
 	PORTA_DIR=0x00;
 	PORTB_DIR=0x00;
@@ -829,6 +883,8 @@ void ecd300TestJbi(void)
 						// activate solenoid.
 						soleniodActivated = activate_solenoid(param);
 						if(soleniodActivated) {
+							solenoidIndex = param;
+							solenoidActivationStatusReported = false;
 							initialCounter = tc_read_count(&TCC0);
 						}
 						break;
@@ -838,6 +894,7 @@ void ecd300TestJbi(void)
 						activate_smart_card(param);
 						break;
 					case 'T':
+						//fast self Test
 						for(param = 1; param <= 16; param++)
 						{
 							activate_smart_card(param);
@@ -852,6 +909,7 @@ void ecd300TestJbi(void)
 						}
 						break;
 					case 't':
+						//slow self test
 						for(param = 1; param <= 16; param++)
 						{
 							activate_smart_card(param);
@@ -865,6 +923,25 @@ void ecd300TestJbi(void)
 							writeOutputBufferString("OK\r\n");
 						}
 						break;
+					case 'N':
+					case 'n':
+						//name
+						writeOutputBufferString(PRODUCT_NAME);
+						break;
+					case 'P':
+					case 'p':
+						//power status
+						if(is_power_ok())
+							writeOutputBufferString("Power:OK\r\n");
+						else
+							writeOutputBufferString("Power:KO\r\n");
+						
+						if(is_power_fuse_ok())
+							writeOutputBufferString("PowerFuse:OK\r\n");
+						else
+							writeOutputBufferString("PowerFuse:KO\r\n");
+							
+						break;						
 					default:
 						writeOutputBufferString("Invalid command\r\n");
 						deactivate_all_solenoids();
@@ -881,6 +958,16 @@ void ecd300TestJbi(void)
 			// the following code should have been executed many times in 2 seconds period,
 			// so only 1 wrap around is considered in the following code.
 			unsigned short currentCounter = tc_read_count(&TCC0);
+			
+			if(!solenoidActivationStatusReported) {
+				if(is_solenoid_activated(solenoidIndex)) {
+					writeOutputBufferString("Solenoid:0x");
+					writeOutputBufferChar('0'+(solenoidIndex>>4));
+					writeOutputBufferChar('0'+(solenoidIndex&0x0F));
+					writeOutputBufferString(" is activated\r\n");
+					solenoidActivationStatusReported = true;
+				}
+			}
 			
 			if(currentCounter > initialCounter) {
 				if((currentCounter - initialCounter) > activationLength) {
