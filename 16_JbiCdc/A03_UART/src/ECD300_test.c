@@ -180,6 +180,95 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 	printString("\r\n");
 }
 
+///////////////////////////////////////////////////////////////////
+
+#define PRODUCT_NAME "SmartCardSwitchV1.0\r\n"
+
+//bufferLength must not exceed 255.
+#define BUFFER_LENGTH 255
+static	unsigned char inputBuffer[BUFFER_LENGTH];
+static	unsigned char outputBuffer[BUFFER_LENGTH];
+static	unsigned char inputProducerIndex=0;
+static	unsigned char inputConsumerIndex=0;
+static	unsigned char outputProducerIndex=0;
+static	unsigned char outputConsumerIndex=0;
+
+inline void clearInputBuffer()
+{
+	inputProducerIndex = 0;
+	inputConsumerIndex = 0;
+}
+
+//write a character to input buffer.
+//return true if parameter is saved successfully.
+//return false if input buffer overflows.
+bool writeInputBuffer(unsigned char c)
+{
+	unsigned char nextProducerIndex = (inputProducerIndex + 1) % BUFFER_LENGTH;
+	
+	if(nextProducerIndex != inputConsumerIndex) {
+		inputBuffer[inputProducerIndex] = c;
+		inputProducerIndex = nextProducerIndex;
+		return true;
+	}
+	else {
+		//overflow.
+		clearInputBuffer();
+		return false;
+	}
+}
+
+// read a character from input buffer.
+// return the first character in input buffer,
+// return 0 if there is nothing in the input buffer.
+unsigned char readInputBuffer()
+{
+	if(inputConsumerIndex != inputProducerIndex) {
+		unsigned char c = inputBuffer[inputConsumerIndex];
+		inputConsumerIndex = (inputConsumerIndex + 1) % BUFFER_LENGTH;
+		return c;
+	}
+	else {
+		return 0;
+	}
+}
+
+//write a character to output buffer
+//return true if parameter is saved successfully
+//return false if output buffer overflows
+bool writeOutputBufferChar(unsigned char c)
+{
+	unsigned char nextProducerIndex;
+	
+	nextProducerIndex = (outputProducerIndex + 1) % BUFFER_LENGTH;
+	if(nextProducerIndex == outputConsumerIndex) {
+		//outputBuffer is full, change the last character to * to indicate character loss
+		outputBuffer[outputProducerIndex] = '*';
+		return false;
+	}
+	else {
+		outputBuffer[outputProducerIndex] = c;
+		outputProducerIndex = nextProducerIndex;
+		return true;
+	}
+}
+
+//write a string to output buffer
+void writeOutputBufferString(unsigned char * pString)
+{
+	unsigned char c;
+	
+	for(; ;) {
+		c = *pString++;
+		if(0 == c) {
+			break;
+		}
+		else {
+			writeOutputBufferChar(c);
+		}
+	}
+}
+
 static void activate_smart_card_status()
 {
 	PORTF_DIRSET = 0x01;
@@ -348,55 +437,118 @@ static bool activate_smart_card(unsigned char index)
 
 static bool test_smart_card_connection(void)
 {
+	unsigned char tmp;
+	
+	unsigned short initialCounter;
+	unsigned short currentCounter;
+	//wait for 1/8 second
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > tc_get_resolution(&TCC0)/8) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > tc_get_resolution(&TCC0)/8) {
+				break;
+			}
+		}
+	}
+	
 	PORTB_DIR = 0x0F;
 	
 	PORTB_OUT = 0x00;
-	if((PORTB_IN & 0xF0) != 0) {
+	tmp = PORTB_IN;
+	if((tmp & 0xF0) != 0) {
+		writeOutputBufferChar('0' + (PORTB_OUT&0x0F));
+		writeOutputBufferChar('0' + (tmp>>4));
+		writeOutputBufferString("\r\n");
 		return false;
 	}
 	
 	PORTB_OUT = 0x0F;
-	if((PORTB_IN & 0xF0) != 0xF0) {
+	tmp = PORTB_IN;
+	if((tmp & 0xF0) != 0xF0) {
+		writeOutputBufferChar('0' + (PORTB_OUT&0x0F));
+		writeOutputBufferChar('0' + (tmp>>4));
+		writeOutputBufferString("\r\n");
 		return false;
 	}
 	
 	PORTB_OUT = 0x01;
-	if((PORTB_IN & 0xF0) != 0x10) {
+	tmp = PORTB_IN;
+	if((tmp & 0xF0) != 0x10) {
+		writeOutputBufferChar('0' + (PORTB_OUT&0x0F));
+		writeOutputBufferChar('0' + (tmp>>4));
+		writeOutputBufferString("\r\n");
 		return false;
 	}
 
 	PORTB_OUT = 0x02;
-	if((PORTB_IN & 0xF0) != 0x20) {
+	tmp = PORTB_IN;
+	if((tmp & 0xF0) != 0x20) {
+		writeOutputBufferChar('0' + (PORTB_OUT&0x0F));
+		writeOutputBufferChar('0' + (tmp>>4));
+		writeOutputBufferString("\r\n");
 		return false;
 	}
 
 	PORTB_OUT = 0x04;
-	if((PORTB_IN & 0xF0) != 0x40) {
+	tmp = PORTB_IN;
+	if((tmp & 0xF0) != 0x40) {
+		writeOutputBufferChar('0' + (PORTB_OUT&0x0F));
+		writeOutputBufferChar('0' + (tmp>>4));
+		writeOutputBufferString("\r\n");
 		return false;
 	}
 
 	PORTB_OUT = 0x08;
-	if((PORTB_IN & 0xF0) != 0x80) {
+	tmp = PORTB_IN;
+	if((tmp & 0xF0) != 0x80) {
+		writeOutputBufferChar('0' + (PORTB_OUT&0x0F));
+		writeOutputBufferChar('0' + (tmp>>4));
+		writeOutputBufferString("\r\n");
 		return false;
 	}
 
 	PORTB_OUT = 0x0E;
-	if((PORTB_IN & 0xF0) != 0xE0) {
+	tmp = PORTB_IN;
+	if((tmp & 0xF0) != 0xE0) {
+		writeOutputBufferChar('0' + (PORTB_OUT&0x0F));
+		writeOutputBufferChar('0' + (tmp>>4));
+		writeOutputBufferString("\r\n");
 		return false;
 	}
 
 	PORTB_OUT = 0x0D;
-	if((PORTB_IN & 0xF0) != 0xD0) {
+	tmp = PORTB_IN;
+	if((tmp & 0xF0) != 0xD0) {
+		writeOutputBufferChar('0' + (PORTB_OUT&0x0F));
+		writeOutputBufferChar('0' + (tmp>>4));
+		writeOutputBufferString("\r\n");
 		return false;
 	}
 
 	PORTB_OUT = 0x0B;
-	if((PORTB_IN & 0xF0) != 0xB0) {
+	tmp = PORTB_IN;
+	if((tmp & 0xF0) != 0xB0) {
+		writeOutputBufferChar('0' + (PORTB_OUT&0x0F));
+		writeOutputBufferChar('0' + (tmp>>4));
+		writeOutputBufferString("\r\n");
 		return false;
 	}
 
 	PORTB_OUT = 0x07;
-	if((PORTB_IN & 0xF0) != 0x70) {
+	tmp = PORTB_IN;
+	if((tmp & 0xF0) != 0x70) {
+		writeOutputBufferChar('0' + (PORTB_OUT&0x0F));
+		writeOutputBufferChar('0' + (tmp>>4));
+		writeOutputBufferString("\r\n");
 		return false;
 	}
 
@@ -664,93 +816,6 @@ bool is_power_fuse_ok()
 		return false;
 }
 
-#define PRODUCT_NAME "SmartCardSwitchV1.0\r\n"
-
-//bufferLength must not exceed 255.
-#define BUFFER_LENGTH 255 
-static	unsigned char inputBuffer[BUFFER_LENGTH];
-static	unsigned char outputBuffer[BUFFER_LENGTH];
-static	unsigned char inputProducerIndex=0;
-static	unsigned char inputConsumerIndex=0;
-static	unsigned char outputProducerIndex=0;
-static	unsigned char outputConsumerIndex=0;
-
-inline void clearInputBuffer()
-{
-	inputProducerIndex = 0;
-	inputConsumerIndex = 0;
-}
-
-//write a character to input buffer.
-//return true if parameter is saved successfully.
-//return false if input buffer overflows.
-bool writeInputBuffer(unsigned char c) 
-{
-	unsigned char nextProducerIndex = (inputProducerIndex + 1) % BUFFER_LENGTH;
-	
-	if(nextProducerIndex != inputConsumerIndex) {
-		inputBuffer[inputProducerIndex] = c;
-		inputProducerIndex = nextProducerIndex;
-		return true;
-	}
-	else {
-		//overflow.
-		clearInputBuffer();
-		return false;
-	}
-}
-
-// read a character from input buffer.
-// return the first character in input buffer,
-// return 0 if there is nothing in the input buffer.
-unsigned char readInputBuffer()
-{
-	if(inputConsumerIndex != inputProducerIndex) {
-		unsigned char c = inputBuffer[inputConsumerIndex];
-		inputConsumerIndex = (inputConsumerIndex + 1) % BUFFER_LENGTH;
-		return c;
-	}
-	else {
-		return 0;
-	}
-}
-
-//write a character to output buffer
-//return true if parameter is saved successfully
-//return false if output buffer overflows
-bool writeOutputBufferChar(unsigned char c)
-{
-	unsigned char nextProducerIndex;
-	
-	nextProducerIndex = (outputProducerIndex + 1) % BUFFER_LENGTH;
-	if(nextProducerIndex == outputConsumerIndex) {
-		//outputBuffer is full, change the last character to * to indicate character loss
-		outputBuffer[outputProducerIndex] = '*';
-		return false;
-	}
-	else {
-		outputBuffer[outputProducerIndex] = c;
-		outputProducerIndex = nextProducerIndex;
-		return true;
-	}
-}
-
-//write a string to output buffer
-void writeOutputBufferString(unsigned char * pString)
-{
-	unsigned char c;
-	
-	for(; ;) {
-		c = *pString++;
-		if(0 == c) {
-			break;
-		}
-		else {
-			writeOutputBufferChar(c);
-		}
-	}
-}
-
 
 void ecd300TestJbi(void)
 {
@@ -899,7 +964,9 @@ void ecd300TestJbi(void)
 						{
 							activate_smart_card(param);
 							if(false == test_smart_card_connection()) {
-								writeOutputBufferChar(param);
+								writeOutputBufferString("0x");
+								writeOutputBufferChar('0'+(param>>4));
+								writeOutputBufferChar('0'+(param&0x0F));
 								writeOutputBufferString(":KO\r\n");
 								break;
 							}
@@ -910,16 +977,18 @@ void ecd300TestJbi(void)
 						break;
 					case 't':
 						//slow self test
-						for(param = 1; param <= 16; param++)
+						for(param = 16; param > 0; param--)
 						{
 							activate_smart_card(param);
 							if(false == test_smart_card_connection_slow()) {
-								writeOutputBufferChar(param);
+								writeOutputBufferString("0x");
+								writeOutputBufferChar('0'+(param>>4));
+								writeOutputBufferChar('0'+(param&0x0F));
 								writeOutputBufferString(":KO\r\n");
 								break;
 							}
 						}
-						if(16 == param){
+						if(0 == param){
 							writeOutputBufferString("OK\r\n");
 						}
 						break;
