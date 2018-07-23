@@ -816,6 +816,44 @@ bool is_power_fuse_ok()
 		return false;
 }
 
+static void init_counter()
+{
+	//set counter. The resolution should be 31MHz/1024.
+	tc_enable(&TCC0);
+	tc_set_resolution(&TCC0, 1);
+}
+
+static void counter_wait(unsigned char time)
+{
+	uint32_t resolution;
+	unsigned short activationLength;
+	unsigned short initialCounter;
+
+	if(0==time)
+		return;
+		
+	resolution=tc_get_resolution(&TCC0);
+	activationLength = resolution/time; 
+
+	// wait for timeout
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		unsigned short currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > activationLength) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > activationLength) {
+				break;
+			}
+		}
+	}
+}
 
 void ecd300TestJbi(void)
 {
@@ -823,11 +861,7 @@ void ecd300TestJbi(void)
 	usart_rs232_options_t uartOption;
 	unsigned char c;
 	
-	uint32_t resolution;
-	
 	bool soleniodActivated = false;
-	unsigned short initialCounter;
-	unsigned short activationLength;
 	unsigned char solenoidIndex = 0;
 	bool solenoidActivationStatusReported;
 
@@ -855,22 +889,12 @@ void ecd300TestJbi(void)
 	ecd300InitUart(ECD300_UART_2, &uartOption);
 	printString("Serial Port in Power Allocator was initialized\r\n");
 
+	init_counter();
+	
 	//PD0 works as indicator of host output
 	PORTD_DIRSET = 0x01;
 	udc_start();
 	
-	//set counter. The resolution should be 31MHz/1024.
-	tc_enable(&TCC0);
-	tc_set_resolution(&TCC0, 1);
-	resolution=tc_get_resolution(&TCC0);
-	resolution=tc_get_resolution(&TCC0);
-	printHex((resolution>>24)&0xff);
-	printHex((resolution>>16)&0xff);
-	printHex((resolution>>8)&0xff);
-	printHex(resolution&0xff);
-	printString("\r\n");
-	activationLength = resolution/8; // 1/8 second.
-		
 	while(1)
 	{
 		unsigned char key, tdo;
@@ -943,14 +967,26 @@ void ecd300TestJbi(void)
 				{
 					switch(cmd)
 					{
-					case 'A':
-					case 'a':
-						// activate solenoid.
-						soleniodActivated = activate_solenoid(param);
-						if(soleniodActivated) {
-							solenoidIndex = param;
-							solenoidActivationStatusReported = false;
-							initialCounter = tc_read_count(&TCC0);
+					case 'I':
+					case 'i':
+						// Insert smart card with solenoid 1.
+						for(; param>0; param--)
+						{
+							activate_solenoid(1);
+							counter_wait(8);
+							activate_solenoid(0);
+							counter_wait(8);
+						}
+						break;
+					case 'D':
+					case 'd':
+						// drag smart card with solenoid 2.
+						for(; param>0; param--)
+						{
+							activate_solenoid(2);
+							counter_wait(8);
+							activate_solenoid(0);
+							counter_wait(8);
 						}
 						break;
 					case 'C':
@@ -1017,36 +1053,6 @@ void ecd300TestJbi(void)
 						disconnect_all_smart_card();
 						break;
 					}	
-				}
-			}
-		}
-		
-		if(soleniodActivated)
-		{
-			// at 31MHz, 16-bit counter takes 2 seconds to overflow.
-			// the following code should have been executed many times in 2 seconds period,
-			// so only 1 wrap around is considered in the following code.
-			unsigned short currentCounter = tc_read_count(&TCC0);
-			
-			if(!solenoidActivationStatusReported) {
-				if(is_solenoid_activated(solenoidIndex)) {
-					writeOutputBufferString("Solenoid:0x");
-					writeOutputBufferChar('0'+(solenoidIndex>>4));
-					writeOutputBufferChar('0'+(solenoidIndex&0x0F));
-					writeOutputBufferString(" is activated\r\n");
-					solenoidActivationStatusReported = true;
-				}
-			}
-			
-			if(currentCounter > initialCounter) {
-				if((currentCounter - initialCounter) > activationLength) {
-					soleniodActivated = activate_solenoid(0);//deactivate all channel.
-				}
-			}
-			else if(currentCounter < initialCounter) {
-				// a wrap around
-				if(((0xffff - initialCounter) + currentCounter) > activationLength) {
-					soleniodActivated = activate_solenoid(0);//deactivate all channel.
 				}
 			}
 		}
