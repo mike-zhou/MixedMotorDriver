@@ -214,6 +214,7 @@ static struct CommandState
 		struct 
 		{
 			unsigned char solenoidIndex;
+			unsigned char solenoidPairIndex;
 			unsigned char cycleIndex; // a cycle includes an activation period and a deactivation period.
 			bool phaseActivationFinished;
 			bool phaseDeactivationFinished;
@@ -1049,7 +1050,7 @@ static void check_status()
 	}
 	
 	//check solenoids
-	for(unsigned char solenoidIndex = 1; solenoidIndex <=2; solenoidIndex++) 
+	for(unsigned char solenoidIndex = 1; solenoidIndex <=4; solenoidIndex++) 
 	{
 		if(status.solenoidActivated[solenoidIndex] != is_solenoid_activated(solenoidIndex)) {
 			status.solenoidActivated[solenoidIndex] = is_solenoid_activated(solenoidIndex);
@@ -1094,7 +1095,7 @@ static void write_status()
 		writeOutputBufferString("PowerFuse is broken\r\n");
 	}
 	else {
-		writeOutputBufferString("PowerFuse is ok\r\n");
+		writeOutputBufferString("PowerFuse is OK\r\n");
 	}		
 
 	//smart card
@@ -1138,6 +1139,7 @@ void run_command()
 		{
 			case 'I'://insert smart card
 				commandState.u.solenoid.solenoidIndex = 1;
+				commandState.u.solenoid.solenoidPairIndex = 2;
 				commandState.u.solenoid.cycleIndex = 0;
 				commandState.u.solenoid.phaseActivationFinished = false;
 				commandState.u.solenoid.phaseDeactivationFinished = false;
@@ -1148,7 +1150,8 @@ void run_command()
 				break;
 
 			case 'P'://pull out smart card
-				commandState.u.solenoid.solenoidIndex = 2;
+				commandState.u.solenoid.solenoidIndex = 3;
+				commandState.u.solenoid.solenoidPairIndex = 0;
 				commandState.u.solenoid.cycleIndex = 0;
 				commandState.u.solenoid.phaseActivationFinished = false;
 				commandState.u.solenoid.phaseDeactivationFinished = false;
@@ -1216,10 +1219,15 @@ void run_command()
 						//activation phase finished
 						commandState.u.solenoid.phaseActivationFinished = true;
 						deactivate_all_solenoids();
+						if(commandState.u.solenoid.solenoidPairIndex != 0) {
+							//activate the other solenoid
+							activate_solenoid(commandState.u.solenoid.solenoidPairIndex);
+						}
 						commandState.u.solenoid.initialCounter = currentCounter;
 					}
 					else if(commandState.u.solenoid.phaseDeactivationFinished == false) {
 						//deactivation phase finished
+						deactivate_all_solenoids();
 						commandState.u.solenoid.phaseDeactivationFinished = true;
 					}
 				}
@@ -1263,10 +1271,6 @@ void ecd300TestJbi(void)
 	
 	usart_rs232_options_t uartOption;
 	unsigned char c;
-	
-	bool soleniodActivated = false;
-	unsigned char solenoidIndex = 0;
-	bool solenoidActivationStatusReported;
 	
 	PORTA_DIR=0x00;
 	PORTB_DIR=0x00;
