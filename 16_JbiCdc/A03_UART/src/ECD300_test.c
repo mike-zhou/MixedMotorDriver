@@ -995,8 +995,8 @@ static void init_status()
 	status.smartCardConnected = 0;
 	
 	for(solenoidIndex = 1; solenoidIndex <= SOLENOID_AMOUNT; solenoidIndex++){
-		status.solenoidActivated[solenoidIndex] = false;
-		status.solenoidIsPowered[solenoidIndex] = false;
+		status.solenoidActivated[solenoidIndex - 1] = false;
+		status.solenoidIsPowered[solenoidIndex - 1] = false;
 	}
 	
 	status.powerAvailable = false;
@@ -1050,11 +1050,11 @@ static void check_status()
 	}
 	
 	//check solenoids
-	for(unsigned char solenoidIndex = 1; solenoidIndex <=4; solenoidIndex++) 
+	for(unsigned char solenoidIndex = 1; solenoidIndex <= SOLENOID_AMOUNT; solenoidIndex++) 
 	{
-		if(status.solenoidActivated[solenoidIndex] != is_solenoid_activated(solenoidIndex)) {
-			status.solenoidActivated[solenoidIndex] = is_solenoid_activated(solenoidIndex);
-			if(status.solenoidActivated[solenoidIndex]) {
+		if(status.solenoidActivated[solenoidIndex - 1] != is_solenoid_activated(solenoidIndex)) {
+			status.solenoidActivated[solenoidIndex - 1] = is_solenoid_activated(solenoidIndex);
+			if(status.solenoidActivated[solenoidIndex - 1]) {
 				writeOutputBufferString("Solenoid 0x");
 				writeOutputBufferHex(solenoidIndex);
 				writeOutputBufferString(" is activated\r\n");
@@ -1066,9 +1066,9 @@ static void check_status()
 			}
 		}
 
-		if(status.solenoidIsPowered[solenoidIndex] != is_solenoid_powered(solenoidIndex)) {
-			status.solenoidIsPowered[solenoidIndex] = is_solenoid_powered(solenoidIndex);
-			if(status.solenoidIsPowered[solenoidIndex]) {
+		if(status.solenoidIsPowered[solenoidIndex - 1] != is_solenoid_powered(solenoidIndex)) {
+			status.solenoidIsPowered[solenoidIndex - 1] = is_solenoid_powered(solenoidIndex);
+			if(status.solenoidIsPowered[solenoidIndex - 1]) {
 				writeOutputBufferString("Solenoid 0x");
 				writeOutputBufferHex(solenoidIndex);
 				writeOutputBufferString(" is powered\r\n");
@@ -1109,11 +1109,11 @@ static void write_status()
 	}
 
 	//solenoids
-	for(unsigned char solenoidIndex = 1; solenoidIndex <=4; solenoidIndex++) 
+	for(unsigned char solenoidIndex = 1; solenoidIndex <= SOLENOID_AMOUNT; solenoidIndex++) 
 	{
 		writeOutputBufferString("Solenoid 0x");
 		writeOutputBufferHex(solenoidIndex);
-		if(status.solenoidActivated[solenoidIndex]) {
+		if(status.solenoidActivated[solenoidIndex - 1]) {
 			writeOutputBufferString(" is activated\r\n");
 		}
 		else {
@@ -1122,7 +1122,7 @@ static void write_status()
 
 		writeOutputBufferString("Solenoid 0x");
 		writeOutputBufferHex(solenoidIndex);
-		if(status.solenoidIsPowered[solenoidIndex]) {
+		if(status.solenoidIsPowered[solenoidIndex - 1]) {
 			writeOutputBufferString(" is powered\r\n");
 		}
 		else {
