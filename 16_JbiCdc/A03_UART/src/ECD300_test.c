@@ -184,6 +184,7 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 
 #define PRODUCT_NAME "ProductName: Smart Card Switch HV1.0 SV1.0"
 #define SOLENOID_AMOUNT 4
+#define DEFAULT_SOLENOID_DURATION_DIVISON 128
 
 //bufferLength must not exceed 255.
 #define BUFFER_LENGTH 0x1FF
@@ -1177,7 +1178,13 @@ void run_command()
 				break;
 
 			case 'D'://division
-				commandState.solenoidDurationDivision = commandState.param;
+				if(commandState.param > 0) {
+					commandState.solenoidDurationDivision = commandState.param;
+				}
+				else {
+					writeOutputBufferString("Invalid parameter of 'D' command. Restore division to default value\r\n");
+					commandState.solenoidDurationDivision = DEFAULT_SOLENOID_DURATION_DIVISON;
+				}
 				commandState.state = AWAITING_COMMAND;
 				break;
 				
@@ -1298,7 +1305,7 @@ void ecd300TestJbi(void)
 
 	init_counter();
 	
-	commandState.solenoidDurationDivision = 12; //default solenoid period is 1/12 second
+	commandState.solenoidDurationDivision = DEFAULT_SOLENOID_DURATION_DIVISON; 
 	
 	//PD0 works as indicator of host output
 	PORTD_DIRSET = 0x01;
