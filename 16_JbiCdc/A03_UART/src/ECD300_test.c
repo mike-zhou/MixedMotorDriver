@@ -343,36 +343,36 @@ void sendOutputBufferToHost()
 	}
 }
 
-static void activate_smart_card_status()
+static void SmartCard_activate_status()
 {
 	PORTF_DIRSET = 0x01;
 	PORTF_OUTSET = 0x01;
 }
 
-static void deactivate_smart_card_status() 
+static void SmartCard_deactivate_status() 
 {
 	PORTF_DIRCLR = 0x01;
 	PORTF_OUTCLR = 0x01;
 }
 
-static void deactivate_all_solenoids(){
+static void Solenoid_deactivate_all(){
 	PORTC_DIR=0x00;
 	PORTC_OUT=0x00;
 }
 
-static void disconnect_all_smart_card()
+static void SmartCard_disconnect_all()
 {
 	PORTA_DIR=0x00;
 	PORTK_DIR=0x00;
 	PORTA_OUT=0x00;
 	PORTK_OUT=0x00;
-	deactivate_smart_card_status();
+	SmartCard_deactivate_status();
 }
 
 //return true if any solenoid is enabled, otherwise return false.
-static bool activate_solenoid(unsigned char channel)
+static bool Solenoid_activate(unsigned char channel)
 {
-	deactivate_all_solenoids();
+	Solenoid_deactivate_all();
 	
 	switch(channel)
 	{
@@ -399,7 +399,7 @@ static bool activate_solenoid(unsigned char channel)
 	return true;
 }
 
-static bool is_solenoid_activated(unsigned char channel)
+static bool Solenoid_is_activated(unsigned char channel)
 {
 	switch(channel)
 	{
@@ -418,7 +418,7 @@ static bool is_solenoid_activated(unsigned char channel)
 
 // return true if the designated solenoid is activated
 // return false if the designated solenoid is not activated
-static bool is_solenoid_powered(unsigned char channel)
+static bool Solenoid_is_powered(unsigned char channel)
 {
 	switch(channel)
 	{
@@ -447,9 +447,9 @@ static bool is_solenoid_powered(unsigned char channel)
 	}
 }
 
-static bool activate_smart_card(unsigned char index)
+static bool SmartCard_activate(unsigned char index)
 {
-	disconnect_all_smart_card();
+	SmartCard_disconnect_all();
 	
 	switch(index)
 	{
@@ -522,11 +522,11 @@ static bool activate_smart_card(unsigned char index)
 			break;
 	}
 	
-	activate_smart_card_status();
+	SmartCard_activate_status();
 	return true;
 }
 
-static unsigned char get_activated_smart_card()
+static unsigned char SmartCard_get_activated()
 {
 	if(PORTA_DIR & 0x80)
 		return 1;
@@ -1012,7 +1012,7 @@ static void check_status()
 	bool powerFuseBroken;
 
 	//check which smart card is connected.
-	activatedSmartCard = get_activated_smart_card();
+	activatedSmartCard = SmartCard_get_activated();
 	if(status.smartCardConnected != activatedSmartCard) {
 		//smart card status changed.
 		if(status.smartCardConnected != 0) {
@@ -1054,8 +1054,8 @@ static void check_status()
 	//check solenoids
 	for(unsigned char solenoidIndex = 1; solenoidIndex <= SOLENOID_AMOUNT; solenoidIndex++) 
 	{
-		if(status.solenoidActivated[solenoidIndex - 1] != is_solenoid_activated(solenoidIndex)) {
-			status.solenoidActivated[solenoidIndex - 1] = is_solenoid_activated(solenoidIndex);
+		if(status.solenoidActivated[solenoidIndex - 1] != Solenoid_is_activated(solenoidIndex)) {
+			status.solenoidActivated[solenoidIndex - 1] = Solenoid_is_activated(solenoidIndex);
 			if(status.solenoidActivated[solenoidIndex - 1]) {
 				writeOutputBufferString("Solenoid 0x");
 				writeOutputBufferHex(solenoidIndex);
@@ -1068,8 +1068,8 @@ static void check_status()
 			}
 		}
 
-		if(status.solenoidIsPowered[solenoidIndex - 1] != is_solenoid_powered(solenoidIndex)) {
-			status.solenoidIsPowered[solenoidIndex - 1] = is_solenoid_powered(solenoidIndex);
+		if(status.solenoidIsPowered[solenoidIndex - 1] != Solenoid_is_powered(solenoidIndex)) {
+			status.solenoidIsPowered[solenoidIndex - 1] = Solenoid_is_powered(solenoidIndex);
 			if(status.solenoidIsPowered[solenoidIndex - 1]) {
 				writeOutputBufferString("Solenoid 0x");
 				writeOutputBufferHex(solenoidIndex);
@@ -1147,7 +1147,7 @@ void run_command()
 				commandState.u.solenoid.phaseDeactivationFinished = false;
 				commandState.u.solenoid.initialCounter = counter_get();
 				commandState.u.solenoid.period = tc_get_resolution(&TCC0)/commandState.solenoidDurationDivision;
-				activate_solenoid(commandState.u.solenoid.solenoidIndex);
+				Solenoid_activate(commandState.u.solenoid.solenoidIndex);
 				commandState.state = EXECUTING_COMMAND;
 				break;
 
@@ -1159,12 +1159,12 @@ void run_command()
 				commandState.u.solenoid.phaseDeactivationFinished = false;
 				commandState.u.solenoid.initialCounter = counter_get();
 				commandState.u.solenoid.period = tc_get_resolution(&TCC0)/commandState.solenoidDurationDivision;
-				activate_solenoid(commandState.u.solenoid.solenoidIndex);
+				Solenoid_activate(commandState.u.solenoid.solenoidIndex);
 				commandState.state = EXECUTING_COMMAND;
 				break;
 
 			case 'C'://connect smart card
-				activate_smart_card(commandState.param);
+				SmartCard_activate(commandState.param);
 				commandState.state = AWAITING_COMMAND;
 				break;
 
@@ -1191,8 +1191,8 @@ void run_command()
 				
 			default:
 				writeOutputBufferString("Unknown command at STARTING_COMMAND\r\n");
-				deactivate_all_solenoids();
-				disconnect_all_smart_card();
+				Solenoid_deactivate_all();
+				SmartCard_disconnect_all();
 				commandState.state = AWAITING_COMMAND;
 				break;
 		}
@@ -1226,16 +1226,16 @@ void run_command()
 					if(commandState.u.solenoid.phaseActivationFinished == false) {
 						//activation phase finished
 						commandState.u.solenoid.phaseActivationFinished = true;
-						deactivate_all_solenoids();
+						Solenoid_deactivate_all();
 						if(commandState.u.solenoid.solenoidPairIndex != 0) {
 							//activate the other solenoid
-							activate_solenoid(commandState.u.solenoid.solenoidPairIndex);
+							Solenoid_activate(commandState.u.solenoid.solenoidPairIndex);
 						}
 						commandState.u.solenoid.initialCounter = currentCounter;
 					}
 					else if(commandState.u.solenoid.phaseDeactivationFinished == false) {
 						//deactivation phase finished
-						deactivate_all_solenoids();
+						Solenoid_deactivate_all();
 						commandState.u.solenoid.phaseDeactivationFinished = true;
 					}
 				}
@@ -1251,7 +1251,7 @@ void run_command()
 						commandState.u.solenoid.phaseActivationFinished = false;
 						commandState.u.solenoid.phaseDeactivationFinished = false;
 						commandState.u.solenoid.initialCounter = currentCounter;
-						activate_solenoid(commandState.u.solenoid.solenoidIndex);
+						Solenoid_activate(commandState.u.solenoid.solenoidIndex);
 					}
 					else 
 					{
@@ -1265,8 +1265,8 @@ void run_command()
 			default:
 			{
 				writeOutputBufferString("Unknown command at EXECUTING_COMMAND\r\n");
-				deactivate_all_solenoids();
-				disconnect_all_smart_card();
+				Solenoid_deactivate_all();
+				SmartCard_disconnect_all();
 				commandState.state = AWAITING_COMMAND;
 			}
 			break;
@@ -1659,8 +1659,8 @@ void ecd300TestJbi(void)
 				
 				printString("param:");printHex(param);printString("\r\n");
 				if(!validCmd) {
-					deactivate_all_solenoids();
-					disconnect_all_smart_card();
+					Solenoid_deactivate_all();
+					SmartCard_disconnect_all();
 				}
 				else 
 				{
@@ -1706,8 +1706,8 @@ void ecd300TestJbi(void)
 						break;						
 					default:
 						writeOutputBufferString("Invalid command\r\n");
-						deactivate_all_solenoids();
-						disconnect_all_smart_card();
+						Solenoid_deactivate_all();
+						SmartCard_disconnect_all();
 						break;
 					}	
 				}
