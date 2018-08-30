@@ -226,7 +226,7 @@
     <GenerateMapFile>True</GenerateMapFile>
     <GenerateListFile>True</GenerateListFile>
     <GenerateEepFile>True</GenerateEepFile>
-    <OutputFileName>InvencoShortCircuteChecker</OutputFileName>
+    <OutputFileName>MixedMotorDrivers</OutputFileName>
     <OutputFileExtension>.elf</OutputFileExtension>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">

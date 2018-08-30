@@ -945,7 +945,7 @@ bool is_power_fuse_ok()
 		return false;
 }
 
-static void init_counter()
+static void counter_init()
 {
 	//set counter. The resolution should be 31MHz/1024.
 	tc_enable(&TCC0);
@@ -985,7 +985,7 @@ static void counter_wait(unsigned char time)
 	}
 }
 
-static inline unsigned short get_counter()
+static inline unsigned short counter_get()
 {
 	return tc_read_count(&TCC0);
 }
@@ -1145,7 +1145,7 @@ void run_command()
 				commandState.u.solenoid.cycleIndex = 0;
 				commandState.u.solenoid.phaseActivationFinished = false;
 				commandState.u.solenoid.phaseDeactivationFinished = false;
-				commandState.u.solenoid.initialCounter = get_counter();
+				commandState.u.solenoid.initialCounter = counter_get();
 				commandState.u.solenoid.period = tc_get_resolution(&TCC0)/commandState.solenoidDurationDivision;
 				activate_solenoid(commandState.u.solenoid.solenoidIndex);
 				commandState.state = EXECUTING_COMMAND;
@@ -1157,7 +1157,7 @@ void run_command()
 				commandState.u.solenoid.cycleIndex = 0;
 				commandState.u.solenoid.phaseActivationFinished = false;
 				commandState.u.solenoid.phaseDeactivationFinished = false;
-				commandState.u.solenoid.initialCounter = get_counter();
+				commandState.u.solenoid.initialCounter = counter_get();
 				commandState.u.solenoid.period = tc_get_resolution(&TCC0)/commandState.solenoidDurationDivision;
 				activate_solenoid(commandState.u.solenoid.solenoidIndex);
 				commandState.state = EXECUTING_COMMAND;
@@ -1209,7 +1209,7 @@ void run_command()
 				unsigned short initialCounter = commandState.u.solenoid.initialCounter;
 				bool periodExpired = false;
 
-				currentCounter = get_counter();
+				currentCounter = counter_get();
 				if(currentCounter > commandState.u.solenoid.initialCounter) {
 					if((currentCounter - commandState.u.solenoid.initialCounter) > commandState.u.solenoid.period) {
 						periodExpired = true;
@@ -1275,7 +1275,7 @@ void run_command()
 }
 
 //enable pull down resistors in all ports.
-static void pull_down_ports()
+static void shortcircute_pull_down_ports()
 {
 	PORTA.PIN0CTRL=(PORTA.PIN0CTRL&0xC7)|PORT_OPC_PULLDOWN_gc;
 	PORTA.PIN1CTRL=(PORTA.PIN1CTRL&0xC7)|PORT_OPC_PULLDOWN_gc;
@@ -1365,7 +1365,7 @@ static void pull_down_ports()
 
 // return true if short circute
 // return false if no short circute
-static bool check_pins_short_circute()
+static bool shortcircute_check_pins()
 {
 	if((PORTA_DIR & PORTA_OUT) != (PORTA_IN & PORTA_OUT)) {
 		printString("PORTA: ");printHex(PORTA_DIR & PORTA_OUT); printString(":");printHex(PORTA_IN & PORTA_OUT);printString("\r\n");
@@ -1418,9 +1418,9 @@ static bool check_pins_short_circute()
 // check if there short circute between pins.
 // return true if all ports are ok
 // return false if short circute in any ports.
-bool check_pins()
+bool shortcircute_test()
 {
-	pull_down_ports();
+	shortcircute_pull_down_ports();
 	
 	PORTA_DIR = 0x00;
 	PORTA_OUT = 0xff;
@@ -1445,100 +1445,100 @@ bool check_pins()
 	PORTR_DIR = 0x00;
 	PORTR_OUT = 0xff;
 
-	PORTA_DIR = 0x01; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTA_DIR = 0x02; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTA_DIR = 0x04; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTA_DIR = 0x08; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTA_DIR = 0x10; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTA_DIR = 0x20; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTA_DIR = 0x40; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTA_DIR = 0x80; counter_wait(0xff); if(check_pins_short_circute()) return false;
+	PORTA_DIR = 0x01; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTA_DIR = 0x02; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTA_DIR = 0x04; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTA_DIR = 0x08; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTA_DIR = 0x10; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTA_DIR = 0x20; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTA_DIR = 0x40; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTA_DIR = 0x80; counter_wait(0xff); if(shortcircute_check_pins()) return false;
 	PORTA_DIR = 0x00;
 
-	PORTB_DIR = 0x01; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTB_DIR = 0x02; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTB_DIR = 0x04; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTB_DIR = 0x08; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTB_DIR = 0x10; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTB_DIR = 0x20; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTB_DIR = 0x40; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTB_DIR = 0x80; counter_wait(0xff); if(check_pins_short_circute()) return false;
+	PORTB_DIR = 0x01; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTB_DIR = 0x02; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTB_DIR = 0x04; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTB_DIR = 0x08; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTB_DIR = 0x10; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTB_DIR = 0x20; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTB_DIR = 0x40; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTB_DIR = 0x80; counter_wait(0xff); if(shortcircute_check_pins()) return false;
 	PORTB_DIR = 0x00;
 
-	PORTC_DIR = 0x01; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTC_DIR = 0x02; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTC_DIR = 0x04; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTC_DIR = 0x08; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTC_DIR = 0x10; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTC_DIR = 0x20; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTC_DIR = 0x40; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTC_DIR = 0x80; counter_wait(0xff); if(check_pins_short_circute()) return false;
+	PORTC_DIR = 0x01; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTC_DIR = 0x02; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTC_DIR = 0x04; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTC_DIR = 0x08; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTC_DIR = 0x10; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTC_DIR = 0x20; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTC_DIR = 0x40; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTC_DIR = 0x80; counter_wait(0xff); if(shortcircute_check_pins()) return false;
 	PORTC_DIR = 0x00;
 	
 
-	PORTD_DIRSET = 0x01; counter_wait(0xff); if(check_pins_short_circute()) return false; PORTD_DIRCLR = 0x01;
-	PORTD_DIRSET = 0x02; counter_wait(0xff); if(check_pins_short_circute()) return false; PORTD_DIRCLR = 0x02;
-	PORTD_DIRSET = 0x10; counter_wait(0xff); if(check_pins_short_circute()) return false; PORTD_DIRCLR = 0x10;
-	PORTD_DIRSET = 0x20; counter_wait(0xff); if(check_pins_short_circute()) return false; PORTD_DIRCLR = 0x20;
+	PORTD_DIRSET = 0x01; counter_wait(0xff); if(shortcircute_check_pins()) return false; PORTD_DIRCLR = 0x01;
+	PORTD_DIRSET = 0x02; counter_wait(0xff); if(shortcircute_check_pins()) return false; PORTD_DIRCLR = 0x02;
+	PORTD_DIRSET = 0x10; counter_wait(0xff); if(shortcircute_check_pins()) return false; PORTD_DIRCLR = 0x10;
+	PORTD_DIRSET = 0x20; counter_wait(0xff); if(shortcircute_check_pins()) return false; PORTD_DIRCLR = 0x20;
 
-	PORTE_DIR = 0x01; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTE_DIR = 0x02; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTE_DIR = 0x04; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTE_DIR = 0x08; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTE_DIR = 0x10; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTE_DIR = 0x20; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTE_DIR = 0x40; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTE_DIR = 0x80; counter_wait(0xff); if(check_pins_short_circute()) return false;
+	PORTE_DIR = 0x01; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTE_DIR = 0x02; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTE_DIR = 0x04; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTE_DIR = 0x08; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTE_DIR = 0x10; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTE_DIR = 0x20; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTE_DIR = 0x40; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTE_DIR = 0x80; counter_wait(0xff); if(shortcircute_check_pins()) return false;
 	PORTE_DIR = 0x00;
 
-	PORTF_DIR = 0x01; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTF_DIR = 0x02; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTF_DIR = 0x04; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTF_DIR = 0x08; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTF_DIR = 0x10; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTF_DIR = 0x20; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTF_DIR = 0x40; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTF_DIR = 0x80; counter_wait(0xff); if(check_pins_short_circute()) return false;
+	PORTF_DIR = 0x01; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTF_DIR = 0x02; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTF_DIR = 0x04; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTF_DIR = 0x08; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTF_DIR = 0x10; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTF_DIR = 0x20; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTF_DIR = 0x40; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTF_DIR = 0x80; counter_wait(0xff); if(shortcircute_check_pins()) return false;
 	PORTF_DIR = 0x00;
 
-	PORTH_DIR = 0x01; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTH_DIR = 0x02; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTH_DIR = 0x04; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTH_DIR = 0x08; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTH_DIR = 0x10; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTH_DIR = 0x20; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTH_DIR = 0x40; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTH_DIR = 0x80; counter_wait(0xff); if(check_pins_short_circute()) return false;
+	PORTH_DIR = 0x01; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTH_DIR = 0x02; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTH_DIR = 0x04; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTH_DIR = 0x08; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTH_DIR = 0x10; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTH_DIR = 0x20; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTH_DIR = 0x40; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTH_DIR = 0x80; counter_wait(0xff); if(shortcircute_check_pins()) return false;
 	PORTH_DIR = 0x00;
 
-	PORTJ_DIR = 0x01; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTJ_DIR = 0x02; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTJ_DIR = 0x04; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTJ_DIR = 0x08; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTJ_DIR = 0x10; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTJ_DIR = 0x20; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTJ_DIR = 0x40; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTJ_DIR = 0x80; counter_wait(0xff); if(check_pins_short_circute()) return false;
+	PORTJ_DIR = 0x01; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTJ_DIR = 0x02; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTJ_DIR = 0x04; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTJ_DIR = 0x08; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTJ_DIR = 0x10; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTJ_DIR = 0x20; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTJ_DIR = 0x40; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTJ_DIR = 0x80; counter_wait(0xff); if(shortcircute_check_pins()) return false;
 	PORTJ_DIR = 0x00;
 
-	PORTK_DIR = 0x01; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTK_DIR = 0x02; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTK_DIR = 0x04; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTK_DIR = 0x08; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTK_DIR = 0x10; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTK_DIR = 0x20; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTK_DIR = 0x40; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTK_DIR = 0x80; counter_wait(0xff); if(check_pins_short_circute()) return false;
+	PORTK_DIR = 0x01; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTK_DIR = 0x02; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTK_DIR = 0x04; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTK_DIR = 0x08; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTK_DIR = 0x10; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTK_DIR = 0x20; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTK_DIR = 0x40; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTK_DIR = 0x80; counter_wait(0xff); if(shortcircute_check_pins()) return false;
 	PORTK_DIR = 0x00;
 
-	PORTQ_DIR = 0x01; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTQ_DIR = 0x02; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTQ_DIR = 0x04; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTQ_DIR = 0x08; counter_wait(0xff); if(check_pins_short_circute()) return false;
+	PORTQ_DIR = 0x01; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTQ_DIR = 0x02; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTQ_DIR = 0x04; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTQ_DIR = 0x08; counter_wait(0xff); if(shortcircute_check_pins()) return false;
 	PORTQ_DIR = 0x00;
 
-	PORTR_DIR = 0x01; counter_wait(0xff); if(check_pins_short_circute()) return false;
-	PORTR_DIR = 0x02; counter_wait(0xff); if(check_pins_short_circute()) return false;
+	PORTR_DIR = 0x01; counter_wait(0xff); if(shortcircute_check_pins()) return false;
+	PORTR_DIR = 0x02; counter_wait(0xff); if(shortcircute_check_pins()) return false;
 	PORTR_DIR = 0x00;
 	
 	return true;
@@ -1566,7 +1566,7 @@ void ecd300TestJbi(void)
 	irq_initialize_vectors(); //enable LOW, MED and HIGH level interrupt in PMIC.
 	cpu_irq_enable();
 	
-	init_counter();
+	counter_init();
 	//wait for 5 seconds
 	for(c=0; c<30; c++){
 		counter_wait(1);
@@ -1579,7 +1579,7 @@ void ecd300TestJbi(void)
 	ecd300InitUart(ECD300_UART_2, &uartOption);
 	printString("Serial Port in Power Allocator was initialized\r\n");
 
-	if(check_pins()) {
+	if(shortcircute_test()) {
 		printString("No short circute in ports\r\n");
 	}
 	else {
