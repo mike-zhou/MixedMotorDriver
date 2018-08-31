@@ -39,5 +39,8 @@ void ecd300TestNand(void);
 
 void ecd300TestInfraRed(void);
 
-void ecd300TestJbi(void);
+void ecd300SmartCardSwitch(void);
+
+void ecd300CheckShortCircute(void);
+
 #endif /* ECD300_TEST_H_ */

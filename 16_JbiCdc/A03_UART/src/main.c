@@ -40,6 +40,8 @@ int main (void)
 	//ecd300TestPdi();
 	//ecd300TestNand();
 	//ecd300TestInfraRed();
-	ecd300TestJbi();
+	//ecd300TestJbi();
+	//ecd300CheckShortCircute();
+	ecd300SmartCardSwitch();
 }
 
