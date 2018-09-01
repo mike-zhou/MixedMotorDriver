@@ -24,7 +24,43 @@
  * Include header files for all drivers that have been imported from
  * Atmel Software Framework (ASF).
  */
-#include "ECD300_test.h"
+
+/**
+	Output a string repeatedly through UART0 at 115200, 8N1.a
+*/
+extern void ecd300TestUart(void);
+
+/**
+	Receive a character from UARTC0, and echo it back.
+*/
+extern void ecd300TestUartEcho(void);
+
+extern void ecd300TestSysClk(void);
+
+extern void ecd300TestDFU(void);
+
+extern void ecd300TestBlueTooth(void);
+
+extern void ecd300TestBulk(void);
+
+extern void ecd300TestDac(void);
+
+extern void ecd300TestAdc(void);
+
+extern void ecd300TestTwi(void);
+
+extern void ecd300TestPdi(void);
+
+extern void ecd300TestNand(void);
+
+extern void ecd300TestInfraRed(void);
+
+extern void ecd300SmartCardSwitch(void);
+
+extern void ecd300CheckShortCircute(void);
+
+extern void ecd300MixedMotorDrivers(void);
+
 
 int main (void)
 {
@@ -43,6 +79,6 @@ int main (void)
 	//ecd300TestJbi();
 	//ecd300CheckShortCircute();
 	//ecd300SmartCardSwitch();
-	ecd300MultipleMotorDrivers();
+	ecd300MixedMotorDrivers();
 }
 
