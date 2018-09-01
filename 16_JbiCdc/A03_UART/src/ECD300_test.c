@@ -11,6 +11,10 @@
 #include "usb_protocol_cdc.h"
 #include "tc.h"
 
+//////////////////////////////////////////////////
+//// public functions
+//////////////////////////////////////////////////
+
 void printString(char * pString);
 void printHex(unsigned char hex);
 unsigned char getChar(void);
@@ -180,11 +184,6 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 	printString("\r\n");
 }
 
-///////////////////////////////////////////////////////////////////
-
-#define SMART_CARD_SWITCH_PRODUCT_NAME "ProductName: Smart Card Switch HV1.0 SV1.0"
-#define SMART_CARD_SWITCH_SOLENOID_AMOUNT 4
-#define SMART_CARD_SWITCH_DEFAULT_SOLENOID_DURATION_DIVISON 128
 
 //bufferLength must not exceed 255.
 #define BUFFER_LENGTH 0x1FF
@@ -194,95 +193,6 @@ static	unsigned short inputProducerIndex=0;
 static	unsigned short inputConsumerIndex=0;
 static	unsigned short outputProducerIndex=0;
 static	unsigned short outputConsumerIndex=0;
-
-enum State
-{
-	AWAITING_COMMAND = 0,
-	STARTING_COMMAND,
-	EXECUTING_COMMAND
-};
-	
-static struct SmartCardSwitch_CommandState
-{
-	enum State state;
-
-	unsigned char command;
-	unsigned char param;
-	unsigned char solenoidDurationDivision;
-
-	union U
-	{
-		struct 
-		{
-			unsigned char solenoidIndex;
-			unsigned char solenoidPairIndex;
-			unsigned char cycleIndex; // a cycle includes an activation period and a deactivation period.
-			bool phaseActivationFinished;
-			bool phaseDeactivationFinished;
-			unsigned short initialCounter;
-			unsigned short period;
-		} solenoid;
-	} u;
-	
-} smartCardSwitch_CommandState;
-
-static struct SmartCardSwitch_MachineStatus
-{
-	//0: no smart card is connected
-	//!0: number of the connected smart card
-	unsigned short smartCardConnected; 
-
-	bool solenoidActivated[SMART_CARD_SWITCH_SOLENOID_AMOUNT];
-	bool solenoidIsPowered[SMART_CARD_SWITCH_SOLENOID_AMOUNT];
-
-	bool powerAvailable;
-	bool powerFuseBroken;
-} smartCardSwitch_status;
-
-static void counter_init()
-{
-	//set counter. The resolution should be 31MHz/1024.
-	tc_enable(&TCC0);
-	tc_set_resolution(&TCC0, 1);
-}
-
-//wait for 1/time second
-static void counter_wait(unsigned char time)
-{
-	uint32_t resolution;
-	unsigned short activationLength;
-	unsigned short initialCounter;
-
-	if(0==time)
-	return;
-	
-	resolution=tc_get_resolution(&TCC0);
-	activationLength = resolution/time;
-
-	// wait for timeout
-	initialCounter = tc_read_count(&TCC0);
-	for(;;)
-	{
-		unsigned short currentCounter = tc_read_count(&TCC0);
-		
-		if(currentCounter > initialCounter) {
-			if((currentCounter - initialCounter) > activationLength) {
-				break;
-			}
-		}
-		else if(currentCounter < initialCounter) {
-			// a wrap around
-			if(((0xffff - initialCounter) + currentCounter) > activationLength) {
-				break;
-			}
-		}
-	}
-}
-
-static inline unsigned short counter_get()
-{
-	return tc_read_count(&TCC0);
-}
 
 inline void clearInputBuffer()
 {
@@ -387,6 +297,107 @@ void sendOutputBufferToHost()
 		}
 	}
 }
+
+static void counter_init()
+{
+	//set counter. The resolution should be 31MHz/1024.
+	tc_enable(&TCC0);
+	tc_set_resolution(&TCC0, 1);
+}
+
+//wait for 1/time second
+static void counter_wait(unsigned char time)
+{
+	uint32_t resolution;
+	unsigned short activationLength;
+	unsigned short initialCounter;
+
+	if(0==time)
+	return;
+	
+	resolution=tc_get_resolution(&TCC0);
+	activationLength = resolution/time;
+
+	// wait for timeout
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		unsigned short currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > activationLength) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > activationLength) {
+				break;
+			}
+		}
+	}
+}
+
+static inline unsigned short counter_get()
+{
+	return tc_read_count(&TCC0);
+}
+
+enum CommandState
+{
+	AWAITING_COMMAND = 0,
+	STARTING_COMMAND,
+	EXECUTING_COMMAND
+};
+
+//////////////////////////////////////////////////////////	
+////////// the above are public functions and variables
+//////////////////////////////////////////////////////////
+	
+///////////////////////////////////////////////////////////////////
+/////// the following is for Smart Card Switch v1.0
+
+#define SMART_CARD_SWITCH_PRODUCT_NAME "ProductName: Smart Card Switch HV1.0 SV1.0"
+#define SMART_CARD_SWITCH_SOLENOID_AMOUNT 4
+#define SMART_CARD_SWITCH_DEFAULT_SOLENOID_DURATION_DIVISON 128
+	
+static struct SmartCardSwitch_CommandState
+{
+	enum CommandState state;
+
+	unsigned char command;
+	unsigned char param;
+	unsigned char solenoidDurationDivision;
+
+	union U
+	{
+		struct 
+		{
+			unsigned char solenoidIndex;
+			unsigned char solenoidPairIndex;
+			unsigned char cycleIndex; // a cycle includes an activation period and a deactivation period.
+			bool phaseActivationFinished;
+			bool phaseDeactivationFinished;
+			unsigned short initialCounter;
+			unsigned short period;
+		} solenoid;
+	} u;
+	
+} smartCardSwitch_CommandState;
+
+static struct SmartCardSwitch_MachineStatus
+{
+	//0: no smart card is connected
+	//!0: number of the connected smart card
+	unsigned short smartCardConnected; 
+
+	bool solenoidActivated[SMART_CARD_SWITCH_SOLENOID_AMOUNT];
+	bool solenoidIsPowered[SMART_CARD_SWITCH_SOLENOID_AMOUNT];
+
+	bool powerAvailable;
+	bool powerFuseBroken;
+} smartCardSwitch_status;
+
 
 static void SmartCardSwitch_activate_status()
 {
@@ -1274,6 +1285,181 @@ void SmartCardSwitch_run_command()
 	}
 }
 
+void ecd300SmartCardSwitch(void)
+{
+	usart_rs232_options_t uartOption;
+	unsigned char c;
+	
+	PORTA_DIR=0x00;
+	PORTB_DIR=0x00;
+	PORTC_DIR=0x00;
+	PORTD_DIR=0x00;
+	PORTE_DIR=0x00;
+	PORTF_DIR=0x00;
+	PORTH_DIR=0x00;
+	PORTJ_DIR=0x00;
+	PORTK_DIR=0x00;
+
+	disableJtagPort();
+	sysclk_init();
+	sleepmgr_init();
+	irq_initialize_vectors(); //enable LOW, MED and HIGH level interrupt in PMIC.
+	cpu_irq_enable();
+	
+	counter_init();
+
+	uartOption.baudrate=115200;
+	uartOption.charlength=USART_CHSIZE_8BIT_gc;
+	uartOption.paritytype=USART_PMODE_DISABLED_gc;
+	uartOption.stopbits=false;
+	ecd300InitUart(ECD300_UART_2, &uartOption);
+	printString("Serial Port in Power Allocator was initialized\r\n");
+
+	smartCardSwitch_CommandState.solenoidDurationDivision = SMART_CARD_SWITCH_DEFAULT_SOLENOID_DURATION_DIVISON;
+	
+	//PD0 works as indicator of host output
+	PORTD_DIRSET = 0x01;
+	udc_start();
+	
+	while(1)
+	{
+		unsigned char key, tdo;
+		
+		if (udi_cdc_is_rx_ready())
+		{
+			//read a command from USB buffer.
+			key = (unsigned char)udi_cdc_getc();
+			
+			writeInputBuffer(key);
+			writeOutputBufferChar(key);
+			if(key == 0x0D) {
+				writeOutputBufferChar(0x0A); //append a line feed.
+			}
+			
+			printHex(key);
+			printString("\r\n");
+			
+			//toggle PD0 to indicate character reception.
+			if(PORTD_IN&0x01) {
+				PORTD_OUTCLR = 0x01;
+			}
+			else {
+				PORTD_OUTSET = 0x01;
+			}
+			
+			// 0x0D is command terminator
+			if((key == 0x0D) && (smartCardSwitch_CommandState.state == AWAITING_COMMAND))
+			{
+				unsigned char cmd;
+				unsigned char param = 0;
+				bool validCmd = true;
+				
+				cmd = readInputBuffer();
+				printString("CMD:");printHex(cmd);printString("\r\n");
+				if(0 == cmd) {
+					validCmd = false;
+				}
+				else if(0x0D == cmd) {
+					validCmd = false;
+				}
+				else {
+					//read parameter of the command
+					for(;;) {
+						unsigned char c;
+						c = readInputBuffer();
+						
+						if((c >= '0') && (c <= '9')) {
+							param =  param * 10 + c - '0';
+						}
+						else if(0x0D == c) {
+							break; //end of a command
+						}
+						else {
+							//illegal character in parameter
+							writeOutputBufferString("Illegal parameters\r\n");
+							clearInputBuffer();
+							validCmd = false;
+							break;
+						}
+					}
+				}
+				
+				printString("param:");printHex(param);printString("\r\n");
+				if(!validCmd) {
+					SmartCardSwitch_solenoid_deactivate_all();
+					SmartCardSwitch_smartcard_disconnect_all();
+				}
+				else
+				{
+					switch(cmd)
+					{
+						case 'I':
+						case 'i':
+						// Insert smart card.
+						smartCardSwitch_CommandState.state = STARTING_COMMAND;
+						smartCardSwitch_CommandState.command = 'I';
+						smartCardSwitch_CommandState.param = param;
+						break;
+						
+						case 'P':
+						case 'p':
+						// Pullout smart card.
+						smartCardSwitch_CommandState.state = STARTING_COMMAND;
+						smartCardSwitch_CommandState.command = 'P';
+						smartCardSwitch_CommandState.param = param;
+						break;
+						
+						case 'C':
+						case 'c':
+						//connect smart card
+						smartCardSwitch_CommandState.state = STARTING_COMMAND;
+						smartCardSwitch_CommandState.command = 'C';
+						smartCardSwitch_CommandState.param = param;
+						break;
+						
+						case 'D':
+						case 'd':
+						//solenoid duration division
+						smartCardSwitch_CommandState.state = STARTING_COMMAND;
+						smartCardSwitch_CommandState.command = 'D';
+						smartCardSwitch_CommandState.param = param;
+						break;
+						
+						case 'Q':
+						case 'q':
+						// Query
+						smartCardSwitch_CommandState.state = STARTING_COMMAND;
+						smartCardSwitch_CommandState.command = 'Q';
+						break;
+						default:
+						writeOutputBufferString("Invalid command\r\n");
+						SmartCardSwitch_solenoid_deactivate_all();
+						SmartCardSwitch_smartcard_disconnect_all();
+						break;
+					}
+				}
+			}
+		}
+
+		SmartCardSwitch_run_command();
+		
+		SmartCardSwitch_check_status();
+
+		sendOutputBufferToHost();
+	}
+
+	while(1)
+	{
+		;
+	}
+}
+
+/////////// the above is for Smart Card Switch V1.0
+/////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////
+/////////// the following is for short circute check
+
 //enable pull down resistors in all ports.
 static void shortcircute_pull_down_ports()
 {
@@ -1588,175 +1774,129 @@ void ecd300CheckShortCircute()
 	while(1);
 }
 
-void ecd300SmartCardSwitch(void)
+/////////// the above is for short circute check
+/////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////
+////// the following is for Mixed Motor Driver V1.0
+
+enum MMD_command_e
 {
-	usart_rs232_options_t uartOption;
-	unsigned char c;
+	OPT_POWER_ON = 10,
+	OPT_POWER_OFF,
+	OPT_POWER_QUERY,
+	STEPPERS_POWER_ON = 20,
+	STEPPERS_POWER_OFF,
+	STEPPERS_POWER_QUERY,
+	DCM_POWER_ON = 30,
+	DCM_POWER_OFF,
+	DCM_POWER_QUERY,
+	BDC_COAST = 40,
+	BDC_REVERSE,
+	BDC_FORWARD,
+	BDC_BREAK,
+	BDC_QUERY,
+	STEPPER_STEP_RESOLUTION_QUERY = 50,
+	STEPPER_STEP_DURATION,
+	STEPPER_ACCELERATION_BUFFER,
+	STEPPER_ACCELERATION_BUFFER_DECREMENT,
+	STEPPER_DECELERATION_BUFFER,
+	STEPPER_DECELERATION_BUFFER_INCREMENT,
+	STEPPER_ENABLE,
+	STEPPER_DIR,
+	STEPPER_STEPS,
+	STEPPER_HOME,
+	STEPPER_QUREY,
+	LOCATOR_QUERY = 100
+};
+
+struct MMD_command_state
+{
+	enum CommandState commandState;
+	enum MMD_command_e command;
+};
+
+static void MMD_init()
+{
 	
-	PORTA_DIR=0x00;
-	PORTB_DIR=0x00;
-	PORTC_DIR=0x00;
-	PORTD_DIR=0x00;
-	PORTE_DIR=0x00;
-	PORTF_DIR=0x00;
-	PORTH_DIR=0x00;
-	PORTJ_DIR=0x00;
-	PORTK_DIR=0x00;
-
-	disableJtagPort();
-	sysclk_init();
-	sleepmgr_init();
-	irq_initialize_vectors(); //enable LOW, MED and HIGH level interrupt in PMIC.
-	cpu_irq_enable();
-	
-	counter_init();
-
-	uartOption.baudrate=115200;
-	uartOption.charlength=USART_CHSIZE_8BIT_gc;
-	uartOption.paritytype=USART_PMODE_DISABLED_gc;
-	uartOption.stopbits=false;
-	ecd300InitUart(ECD300_UART_2, &uartOption);
-	printString("Serial Port in Power Allocator was initialized\r\n");
-
-	smartCardSwitch_CommandState.solenoidDurationDivision = SMART_CARD_SWITCH_DEFAULT_SOLENOID_DURATION_DIVISON; 
-	
-	//PD0 works as indicator of host output
-	PORTD_DIRSET = 0x01;
-	udc_start();
-	
-	while(1)
-	{
-		unsigned char key, tdo;
-		
-		if (udi_cdc_is_rx_ready()) 
-		{
-			//read a command from USB buffer.
-			key = (unsigned char)udi_cdc_getc();
-			
-			writeInputBuffer(key);
-			writeOutputBufferChar(key);
-			if(key == 0x0D) {
-				writeOutputBufferChar(0x0A); //append a line feed.
-			}
-			
-			printHex(key);
-			printString("\r\n");
-			
-			//toggle PD0 to indicate character reception.
-			if(PORTD_IN&0x01) {
-				PORTD_OUTCLR = 0x01;
-			}
-			else {
-				PORTD_OUTSET = 0x01;
-			}
-			
-			// 0x0D is command terminator
-			if((key == 0x0D) && (smartCardSwitch_CommandState.state == AWAITING_COMMAND)) 
-			{ 
-				unsigned char cmd;
-				unsigned char param = 0;
-				bool validCmd = true;
-				
-				cmd = readInputBuffer();
-				printString("CMD:");printHex(cmd);printString("\r\n");
-				if(0 == cmd) {
-					validCmd = false;
-				}
-				else if(0x0D == cmd) {
-					validCmd = false;
-				}
-				else {
-					//read parameter of the command
-					for(;;) {
-						unsigned char c;
-						c = readInputBuffer();
-						
-						if((c >= '0') && (c <= '9')) {
-							param =  param * 10 + c - '0';
-						}
-						else if(0x0D == c) {
-							break; //end of a command
-						}
-						else {
-							//illegal character in parameter
-							writeOutputBufferString("Illegal parameters\r\n");
-							clearInputBuffer();
-							validCmd = false;
-							break;
-						}
-					}
-				}
-				
-				printString("param:");printHex(param);printString("\r\n");
-				if(!validCmd) {
-					SmartCardSwitch_solenoid_deactivate_all();
-					SmartCardSwitch_smartcard_disconnect_all();
-				}
-				else 
-				{
-					switch(cmd)
-					{
-					case 'I':
-					case 'i':
-						// Insert smart card.
-						smartCardSwitch_CommandState.state = STARTING_COMMAND;
-						smartCardSwitch_CommandState.command = 'I';
-						smartCardSwitch_CommandState.param = param;
-						break;
-						
-					case 'P':
-					case 'p':
-						// Pullout smart card.
-						smartCardSwitch_CommandState.state = STARTING_COMMAND;
-						smartCardSwitch_CommandState.command = 'P';
-						smartCardSwitch_CommandState.param = param;
-						break;
-						
-					case 'C':
-					case 'c':
-						//connect smart card
-						smartCardSwitch_CommandState.state = STARTING_COMMAND;
-						smartCardSwitch_CommandState.command = 'C';
-						smartCardSwitch_CommandState.param = param;
-						break;
-						
-					case 'D':
-					case 'd':
-						//solenoid duration division
-						smartCardSwitch_CommandState.state = STARTING_COMMAND;
-						smartCardSwitch_CommandState.command = 'D';
-						smartCardSwitch_CommandState.param = param;
-						break;
-						
-					case 'Q':
-					case 'q':
-						// Query
-						smartCardSwitch_CommandState.state = STARTING_COMMAND;
-						smartCardSwitch_CommandState.command = 'Q';
-						break;						
-					default:
-						writeOutputBufferString("Invalid command\r\n");
-						SmartCardSwitch_solenoid_deactivate_all();
-						SmartCardSwitch_smartcard_disconnect_all();
-						break;
-					}	
-				}
-			}
-		}
-
-		SmartCardSwitch_run_command();
-		
-		SmartCardSwitch_check_status();
-
-		sendOutputBufferToHost();
-	}
-
-	while(1)
-	{
-		;
-	}
 }
 
+static bool MMD_power_on_opt()
+{
+	
+}
+
+static bool MMD_power_off_opt()
+{
+	
+}
+
+static bool MMD_power_on_steppers()
+{
+	
+}
+
+static bool MMD_power_off_steppers()
+{
+	
+}
+
+static bool MMD_power_on_dcm(unsigned char dcmIndex)
+{
+	
+}
+
+static bool MMD_power_off_dcm(unsigned char dcmIndex)
+{
+	
+}
+
+// return the resolution of step length in microseconds.
+static unsigned short MMD_stepper_resolution()
+{
+	
+}
+
+
+static bool MMD_stepper_set_step_duration(unsigned short duration)
+{
+	
+}
+
+static bool MMD_coast_stepper(unsigned char stepperIndex)
+{
+	
+}
+
+static bool MMD_reverse_stepper(unsigned char stepperIndex)
+{
+	
+}
+
+static bool MMD_forward_stepper(unsigned char stepperIndex)
+{
+	
+}
+
+static bool MMD_break_stepper(unsigned char stepperIndex)
+{
+	
+}
+
+static bool MMD_clock_stepper(unsigned char stepperIndex, unsigned short steps)
+{
+	
+}
+
+// check which input line is triggered
+// return value:
+//	0: no input line is triggered
+//  1 - 8: an input line is triggered
+//	others: error occurs.
+static unsigned char MMD_locator_get(unsigned char locatorIndex)
+{
+	
+}
 
 void ecd300MultipleMotorDrivers()
 {
@@ -1928,3 +2068,6 @@ void ecd300MultipleMotorDrivers()
 	}	
 }
 
+
+///////////// the above is for Mixed Motor Driver V1.0
+////////////////////////////////////////////////////////
