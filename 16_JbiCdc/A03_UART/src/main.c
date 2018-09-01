@@ -42,6 +42,7 @@ int main (void)
 	//ecd300TestInfraRed();
 	//ecd300TestJbi();
 	//ecd300CheckShortCircute();
-	ecd300SmartCardSwitch();
+	//ecd300SmartCardSwitch();
+	ecd300MultipleMotorDrivers();
 }
 

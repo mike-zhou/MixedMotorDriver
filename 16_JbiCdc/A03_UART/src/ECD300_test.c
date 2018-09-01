@@ -239,6 +239,51 @@ static struct SmartCardSwitch_MachineStatus
 	bool powerFuseBroken;
 } smartCardSwitch_status;
 
+static void counter_init()
+{
+	//set counter. The resolution should be 31MHz/1024.
+	tc_enable(&TCC0);
+	tc_set_resolution(&TCC0, 1);
+}
+
+//wait for 1/time second
+static void counter_wait(unsigned char time)
+{
+	uint32_t resolution;
+	unsigned short activationLength;
+	unsigned short initialCounter;
+
+	if(0==time)
+	return;
+	
+	resolution=tc_get_resolution(&TCC0);
+	activationLength = resolution/time;
+
+	// wait for timeout
+	initialCounter = tc_read_count(&TCC0);
+	for(;;)
+	{
+		unsigned short currentCounter = tc_read_count(&TCC0);
+		
+		if(currentCounter > initialCounter) {
+			if((currentCounter - initialCounter) > activationLength) {
+				break;
+			}
+		}
+		else if(currentCounter < initialCounter) {
+			// a wrap around
+			if(((0xffff - initialCounter) + currentCounter) > activationLength) {
+				break;
+			}
+		}
+	}
+}
+
+static inline unsigned short counter_get()
+{
+	return tc_read_count(&TCC0);
+}
+
 inline void clearInputBuffer()
 {
 	inputProducerIndex = 0;
@@ -925,7 +970,7 @@ static bool test_smart_card_connection_slow(void)
 }
 
 // is power available
-bool is_power_ok()
+bool SmartCardSwitch_is_power_ok()
 {
 	//PD5
 	if(PORTD_IN	& 0x20) {
@@ -936,7 +981,7 @@ bool is_power_ok()
 	}
 }
 
-bool is_power_fuse_ok() 
+bool SmartCardSwitch_is_power_fuse_ok() 
 {
 	//PD4
 	if(PORTD_IN & 0x10)
@@ -945,52 +990,7 @@ bool is_power_fuse_ok()
 		return false;
 }
 
-static void counter_init()
-{
-	//set counter. The resolution should be 31MHz/1024.
-	tc_enable(&TCC0);
-	tc_set_resolution(&TCC0, 1);
-}
-
-//wait for 1/time second
-static void counter_wait(unsigned char time)
-{
-	uint32_t resolution;
-	unsigned short activationLength;
-	unsigned short initialCounter;
-
-	if(0==time)
-		return;
-		
-	resolution=tc_get_resolution(&TCC0);
-	activationLength = resolution/time; 
-
-	// wait for timeout
-	initialCounter = tc_read_count(&TCC0);
-	for(;;)
-	{
-		unsigned short currentCounter = tc_read_count(&TCC0);
-		
-		if(currentCounter > initialCounter) {
-			if((currentCounter - initialCounter) > activationLength) {
-				break;
-			}
-		}
-		else if(currentCounter < initialCounter) {
-			// a wrap around
-			if(((0xffff - initialCounter) + currentCounter) > activationLength) {
-				break;
-			}
-		}
-	}
-}
-
-static inline unsigned short counter_get()
-{
-	return tc_read_count(&TCC0);
-}
-
-static void init_status()
+static void SmartCardSwitch_init_status()
 {
 	unsigned char solenoidIndex;
 
@@ -1005,7 +1005,7 @@ static void init_status()
 	smartCardSwitch_status.powerFuseBroken = false;
 }
 
-static void check_status()
+static void SmartCardSwitch_check_status()
 {
 	unsigned char activatedSmartCard;
 	bool powerAvailable;
@@ -1029,7 +1029,7 @@ static void check_status()
 	}
 
 	//check 24V and its fuse
-	powerAvailable = is_power_ok();
+	powerAvailable = SmartCardSwitch_is_power_ok();
 	if(smartCardSwitch_status.powerAvailable != powerAvailable)
 	{
 		smartCardSwitch_status.powerAvailable = powerAvailable;
@@ -1040,7 +1040,7 @@ static void check_status()
 			writeOutputBufferString("Power disconnected\r\n");
 		}
 	}
-	powerFuseBroken = !is_power_fuse_ok();
+	powerFuseBroken = !SmartCardSwitch_is_power_fuse_ok();
 	if(smartCardSwitch_status.powerFuseBroken != powerFuseBroken) {
 		smartCardSwitch_status.powerFuseBroken = powerFuseBroken;
 		if(powerFuseBroken) {
@@ -1084,7 +1084,7 @@ static void check_status()
 	}
 }
 
-static void write_status()
+static void SmartCardSwitch_write_status()
 {
 	//Power
 	if(smartCardSwitch_status.powerAvailable) {
@@ -1133,7 +1133,7 @@ static void write_status()
 	}
 }
 
-void run_command()
+void SmartCardSwitch_run_command()
 {
 	if(smartCardSwitch_CommandState.state == STARTING_COMMAND)
 	{
@@ -1174,7 +1174,7 @@ void run_command()
 				writeOutputBufferString("SolenoidDuration 1/0x");
 				writeOutputBufferHex(smartCardSwitch_CommandState.solenoidDurationDivision);
 				writeOutputBufferString(" second\r\n");
-				write_status();
+				SmartCardSwitch_write_status();
 				smartCardSwitch_CommandState.state = AWAITING_COMMAND;
 				break;
 
@@ -1744,9 +1744,9 @@ void ecd300SmartCardSwitch(void)
 			}
 		}
 
-		run_command();
+		SmartCardSwitch_run_command();
 		
-		check_status();
+		SmartCardSwitch_check_status();
 
 		sendOutputBufferToHost();
 	}
@@ -1757,4 +1757,174 @@ void ecd300SmartCardSwitch(void)
 	}
 }
 
+
+void ecd300MultipleMotorDrivers()
+{
+	usart_rs232_options_t uartOption;
+	unsigned char c;
+	
+	PORTA_DIR=0x00;
+	PORTB_DIR=0x00;
+	PORTC_DIR=0x00;
+	PORTD_DIR=0x00;
+	PORTE_DIR=0x00;
+	PORTF_DIR=0x00;
+	PORTH_DIR=0x00;
+	PORTJ_DIR=0x00;
+	PORTK_DIR=0x00;
+
+	disableJtagPort();
+	sysclk_init();
+	sleepmgr_init();
+	irq_initialize_vectors(); //enable LOW, MED and HIGH level interrupt in PMIC.
+	cpu_irq_enable();
+	
+	counter_init();
+
+	uartOption.baudrate=115200;
+	uartOption.charlength=USART_CHSIZE_8BIT_gc;
+	uartOption.paritytype=USART_PMODE_DISABLED_gc;
+	uartOption.stopbits=false;
+	ecd300InitUart(ECD300_UART_2, &uartOption);
+	printString("Serial Port in Power Allocator was initialized\r\n");
+
+	smartCardSwitch_CommandState.solenoidDurationDivision = SMART_CARD_SWITCH_DEFAULT_SOLENOID_DURATION_DIVISON;
+	
+	//PD0 works as indicator of host output
+	PORTD_DIRSET = 0x01;
+	
+	udc_start();
+	
+	while(1)
+	{
+		unsigned char key, tdo;
+		
+		if (udi_cdc_is_rx_ready())
+		{
+			//read a command from USB buffer.
+			key = (unsigned char)udi_cdc_getc();
+			
+			writeInputBuffer(key);
+			writeOutputBufferChar(key);
+			if(key == 0x0D) {
+				writeOutputBufferChar(0x0A); //append a line feed.
+			}
+			
+			printHex(key);
+			printString("\r\n");
+			
+			//toggle PD0 to indicate character reception.
+			if(PORTD_IN&0x01) {
+				PORTD_OUTCLR = 0x01;
+			}
+			else {
+				PORTD_OUTSET = 0x01;
+			}
+			
+			// 0x0D is command terminator
+			if((key == 0x0D) && (smartCardSwitch_CommandState.state == AWAITING_COMMAND))
+			{
+				unsigned char cmd;
+				unsigned char param = 0;
+				bool validCmd = true;
+				
+				cmd = readInputBuffer();
+				printString("CMD:");printHex(cmd);printString("\r\n");
+				if(0 == cmd) {
+					validCmd = false;
+				}
+				else if(0x0D == cmd) {
+					validCmd = false;
+				}
+				else {
+					//read parameter of the command
+					for(;;) {
+						unsigned char c;
+						c = readInputBuffer();
+						
+						if((c >= '0') && (c <= '9')) {
+							param =  param * 10 + c - '0';
+						}
+						else if(0x0D == c) {
+							break; //end of a command
+						}
+						else {
+							//illegal character in parameter
+							writeOutputBufferString("Illegal parameters\r\n");
+							clearInputBuffer();
+							validCmd = false;
+							break;
+						}
+					}
+				}
+				
+				printString("param:");printHex(param);printString("\r\n");
+				if(!validCmd) {
+					SmartCardSwitch_solenoid_deactivate_all();
+					SmartCardSwitch_smartcard_disconnect_all();
+				}
+				else
+				{
+					switch(cmd)
+					{
+						case 'I':
+						case 'i':
+						// Insert smart card.
+						smartCardSwitch_CommandState.state = STARTING_COMMAND;
+						smartCardSwitch_CommandState.command = 'I';
+						smartCardSwitch_CommandState.param = param;
+						break;
+						
+						case 'P':
+						case 'p':
+						// Pullout smart card.
+						smartCardSwitch_CommandState.state = STARTING_COMMAND;
+						smartCardSwitch_CommandState.command = 'P';
+						smartCardSwitch_CommandState.param = param;
+						break;
+						
+						case 'C':
+						case 'c':
+						//connect smart card
+						smartCardSwitch_CommandState.state = STARTING_COMMAND;
+						smartCardSwitch_CommandState.command = 'C';
+						smartCardSwitch_CommandState.param = param;
+						break;
+						
+						case 'D':
+						case 'd':
+						//solenoid duration division
+						smartCardSwitch_CommandState.state = STARTING_COMMAND;
+						smartCardSwitch_CommandState.command = 'D';
+						smartCardSwitch_CommandState.param = param;
+						break;
+						
+						case 'Q':
+						case 'q':
+						// Query
+						smartCardSwitch_CommandState.state = STARTING_COMMAND;
+						smartCardSwitch_CommandState.command = 'Q';
+						break;
+						default:
+						writeOutputBufferString("Invalid command\r\n");
+						SmartCardSwitch_solenoid_deactivate_all();
+						SmartCardSwitch_smartcard_disconnect_all();
+						break;
+					}
+				}
+			}
+		}
+
+		SmartCardSwitch_run_command();
+		
+		SmartCardSwitch_check_status();
+
+		sendOutputBufferToHost();
+	}
+
+	while(1)
+	{
+		;
+	}	
+}
 

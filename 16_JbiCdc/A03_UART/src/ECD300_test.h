@@ -43,4 +43,6 @@ void ecd300SmartCardSwitch(void);
 
 void ecd300CheckShortCircute(void);
 
+void ecd300MultipleMotorDrivers(void);
+
 #endif /* ECD300_TEST_H_ */
