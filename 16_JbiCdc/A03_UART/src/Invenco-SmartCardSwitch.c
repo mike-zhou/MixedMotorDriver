@@ -930,34 +930,10 @@ void SmartCardSwitch_run_command()
 
 void ecd300SmartCardSwitch(void)
 {
-	usart_rs232_options_t uartOption;
 	unsigned char c;
 	
-	PORTA_DIR=0x00;
-	PORTB_DIR=0x00;
-	PORTC_DIR=0x00;
-	PORTD_DIR=0x00;
-	PORTE_DIR=0x00;
-	PORTF_DIR=0x00;
-	PORTH_DIR=0x00;
-	PORTJ_DIR=0x00;
-	PORTK_DIR=0x00;
-
-	disableJtagPort();
-	sysclk_init();
-	sleepmgr_init();
-	irq_initialize_vectors(); //enable LOW, MED and HIGH level interrupt in PMIC.
-	cpu_irq_enable();
+	Invenco_init();
 	
-	counter_init();
-
-	uartOption.baudrate=115200;
-	uartOption.charlength=USART_CHSIZE_8BIT_gc;
-	uartOption.paritytype=USART_PMODE_DISABLED_gc;
-	uartOption.stopbits=false;
-	ecd300InitUart(ECD300_UART_2, &uartOption);
-	printString("Serial Port in Power Allocator was initialized\r\n");
-
 	smartCardSwitch_CommandState.solenoidDurationDivision = SMART_CARD_SWITCH_DEFAULT_SOLENOID_DURATION_DIVISON;
 	
 	//PD0 works as indicator of host output

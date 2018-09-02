@@ -40,7 +40,7 @@ enum CommandState
 	EXECUTING_COMMAND
 };
 
-
+void Invenco_init();
 
 
 #endif /* ECD300_TEST_H_ */

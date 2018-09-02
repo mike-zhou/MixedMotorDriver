@@ -339,3 +339,32 @@ unsigned short counter_get()
 	return tc_read_count(&TCC0);
 }
 
+void Invenco_init()
+{
+	usart_rs232_options_t uartOption;
+	
+	PORTA_DIR=0x00;
+	PORTB_DIR=0x00;
+	PORTC_DIR=0x00;
+	PORTD_DIR=0x00;
+	PORTE_DIR=0x00;
+	PORTF_DIR=0x00;
+	PORTH_DIR=0x00;
+	PORTJ_DIR=0x00;
+	PORTK_DIR=0x00;
+
+	disableJtagPort();
+	sysclk_init();
+	sleepmgr_init();
+	irq_initialize_vectors(); //enable LOW, MED and HIGH level interrupt in PMIC.
+	cpu_irq_enable();
+	
+	counter_init();
+
+	uartOption.baudrate=115200;
+	uartOption.charlength=USART_CHSIZE_8BIT_gc;
+	uartOption.paritytype=USART_PMODE_DISABLED_gc;
+	uartOption.stopbits=false;
+	ecd300InitUart(ECD300_UART_2, &uartOption);
+	printString("Serial Port in Power Allocator was initialized\r\n");
+}

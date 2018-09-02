@@ -1,5 +1,10 @@
 #include "Invenco_lib.h"
 
+#define MMD_LOCATOR_HUB_AMOUNT 5
+#define MMD_STEPPERS_AMOUNT 5
+#define MMD_DIRECT_CURRENT_MOTORS_AMOUNT 2
+#define MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT 6
+
 enum MMD_command_e
 {
 	OPT_POWER_ON = 10,
@@ -30,43 +35,137 @@ enum MMD_command_e
 	LOCATOR_QUERY = 100
 };
 
+enum MMD_STEPPER_PHASE
+{
+	STEPPER_ACCERATING = 0,
+	STEPPER_NORMAL,
+	STEPPER_DECELATING
+};
+
+struct MMD_STEPPER_DATA
+{
+	unsigned short totalSteps;
+	unsigned short currentStepIndex;
+	
+	// acceleration 
+	unsigned short accelerationBuffer;
+	unsigned short accelerationDecrement;
+	unsigned short accelerationLevel;
+	// deceleration
+	unsigned short decelerationBuffer;
+	unsigned short decelerationIncrement;
+	unsigned short decelerationLevel;
+	unsigned short decelerationStartingIndex; //from which step the deceleration starts.
+	
+	// stepper is driven on the rising edge
+	bool phaseLow;
+	unsigned short counterPhaseStarting;
+	unsigned short phaseCounts;
+};
+
 struct MMD_command_state
 {
 	enum CommandState state;
 	enum MMD_command_e command;
+	
+	struct MMD_STEPPER_DATA steppersData[MMD_STEPPERS_AMOUNT];
 } mmd_command_state;
+
+enum MMD_BDCM_STATE
+{
+	BDCM_COAST = 0,
+	BDCM_REVERSE,
+	BDCM_FORWARD,
+	BDCM_BREAK
+};
+
+struct MMD_status
+{
+	//power status
+	bool isMainPowerOk;
+	bool isMainFuseOk;
+	
+	//OPT
+	bool isOptPowered;
+	
+	//locator hubs: 
+	//	0: no input is low
+	//	1-8: the designated input is low 
+	//	other value: invalid
+	unsigned char locatorHubs[MMD_LOCATOR_HUB_AMOUNT];
+	
+	//steppers
+	bool steppersArePowered;
+	bool steppersEnabled[MMD_STEPPERS_AMOUNT];
+	bool steppersForward[MMD_STEPPERS_AMOUNT];
+	bool steppersWorking[MMD_STEPPERS_AMOUNT];
+	
+	//dcms
+	bool dcmsPowered[MMD_DIRECT_CURRENT_MOTORS_AMOUNT];
+	
+	//bdcms
+	bool bdcmsPowerOk;
+	enum MMD_BDCM_STATE bdcmsState[MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT];
+} mmd_status;
 
 static void MMD_init()
 {
 	
 }
 
-static bool MMD_power_on_opt()
+// power on OPT
+static void MMD_power_on_opt(bool on)
 {
 	
 }
 
-static bool MMD_power_off_opt()
+// return whether OPT is powered on
+// return value:
+//		true: OPT is powered on
+//		false: OPT isn't powered on
+static bool MMD_is_opt_powered_on()
 {
 	
 }
 
-static bool MMD_power_on_steppers()
+// power on direct current motor
+static void MMD_power_on_dcm(unsigned char dcmIndex, bool on)
 {
 	
 }
 
-static bool MMD_power_off_steppers()
+static bool MMD_is_dcm_power_on(unsigned char dcmIndex)
 {
 	
 }
 
-static bool MMD_power_on_dcm(unsigned char dcmIndex)
+// power on all steppers
+static void MMD_power_on_steppers(bool on)
 {
 	
 }
 
-static bool MMD_power_off_dcm(unsigned char dcmIndex)
+static bool MMD_are_steppers_powered_on()
+{
+	
+}
+
+static void MMD_stepper_dir(unsigned char stepperIndex, bool forward)
+{
+	
+}
+
+static bool MMD_is_stepper_forward(unsigned char stepperIndex)
+{
+	
+}
+
+static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
+{
+	
+}
+
+static bool MMD_is_stepper_enabled(unsigned char stepperIndex)
 {
 	
 }
@@ -77,28 +176,27 @@ static unsigned short MMD_stepper_resolution()
 	
 }
 
-
-static bool MMD_stepper_set_step_duration(unsigned short duration)
+static void MMD_stepper_set_step_duration(unsigned char stepperIndex, unsigned short duration)
 {
 	
 }
 
-static bool MMD_coast_stepper(unsigned char stepperIndex)
+static void MMD_stepper_set_acceleration_buffer(unsigned char stepperIndex, unsigned short buffer)
 {
 	
 }
 
-static bool MMD_reverse_stepper(unsigned char stepperIndex)
+static void MMD_stepper_set_acceleration_buffer_decrement(unsigned char stepperIndex, unsigned short decrement)
 {
 	
 }
 
-static bool MMD_forward_stepper(unsigned char stepperIndex)
+static void MMD_stepper_set_deceleration_buffer(unsigned char stepperIndex, unsigned short buffer)
 {
 	
 }
 
-static bool MMD_break_stepper(unsigned char stepperIndex)
+static void MMD_stepper_set_deceleration_buffer_increment(unsigned char stepperIndex, unsigned short increment)
 {
 	
 }
@@ -107,6 +205,28 @@ static bool MMD_clock_stepper(unsigned char stepperIndex, unsigned short steps)
 {
 	
 }
+
+// power on all bi-direction direct current motor
+static void MMD_power_on_bdcms(bool on)
+{
+	
+}
+
+static bool MMD_are_bdcms_powered_on()
+{
+	
+}
+
+static void MMD_set_bdcm_state(unsigned char stepperIndex, enum MMD_BDCM_STATE state)
+{
+	
+}
+
+static enum MMD_BDCM_STATE MMD_get_bdcm_state(unsigned char stepperIndex)
+{
+	
+}
+
 
 // check which input line is triggered
 // return value:
@@ -131,33 +251,9 @@ static void MMD_run_command()
 
 void ecd300MixedMotorDrivers()
 {
-	usart_rs232_options_t uartOption;
 	unsigned char c;
-	
-	PORTA_DIR=0x00;
-	PORTB_DIR=0x00;
-	PORTC_DIR=0x00;
-	PORTD_DIR=0x00;
-	PORTE_DIR=0x00;
-	PORTF_DIR=0x00;
-	PORTH_DIR=0x00;
-	PORTJ_DIR=0x00;
-	PORTK_DIR=0x00;
 
-	disableJtagPort();
-	sysclk_init();
-	sleepmgr_init();
-	irq_initialize_vectors(); //enable LOW, MED and HIGH level interrupt in PMIC.
-	cpu_irq_enable();
-	
-	counter_init();
-
-	uartOption.baudrate=115200;
-	uartOption.charlength=USART_CHSIZE_8BIT_gc;
-	uartOption.paritytype=USART_PMODE_DISABLED_gc;
-	uartOption.stopbits=false;
-	ecd300InitUart(ECD300_UART_2, &uartOption);
-	printString("Serial Port in Power Allocator was initialized\r\n");
+	Invenco_init();
 
 	//PD0 works as indicator of host output
 	PORTD_DIRSET = 0x01;
