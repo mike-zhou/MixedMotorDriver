@@ -258,32 +258,247 @@ static bool MMD_is_dcm_powered_on(unsigned char dcmIndex)
 // power on all steppers
 static void MMD_power_on_steppers(bool on)
 {
-	
+	//PH5
+	if(on) {
+		PORTH_OUTSET = 0x20;
+		PORTH_DIRSET = 0x20;
+	}
+	else {
+		PORTH_OUTCLR = 0x20;
+	}
 }
 
 static bool MMD_are_steppers_powered_on()
 {
-	
+	//PH4
+	if(PORTH_IN & 0x10) {
+		return false;
+	}
+	else {
+		return true;
+	}
 }
 
 static void MMD_stepper_dir(unsigned char stepperIndex, bool forward)
 {
-	
+	switch(stepperIndex)
+	{
+		case 0: // stepper 1
+		{
+			//Q6: PK7
+			if(forward) {
+				PORTK_OUTCLR = 0x80;
+			}
+			else {
+				PORTK_OUTSET = 0x80;
+				PORTK_DIRSET = 0x80;
+			}
+		}
+		break;
+		
+		case 1: // stepper 2
+		{
+			//Q9: PK4
+			if(forward) {
+				PORTK_OUTCLR = 0x10;
+			}
+			else {
+				PORTK_OUTSET = 0x10;
+				PORTK_DIRSET = 0x10;
+			}
+		}
+		break;
+		
+		case 2: // stepper 3
+		{
+			//Q12, PK1
+			if(forward) {
+				PORTK_OUTCLR = 0x01;
+			}
+			else {
+				PORTK_OUTSET = 0x01;
+				PORTK_DIRSET = 0x01;
+			}
+		}
+		break;
+		
+		case 3: //stepper 4
+		{
+			//Q15, PJ6
+			if(forward) {
+				PORTJ_OUTCLR = 0x40;
+			}
+			else {
+				PORTJ_OUTSET = 0x40;
+				PORTJ_DIRSET = 0x40;
+			}
+		}
+		break;
+		
+		case 4: //stepper 5
+		{
+			//Q32, PJ3
+			if(forward) {
+				PORTJ_OUTCLR = 0x08;
+			}
+			else {
+				PORTJ_OUTSET = 0x08;
+				PORTJ_DIRSET = 0x08;
+			}
+		}
+		break;
+		
+		default:
+		break;
+	}
 }
 
 static bool MMD_is_stepper_forward(unsigned char stepperIndex)
 {
-	
+	switch(stepperIndex)
+	{
+		case 0: // stepper 1
+		{
+			//Q6: PK7
+			if(PORTK_IN & 0x80) {
+				return false;
+			}
+			else {
+				return true;
+			}
+		}
+		break;
+		
+		case 1: // stepper 2
+		{
+			//Q9: PK4
+			if(PORTK_IN & 0x10) {
+				return false;
+			}
+			else {
+				return true;
+			}
+		}
+		break;
+		
+		case 2: // stepper 3
+		{
+			//Q12, PK1
+			if(PORTK_IN & 0x01) {
+				return false;
+			}
+			else {
+				return true;
+			}
+		}
+		break;
+		
+		case 3: //stepper 4
+		{
+			//Q15, PJ6
+			if(PORTJ_IN & 0x40) {
+				return false;
+			}
+			else {
+				return true;
+			}
+		}
+		break;
+		
+		case 4: //stepper 5
+		{
+			//Q32, PJ3
+			if(PORTJ_IN & 0x08) {
+				return false;
+			}
+			else {
+				return true;
+			}
+		}
+		break;
+		
+		default:
+		return false;
+		break;
+	}
 }
 
 static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 {
-	
+	switch(stepperIndex) 
+	{
+		case 0: //stepper 1
+		{
+			//Q5, PQ1
+		}
+		break;
+		
+		case 1: //stepper 2
+		{
+			//Q8, PK5
+		}
+		break;
+		
+		case 2: //stepper 3
+		{
+			//Q11, PK2
+		}
+		break;
+		
+		case 3: //stepper 4
+		{
+			//Q14, PJ7
+		}
+		break;
+		
+		case 4: //stepper 5
+		{
+			//Q31, PJ4
+		}
+		break;
+		
+		default:
+		break;
+	}
 }
 
 static bool MMD_is_stepper_enabled(unsigned char stepperIndex)
 {
-	
+	switch(stepperIndex)
+	{
+		case 0: //stepper 1
+		{
+			//Q5, PQ1
+		}
+		break;
+		
+		case 1: //stepper 2
+		{
+			//Q8, PK5
+		}
+		break;
+		
+		case 2: //stepper 3
+		{
+			//Q11, PK2
+		}
+		break;
+		
+		case 3: //stepper 4
+		{
+			//Q14, PJ7
+		}
+		break;
+		
+		case 4: //stepper 5
+		{
+			//Q31, PJ4
+		}
+		break;
+		
+		default:
+		break;
+	}	
 }
 
 // return the resolution of step length in microseconds.
@@ -317,9 +532,83 @@ static void MMD_stepper_set_deceleration_buffer_increment(unsigned char stepperI
 	
 }
 
-static bool MMD_clock_stepper(unsigned char stepperIndex, unsigned short steps)
+static bool MMD_stepper_clocks(unsigned char stepperIndex, unsigned short steps)
 {
 	
+}
+
+static void MMD_stepper_clock_high(unsigned char stepperIndex, bool high)
+{
+	switch(stepperIndex)
+	{
+		case 0: //stepper 1
+		{
+			//Q7, PK6
+			if(high) {
+				PORTK_OUTCLR = 0x40;
+			}
+			else {
+				PORTK_OUTSET = 0x40;
+				PORTK_DIRSET = 0x40;
+			}
+		}
+		break;
+			
+		case 1: //stepper 2
+		{
+			//Q10, PK3
+			if(high) {
+				PORTK_OUTCLR = 0x08;
+			}
+			else {
+				PORTK_OUTSET = 0x08;
+				PORTK_DIRSET = 0x08;
+			}
+		}
+		break;
+			
+		case 2: //stepper 3
+		{
+			//Q13, PK0
+			if(high) {
+				PORTK_OUTCLR = 0x01;
+			}
+			else {
+				PORTK_OUTSET = 0x01;
+				PORTK_DIRSET = 0x01;
+			}
+		}
+		break;
+			
+		case 3: //stepper 4
+		{
+			//Q16, PJ5
+			if(high) {
+				PORTJ_OUTCLR = 0x20;
+			}
+			else {
+				PORTJ_OUTSET = 0x20;
+				PORTJ_DIRSET = 0x20;
+			}
+		}
+		break;
+			
+		case 4: //stepper 5
+		{
+			//Q33, PJ2
+			if(high) {
+				PORTJ_OUTCLR = 0x04;
+			}
+			else {
+				PORTJ_OUTSET = 0x04;
+				PORTJ_DIRSET = 0x04;
+			}
+		}
+		break;
+			
+		default:
+		break;
+	}
 }
 
 // power on all bi-direction direct current motor
