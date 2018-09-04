@@ -114,10 +114,47 @@ static void MMD_init()
 	
 }
 
+// check main power status
+// returned value:
+//		true: main power is applied
+//		false: no main power
+static bool MMD_is_main_power_ok()
+{
+	//PJ1
+	if(PORTJ_IN & 0x02) {
+		return false;
+	}
+	else {
+		return true;
+	}
+}
+
+// check main fuse status
+// returned value:
+//		true: main fuse is ok
+//		false:	main fuse is broken
+static bool MMD_is_main_fuse_ok()
+{
+	//PJ0
+	if(PORTJ_IN & 0x01) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
 // power on OPT
 static void MMD_power_on_opt(bool on)
 {
-	
+	//controlled by PH7
+	if(on) {
+		PORTH_OUTSET = 0x80;
+		PORTH_DIRSET = 0x80;
+	}
+	else {
+		PORTH_OUTCLR = 0x80;
+	}
 }
 
 // return whether OPT is powered on
@@ -126,18 +163,96 @@ static void MMD_power_on_opt(bool on)
 //		false: OPT isn't powered on
 static bool MMD_is_opt_powered_on()
 {
-	
+	// PH6
+	if(PORTH_IN & 0x40) {
+		return false;
+	}
+	else {
+		return true;
+	}
 }
 
 // power on direct current motor
 static void MMD_power_on_dcm(unsigned char dcmIndex, bool on)
 {
-	
+	if(on)
+	{
+		switch(dcmIndex)
+		{
+			case 0: //DCM1
+			{
+				//PH3
+				PORTH_OUTSET = 0x04;
+				PORTH_DIRSET = 0x04;
+			}
+			break;
+			
+			case 1: //DCM2
+			{
+				//PH1
+				PORTH_OUTSET = 0x02;
+				PORTH_DIRSET = 0x02;
+			}
+			break;
+			
+			default:
+				break;
+		}
+	}
+	else {
+		switch(dcmIndex)
+		{
+			case 0: //DCM1
+			{
+				//PH3
+				PORTH_OUTCLR = 0x04;
+			}
+			break;
+			
+			case 1: //DCM2
+			{
+				//PH1
+				PORTH_OUTCLR = 0x02;
+			}
+			break;
+			
+			default:
+				break;
+		}
+	}
 }
 
-static bool MMD_is_dcm_power_on(unsigned char dcmIndex)
+static bool MMD_is_dcm_powered_on(unsigned char dcmIndex)
 {
-	
+	switch(dcmIndex)
+	{
+		case 0: //DCM1
+		{
+			//PH2
+			if(PORTH_IN & 0x02) {
+				return false;
+			}
+			else {
+				return true;
+			}
+		}
+		break;
+		
+		case 1: //DCM2
+		{
+			//PH0
+			if(PORTH_IN & 0x01) {
+				return false;
+			}
+			else {
+				return  true;
+			}
+		}
+		break;
+		
+		default:
+			return false;
+	}
 }
 
 // power on all steppers
