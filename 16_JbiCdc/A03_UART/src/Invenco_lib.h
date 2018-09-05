@@ -28,10 +28,18 @@ void writeOutputBufferString(char * pString);
 void writeOutputBufferHex(unsigned char n);
 void sendOutputBufferToHost();
 
+//////////////////////////////////
 // counter related
+//////////////////////////////////
+
+//initialize counter
 void counter_init();
+//wait for 1/time second
 void counter_wait(unsigned char time);
+//return current counter value
 unsigned short counter_get();
+//return length of a clock in microsecond
+unsigned short counter_clock_length();
 
 enum CommandState
 {

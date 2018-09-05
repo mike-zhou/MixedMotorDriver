@@ -339,6 +339,11 @@ unsigned short counter_get()
 	return tc_read_count(&TCC0);
 }
 
+unsigned short counter_clock_length()
+{
+	return 1000000/tc_get_resolution(&TCC0);
+}
+
 void Invenco_init()
 {
 	usart_rs232_options_t uartOption;
