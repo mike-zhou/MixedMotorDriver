@@ -190,7 +190,7 @@ static	unsigned short inputConsumerIndex=0;
 static	unsigned short outputProducerIndex=0;
 static	unsigned short outputConsumerIndex=0;
 
-void clearInputBuffer()
+void clearInputBuffer(void)
 {
 	inputProducerIndex = 0;
 	inputConsumerIndex = 0;
@@ -218,7 +218,7 @@ bool writeInputBuffer(unsigned char c)
 // read a character from input buffer.
 // return the first character in input buffer,
 // return 0 if there is nothing in the input buffer.
-unsigned char readInputBuffer()
+unsigned char readInputBuffer(void)
 {
 	if(inputConsumerIndex != inputProducerIndex) {
 		unsigned char c = inputBuffer[inputConsumerIndex];
@@ -251,7 +251,7 @@ bool writeOutputBufferChar(unsigned char c)
 }
 
 //write a string to output buffer
-void writeOutputBufferString(char * pString)
+void writeOutputBufferString(const char * pString)
 {
 	unsigned char c;
 	
@@ -283,7 +283,7 @@ void writeOutputBufferHex(unsigned char n)
 	}
 }
 
-void sendOutputBufferToHost()
+void sendOutputBufferToHost(void)
 {
 	if(outputConsumerIndex != outputProducerIndex)
 	{
@@ -294,7 +294,7 @@ void sendOutputBufferToHost()
 	}
 }
 
-void counter_init()
+void counter_init(void)
 {
 	//set counter. The resolution should be 31MHz/1024.
 	tc_enable(&TCC0);
@@ -334,17 +334,17 @@ void counter_wait(unsigned char time)
 	}
 }
 
-unsigned short counter_get()
+unsigned short counter_get(void)
 {
 	return tc_read_count(&TCC0);
 }
 
-unsigned short counter_clock_length()
+unsigned short counter_clock_length(void)
 {
 	return 1000000/tc_get_resolution(&TCC0);
 }
 
-void Invenco_init()
+void Invenco_init(void)
 {
 	usart_rs232_options_t uartOption;
 	

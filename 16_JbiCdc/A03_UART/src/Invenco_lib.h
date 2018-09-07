@@ -20,26 +20,26 @@ void printHex(unsigned char hex);
 unsigned char getChar(void);
 
 // USB related
-void clearInputBuffer();
+void clearInputBuffer(void);
 bool writeInputBuffer(unsigned char c);
-unsigned char readInputBuffer();
+unsigned char readInputBuffer(void);
 bool writeOutputBufferChar(unsigned char c);
-void writeOutputBufferString(char * pString);
+void writeOutputBufferString(const char * pString);
 void writeOutputBufferHex(unsigned char n);
-void sendOutputBufferToHost();
+void sendOutputBufferToHost(void);
 
 //////////////////////////////////
 // counter related
 //////////////////////////////////
 
 //initialize counter
-void counter_init();
+void counter_init(void);
 //wait for 1/time second
 void counter_wait(unsigned char time);
 //return current counter value
-unsigned short counter_get();
+unsigned short counter_get(void);
 //return length of a clock in microsecond
-unsigned short counter_clock_length();
+unsigned short counter_clock_length(void);
 
 enum CommandState
 {
@@ -48,7 +48,7 @@ enum CommandState
 	EXECUTING_COMMAND
 };
 
-void Invenco_init();
+void Invenco_init(void);
 
 
 #endif /* ECD300_TEST_H_ */

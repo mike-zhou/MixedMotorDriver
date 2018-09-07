@@ -54,7 +54,7 @@ enum MMD_stepper_state
 
 enum MMD_stepper_step_phase
 {
-	STEP_PHASE_CLk_LOW = 0,
+	STEP_PHASE_CLK_LOW = 0,
 	STEP_PHASE_CLK_HIGH,
 	STEP_PHASE_DELAY,
 	STEP_PHASE_FINISH
@@ -72,9 +72,12 @@ static const char * STR_LOCATOR_LINE_INDEX_DUPLICATE = "Duplicated locator line 
 static const char * STR_DCM_INDEX_OUT_OF_SCOPE = "DCM index is out of scope\r\n";
 static const char * STR_BDC_INDEX_OUT_OF_SCOPE = "BDC index is out of scope\r\n";
 
+static unsigned short mmdCurrentClock;
+
 struct MMD_stepper_data
 {
 	enum MMD_stepper_state state;
+	unsigned char stepperIndex;
 	
 	unsigned char locatorIndex;
 	unsigned char locatorLineNumberStart;
@@ -154,7 +157,7 @@ struct MMD_status
 	enum CommandState cmdState;
 } mmdStatus;
 
-static void MMD_init()
+static void MMD_init(void)
 {
 	unsigned char index;
 	
@@ -163,9 +166,11 @@ static void MMD_init()
 	mmdCommand.parameterAmount = 0;
 	for(index=0; index<MMD_STEPPERS_AMOUNT; index++)
 	{
+		mmdCommand.steppersData[index].state = STEPPER_STATE_UNKNOWN_POSITION;
+		mmdCommand.steppersData[index].stepperIndex = index;
+
 		mmdCommand.steppersData[index].enabled = false;
 		mmdCommand.steppersData[index].forward = true;
-		mmdCommand.steppersData[index].state = STEPPER_STATE_UNKNOWN_POSITION;
 
 		mmdCommand.steppersData[index].totalSteps = 0;
 		mmdCommand.steppersData[index].currentStepIndex = 0;
@@ -209,11 +214,27 @@ static void MMD_init()
 	mmdStatus.cmdState = AWAITING_COMMAND;
 }
 
+// return (mmdCurrentClk - clkStamp)
+static unsigned short MMD_elapsed_clk(unsigned short clkStamp)
+{
+	if(mmdCurrentClock >= clkStamp) {
+		return mmdCurrentClock - clkStamp;
+	}
+	else {
+		return 0xFFFF - clkStamp + mmdCurrentClock;
+	}
+}
+
+static inline unsigned short MMD_current_clk(void)
+{
+	return mmdCurrentClock;
+}
+
 // check main power status
 // returned value:
 //		true: main power is applied
 //		false: no main power
-static bool MMD_is_main_power_ok()
+static bool MMD_is_main_power_ok(void)
 {
 	//PJ1
 	if(PORTJ_IN & 0x02) {
@@ -228,7 +249,7 @@ static bool MMD_is_main_power_ok()
 // returned value:
 //		true: main fuse is ok
 //		false:	main fuse is broken
-static bool MMD_is_main_fuse_ok()
+static bool MMD_is_main_fuse_ok(void)
 {
 	//PJ0
 	if(PORTJ_IN & 0x01) {
@@ -236,6 +257,133 @@ static bool MMD_is_main_fuse_ok()
 	}
 	else {
 		return false;
+	}
+}
+
+// check which input line is triggered
+// return value:
+//	0: no input line is triggered
+//  1 - 8: an input line is triggered
+//	others: error occurs.
+static unsigned char MMD_locator_get(unsigned char locatorIndex)
+{
+	switch(locatorIndex)
+	{
+		case 0: //LC1
+		if((PORTD_IN & 0x10) == 0)
+		return 1;
+		else if((PORTD_IN & 0x20) == 0)
+		return 2;
+		else
+		return 0;
+		
+		case 1: //LC2
+		if((PORTC_IN & 0x80) != 0)
+		return 0;
+		else {
+			unsigned char n = 0;
+			
+			if((PORTC_IN & 0x40) != 0)
+			n += 1;
+			if((PORTC_IN & 0x20) != 0)
+			n += 2;
+			if((PORTC_IN & 0x10) != 0)
+			n += 4;
+			return n;
+		}
+		
+		case 2: //LC3
+		if((PORTC_IN & 0x08) != 0)
+		return 0;
+		else {
+			unsigned char n = 0;
+			
+			if((PORTC_IN & 0x04) != 0)
+			n += 1;
+			if((PORTC_IN & 0x02) != 0)
+			n += 2;
+			if((PORTC_IN & 0x01) != 0)
+			n += 4;
+			return n;
+		}
+		
+		case 3: //LC4
+		if((PORTB_IN & 0x80) != 0)
+		return 0;
+		else {
+			unsigned char n = 0;
+			
+			if((PORTB_IN & 0x40) != 0)
+			n += 1;
+			if((PORTB_IN & 0x20) != 0)
+			n += 2;
+			if((PORTB_IN & 0x10) != 0)
+			n += 4;
+			return n;
+		}
+		
+		case 4: //LC5
+		if((PORTB_IN & 0x08) != 0)
+		return 0;
+		else {
+			unsigned char n = 0;
+			
+			if((PORTB_IN & 0x04) != 0)
+			n += 1;
+			if((PORTB_IN & 0x02) != 0)
+			n += 2;
+			if((PORTB_IN & 0x01) != 0)
+			n += 4;
+			return n;
+		}
+		
+		case 5: //LC6
+		if((PORTA_IN & 0x80) != 0)
+		return 0;
+		else {
+			unsigned char n = 0;
+			
+			if((PORTA_IN & 0x40) != 0)
+			n += 1;
+			if((PORTA_IN & 0x20) != 0)
+			n += 2;
+			if((PORTA_IN & 0x10) != 0)
+			n += 4;
+			return n;
+		}
+		
+		case 6: //LC7
+		if((PORTA_IN & 0x08) != 0)
+		return 0;
+		else {
+			unsigned char n = 0;
+			
+			if((PORTA_IN & 0x04) != 0)
+			n += 1;
+			if((PORTA_IN & 0x02) != 0)
+			n += 2;
+			if((PORTA_IN & 0x01) != 0)
+			n += 4;
+			return n;
+		}
+		
+		case 7: //LC8
+		if((PORTR_IN & 0x02) != 0)
+		return 0;
+		else {
+			unsigned char n = 0;
+			
+			if((PORTR_IN & 0x01) != 0)
+			n += 1;
+			if((PORTQ_IN & 0x08) != 0)
+			n += 2;
+			if((PORTQ_IN & 0x04) != 0)
+			n += 4;
+			return n;
+		}
+		
+		default:
+		return 0;
 	}
 }
 
@@ -256,7 +404,7 @@ static void MMD_power_on_opt(bool on)
 // return value:
 //		true: OPT is powered on
 //		false: OPT isn't powered on
-static bool MMD_is_opt_powered_on()
+static bool MMD_is_opt_powered_on(void)
 {
 	// PH6
 	if(PORTH_IN & 0x40) {
@@ -363,7 +511,7 @@ static void MMD_power_on_steppers(bool on)
 	}
 }
 
-static bool MMD_are_steppers_powered_on()
+static bool MMD_are_steppers_powered_on(void)
 {
 	//PH4
 	if(PORTH_IN & 0x10) {
@@ -390,6 +538,7 @@ static void MMD_stepper_forward(unsigned char stepperIndex, bool forward)
 				PORTK_OUTSET = 0x80;
 				PORTK_DIRSET = 0x80;
 			}
+			mmdCommand.steppersData[stepperIndex].forward = forward;
 		}
 		break;
 		
@@ -403,6 +552,7 @@ static void MMD_stepper_forward(unsigned char stepperIndex, bool forward)
 				PORTK_OUTSET = 0x10;
 				PORTK_DIRSET = 0x10;
 			}
+			mmdCommand.steppersData[stepperIndex].forward = forward;
 		}
 		break;
 		
@@ -416,6 +566,7 @@ static void MMD_stepper_forward(unsigned char stepperIndex, bool forward)
 				PORTK_OUTSET = 0x01;
 				PORTK_DIRSET = 0x01;
 			}
+			mmdCommand.steppersData[stepperIndex].forward = forward;
 		}
 		break;
 		
@@ -429,6 +580,7 @@ static void MMD_stepper_forward(unsigned char stepperIndex, bool forward)
 				PORTJ_OUTSET = 0x40;
 				PORTJ_DIRSET = 0x40;
 			}
+			mmdCommand.steppersData[stepperIndex].forward = forward;
 		}
 		break;
 		
@@ -442,6 +594,7 @@ static void MMD_stepper_forward(unsigned char stepperIndex, bool forward)
 				PORTJ_OUTSET = 0x08;
 				PORTJ_DIRSET = 0x08;
 			}
+			mmdCommand.steppersData[stepperIndex].forward = forward;
 		}
 		break;
 		
@@ -534,6 +687,7 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 			else {
 				PORTQ_OUTCLR = 0x01;
 			}
+			mmdCommand.steppersData[stepperIndex].enabled = enable;
 		}
 		break;
 		
@@ -547,6 +701,7 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 			else {
 				PORTK_OUTCLR = 0x20;
 			}
+			mmdCommand.steppersData[stepperIndex].enabled = enable;
 		}
 		break;
 		
@@ -560,6 +715,7 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 			else {
 				PORTK_OUTCLR = 0x04;
 			}
+			mmdCommand.steppersData[stepperIndex].enabled = enable;
 		}
 		break;
 		
@@ -573,6 +729,7 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 			else {
 				PORTJ_OUTCLR = 0x80;
 			}
+			mmdCommand.steppersData[stepperIndex].enabled = enable;
 		}
 		break;
 		
@@ -586,6 +743,7 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 			else {
 				PORTJ_OUTCLR = 0x10;
 			}
+			mmdCommand.steppersData[stepperIndex].enabled = enable;
 		}
 		break;
 		
@@ -665,7 +823,7 @@ static bool MMD_is_stepper_enabled(unsigned char stepperIndex)
 }
 
 // return the resolution of step length in microseconds.
-static unsigned short MMD_stepper_resolution()
+static unsigned short MMD_stepper_resolution(void)
 {
 	return counter_clock_length();
 }
@@ -726,7 +884,7 @@ static void MMD_stepper_set_steps(unsigned char stepperIndex, unsigned short ste
 		return;
 	}
 
-	mmdCommand.steppersData[stepperIndex].totalSteps += steps;
+	mmdCommand.steppersData[stepperIndex].totalSteps = steps;
 
 	//find out where deceleration should start
 	decelerationSteps = mmdCommand.steppersData[stepperIndex].decelerationBuffer / mmdCommand.steppersData[stepperIndex].decelerationIncrement;
@@ -815,17 +973,163 @@ static void MMD_stepper_clock_high(unsigned char stepperIndex, bool high)
 	}
 }
 
-void MMD_steppers_run()
+void MMD_stepper_approach_home(struct MMD_stepper_data * pData)
+{
+	if(pData == NULL) {
+		return;
+	}
+
+	switch(pData->stepPhase)
+	{
+		case STEP_PHASE_CLK_LOW:
+		{
+			if(MMD_elapsed_clk(pData->counterPhaseStarting) >= pData->phaseLowClocks) {
+				//trigger a rising edge at the end of lower phase
+				MMD_stepper_clock_high(pData->stepperIndex, true);
+				pData->stepPhase = STEP_PHASE_CLK_HIGH;
+				pData->counterPhaseStarting = MMD_current_clk();
+			}
+		}
+		break;
+
+		case STEP_PHASE_CLK_HIGH:
+		{
+			if(MMD_elapsed_clk(pData->counterPhaseStarting) >= pData->phaseHighClocks) {
+				MMD_stepper_clock_high(pData->stepperIndex, false);
+				pData->stepPhase = STEP_PHASE_FINISH;
+			}
+		}
+		break;
+
+		case STEP_PHASE_DELAY:
+		{
+			// no delay phase in STEPPER_STATE_APPROACHING_HOME
+		}
+		break;
+
+		case STEP_PHASE_FINISH:
+		{
+			if(pData->locatorLineNumberStart == MMD_locator_get(pData->locatorIndex)) {
+				//stepper arrived at home position, then switch to the next state
+				MMD_stepper_forward(pData->stepperIndex, true);
+				pData->state = STEPPER_STATE_LEAVING_HOME;
+			}
+			else {
+				//continue moving to home
+				pData->stepPhase = STEP_PHASE_CLK_LOW;
+				pData->counterPhaseStarting = MMD_current_clk();
+			}
+		}
+		break;
+
+		default:
+		break;
+	}
+}
+
+void MMD_stepper_leave_home(struct MMD_stepper_data * pData)
+{
+	if(pData == NULL) {
+		return;
+	}
+
+	switch(pData->stepPhase)
+	{
+		case STEP_PHASE_CLK_LOW:
+		{
+			if(MMD_elapsed_clk(pData->counterPhaseStarting) >= pData->phaseLowClocks) {
+				//trigger a rising edge at the end of lower phase
+				MMD_stepper_clock_high(pData->stepperIndex, true);
+				pData->stepPhase = STEP_PHASE_CLK_HIGH;
+				pData->counterPhaseStarting = MMD_current_clk();
+			}
+		}
+		break;
+
+		case STEP_PHASE_CLK_HIGH:
+		{
+			if(MMD_elapsed_clk(pData->counterPhaseStarting) >= pData->phaseHighClocks) {
+				MMD_stepper_clock_high(pData->stepperIndex, false);
+				pData->stepPhase = STEP_PHASE_FINISH;
+			}
+		}
+		break;
+
+		case STEP_PHASE_DELAY:
+		{
+			// no delay phase in STEPPER_STATE_APPROACHING_HOME
+		}
+		break;
+
+		case STEP_PHASE_FINISH:
+		{
+			if(pData->locatorLineNumberStart != MMD_locator_get(pData->locatorIndex)) {
+				//stepper home line just changes to high, then switch to the next state
+				MMD_stepper_forward(pData->stepperIndex, true);
+				pData->homeOffset = 0;
+				pData->totalSteps = 0;
+				pData->state = STEPPER_STATE_KNOWN_POSITION;
+			}
+			else {
+				//continue moving to home
+				pData->stepPhase = STEP_PHASE_CLK_LOW;
+				pData->counterPhaseStarting = MMD_current_clk();
+			}
+		}
+		break;
+
+		default:
+		break;
+	}
+}
+
+void MMD_steppers_run(void)
 {
 	struct MMD_stepper_data * pStepper;
 	
+	//update current clk with system counter.
+	mmdCurrentClock = counter_get();
+
 	for(unsigned char stepperIndex; stepperIndex < MMD_STEPPERS_AMOUNT; stepperIndex++)
 	{
 		pStepper = &(mmdCommand.steppersData[stepperIndex]);
-		if(pStepper->currentStepIndex >= pStepper->totalSteps) {
-			continue;
+		switch(pStepper->state)
+		{
+			case STEPPER_STATE_UNKNOWN_POSITION:
+			{
+				//do nothing.
+			}
+			break;
+			
+			case STEPPER_STATE_APPROACHING_HOME:
+			{
+				MMD_stepper_approach_home(pStepper);
+			}
+			break;
+
+			case STEPPER_STATE_LEAVING_HOME:
+			{
+				MMD_stepper_leave_home(pStepper);
+			}
+			break;
+
+			case STEPPER_STATE_KNOWN_POSITION:
+			{
+				//do nothing
+			}
+			break;
+
+			case STEPPER_STATE_ACCELERATING:
+			case STEPPER_STATE_CRUISING:
+			case STEPPER_STATE_DECELERATING:
+			{
+
+			}
+			break;
+
+			default:
+			break;
 		}
-		
 	}
 }
 
@@ -852,7 +1156,7 @@ static void MMD_power_on_bdcms(bool on)
 	}
 }
 
-static bool MMD_are_bdcms_powered_on()
+static bool MMD_are_bdcms_powered_on(void)
 {
 	//read PF6
 	return (PORTF_IN & 0x40) != 0;
@@ -1198,135 +1502,7 @@ static enum MMD_BDCM_STATE MMD_get_bdcm_state(unsigned char index)
 	}
 }
 
-
-// check which input line is triggered
-// return value:
-//	0: no input line is triggered
-//  1 - 8: an input line is triggered
-//	others: error occurs.
-static unsigned char MMD_locator_get(unsigned char locatorIndex)
-{
-	switch(locatorIndex)
-	{
-		case 0: //LC1
-			if((PORTD_IN & 0x10) == 0)
-				return 1;
-			else if((PORTD_IN & 0x20) == 0)
-				return 2;
-			else 
-				return 0;
-		
-		case 1: //LC2
-			if((PORTC_IN & 0x80) != 0)
-				return 0;
-			else {
-				unsigned char n = 0;
-				
-				if((PORTC_IN & 0x40) != 0)
-					n += 1;
-				if((PORTC_IN & 0x20) != 0)
-					n += 2;
-				if((PORTC_IN & 0x10) != 0)
-					n += 4;
-				return n;
-			}
-		
-		case 2: //LC3
-			if((PORTC_IN & 0x08) != 0)
-				return 0;
-			else {
-				unsigned char n = 0;
-				
-				if((PORTC_IN & 0x04) != 0)
-					n += 1;
-				if((PORTC_IN & 0x02) != 0)
-					n += 2;
-				if((PORTC_IN & 0x01) != 0)
-					n += 4;
-				return n;
-			}
-		
-		case 3: //LC4
-			if((PORTB_IN & 0x80) != 0)
-				return 0;
-			else {
-				unsigned char n = 0;
-			
-				if((PORTB_IN & 0x40) != 0)
-					n += 1;
-				if((PORTB_IN & 0x20) != 0)
-					n += 2;
-				if((PORTB_IN & 0x10) != 0)
-					n += 4;
-				return n;
-			}
-		
-		case 4: //LC5
-			if((PORTB_IN & 0x08) != 0)
-				return 0;
-			else {
-				unsigned char n = 0;
-			
-				if((PORTB_IN & 0x04) != 0)
-					n += 1;
-				if((PORTB_IN & 0x02) != 0)
-					n += 2;
-				if((PORTB_IN & 0x01) != 0)
-					n += 4;
-				return n;
-			}
-				
-		case 5: //LC6
-			if((PORTA_IN & 0x80) != 0)
-				return 0;
-			else {
-				unsigned char n = 0;
-				
-				if((PORTA_IN & 0x40) != 0)
-					n += 1;
-				if((PORTA_IN & 0x20) != 0)
-					n += 2;
-				if((PORTA_IN & 0x10) != 0)
-					n += 4;
-				return n;
-			}
-		
-		case 6: //LC7
-			if((PORTA_IN & 0x08) != 0)
-				return 0;
-			else {
-				unsigned char n = 0;
-				
-				if((PORTA_IN & 0x04) != 0)
-					n += 1;
-				if((PORTA_IN & 0x02) != 0)
-					n += 2;
-				if((PORTA_IN & 0x01) != 0)
-					n += 4;
-				return n;
-			}
-		
-		case 7: //LC8
-			if((PORTR_IN & 0x02) != 0)
-				return 0;
-			else {
-				unsigned char n = 0;
-				
-				if((PORTR_IN & 0x01) != 0)
-					n += 1;
-				if((PORTQ_IN & 0x08) != 0)
-					n += 2;
-				if((PORTQ_IN & 0x04) != 0)
-					n += 4;
-				return n;
-			}
-		
-		default:
-			return 0;
-	}
-}
-
-static void MMD_parse_command()
+static void MMD_parse_command(void)
 {
 	unsigned char tag;
 	unsigned char cmd = 0;
@@ -1471,7 +1647,7 @@ static void MMD_parse_command()
 	}
 }
 
-static void MMD_run_command()
+static void MMD_run_command(void)
 {
 	if(mmdCommand.state == STARTING_COMMAND)
 	{
@@ -1621,7 +1797,7 @@ static void MMD_run_command()
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
-				else if(mmdCommand.steppersData[stepperIndex].state == STEPPER_STATE_UNKNOWN_POSITION) {
+				else if(mmdCommand.steppersData[stepperIndex].state != STEPPER_STATE_KNOWN_POSITION) {
 					writeOutputBufferString(STR_STEPPER_NOT_POSITIONED);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
@@ -1725,7 +1901,7 @@ static void MMD_run_command()
 
 			default:
 			{
-				writeOutputBufferString("Unknown command\r\n");
+				writeOutputBufferString(STR_UNKNOWN_COMMAND);
 				clearInputBuffer();
 				mmdCommand.state = AWAITING_COMMAND;
 
@@ -1789,23 +1965,27 @@ static void MMD_run_command()
 			
 			case COMMAND_DCM_POWER_ON:
 			{
-				MMD_power_on_dcm(mmdCommand.parameters[0], true);
+				unsigned char index = mmdCommand.parameters[0];
+				MMD_power_on_dcm(index, true);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
 			case COMMAND_DCM_POWER_OFF:
 			{
-				MMD_power_on_dcm(mmdCommand.parameters[0], false);
+				unsigned char index = mmdCommand.parameters[0];
+				MMD_power_on_dcm(index, false);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
 			case COMMAND_DCM_POWER_QUERY:
 			{
+				unsigned char index = mmdCommand.parameters[0];
+				
 				writeOutputBufferString("DCM ");
-				writeOutputBufferHex(mmdCommand.parameters[0] & 0xff);
-				if(MMD_is_dcm_powered_on(mmdCommand.parameters[0])) {
+				writeOutputBufferHex(index & 0xff);
+				if(MMD_is_dcm_powered_on(index)) {
 					writeOutputBufferString(" is powered on\r\n");
 				}
 				else {
@@ -1842,38 +2022,44 @@ static void MMD_run_command()
 			
 			case COMMAND_BDC_COAST:
 			{
-				MMD_set_bdcm_state(mmdCommand.parameters[0], BDCM_STATE_COAST);
+				unsigned char index = mmdCommand.parameters[0];
+				MMD_set_bdcm_state(index, BDCM_STATE_COAST);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
 			case COMMAND_BDC_REVERSE:
 			{
-				MMD_set_bdcm_state(mmdCommand.parameters[0], BDCM_STATE_REVERSE);
+				unsigned char index = mmdCommand.parameters[0];
+				MMD_set_bdcm_state(index, BDCM_STATE_REVERSE);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
 			case COMMAND_BDC_FORWARD:
 			{
-				MMD_set_bdcm_state(mmdCommand.parameters[0], BDCM_STATE_FORWARD);
+				unsigned char index = mmdCommand.parameters[0];
+				MMD_set_bdcm_state(index, BDCM_STATE_FORWARD);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
 			case COMMAND_BDC_BREAK:
 			{
-				MMD_set_bdcm_state(mmdCommand.parameters[0], BDCM_STATE_BREAK);
+				unsigned char index = mmdCommand.parameters[0];
+				MMD_set_bdcm_state(index, BDCM_STATE_BREAK);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
 			case COMMAND_BDC_QUERY:
 			{
+				unsigned char index = mmdCommand.parameters[0];
+				
 				writeOutputBufferString("BDCM ");
-				writeOutputBufferHex(mmdCommand.parameters[0]);
+				writeOutputBufferHex(index);
 				writeOutputBufferString(" state: ");
-				switch(MMD_get_bdcm_state(mmdCommand.parameters[0]))
+				switch(MMD_get_bdcm_state(index))
 				{
 					case BDCM_STATE_COAST:
 						writeOutputBufferString("COAST\r\n");
@@ -1910,48 +2096,63 @@ static void MMD_run_command()
 
 			case COMMAND_STEPPER_CONFIG_STEP:
 			{
-				MMD_stepper_config_step(mmdCommand.parameters[0], mmdCommand.parameters[1], mmdCommand.parameters[2]);
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				unsigned short lowClocks = mmdCommand.parameters[1];
+				unsigned short highClocks = mmdCommand.parameters[2];
+				
+				MMD_stepper_config_step(stepperIndex, lowClocks, highClocks);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 
 			case COMMAND_STEPPER_ACCELERATION_BUFFER:
 			{
-				MMD_stepper_set_acceleration_buffer(mmdCommand.parameters[0], mmdCommand.parameters[1]);
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				unsigned short clocks = mmdCommand.parameters[1];
+				
+				MMD_stepper_set_acceleration_buffer(stepperIndex, clocks);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 
 			case COMMAND_STEPPER_ACCELERATION_BUFFER_DECREMENT:
 			{
-				MMD_stepper_set_acceleration_buffer_decrement(mmdCommand.parameters[0], mmdCommand.parameters[1]);
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				unsigned short clocks = mmdCommand.parameters[1];
+				
+				MMD_stepper_set_acceleration_buffer_decrement(stepperIndex, clocks);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 
 			case COMMAND_STEPPER_DECELERATION_BUFFER:
 			{
-				MMD_stepper_set_deceleration_buffer(mmdCommand.parameters[0], mmdCommand.parameters[1]);
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				unsigned short clocks = mmdCommand.parameters[1];
+
+				MMD_stepper_set_deceleration_buffer(stepperIndex, clocks);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 
 			case COMMAND_STEPPER_DECELERATION_BUFFER_INCREMENT:
 			{
-				MMD_stepper_set_deceleration_buffer_increment(mmdCommand.parameters[0], mmdCommand.parameters[1]);
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				unsigned short clocks = mmdCommand.parameters[1];
+
+				MMD_stepper_set_deceleration_buffer_increment(stepperIndex, clocks);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 
 			case COMMAND_STEPPER_ENABLE:
 			{
-				unsigned char index = mmdCommand.parameters[0];
+				unsigned char stepperIndex = mmdCommand.parameters[0];
 				bool enable = mmdCommand.parameters[1] != 0;
 				
-				MMD_stepper_enable(index, enable);
-				mmdCommand.steppersData[index].enabled = enable;
+				MMD_stepper_enable(stepperIndex, enable);
 				if(!enable) {
-					mmdCommand.steppersData[index].state = STEPPER_STATE_UNKNOWN_POSITION;
+					mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_UNKNOWN_POSITION;
 				}
 				mmdCommand.state = AWAITING_COMMAND;
 			}
@@ -1959,14 +2160,21 @@ static void MMD_run_command()
 
 			case COMMAND_STEPPER_DIR:
 			{
-				MMD_stepper_forward(mmdCommand.parameters[0], mmdCommand.parameters[1] != 0);
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				bool forward = mmdCommand.parameters[1] != 0;
+
+				MMD_stepper_forward(mmdCommand.parameters[0], forward);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 
 			case COMMAND_STEPPER_STEPS:
 			{
-				MMD_stepper_set_steps(mmdCommand.parameters[0], mmdCommand.parameters[1] != 0);
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				unsigned short steps = mmdCommand.parameters[1];
+				
+				MMD_stepper_set_steps(stepperIndex,  steps);
+				MMD_stepper_enable(stepperIndex, true);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -1979,22 +2187,32 @@ static void MMD_run_command()
 
 			case COMMAND_STEPPER_CONFIG_HOME:
 			{
-				mmdCommand.steppersData[mmdCommand.parameters[0]].locatorIndex = mmdCommand.parameters[1];
-				mmdCommand.steppersData[mmdCommand.parameters[0]].locatorLineNumberStart = mmdCommand.parameters[2];
-				mmdCommand.steppersData[mmdCommand.parameters[0]].locatorLineNumberTerminal = mmdCommand.parameters[3];
-				mmdCommand.steppersData[mmdCommand.parameters[0]].state = STEPPER_STATE_APPROACHING_HOME;
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				
+				mmdCommand.steppersData[stepperIndex].locatorIndex = mmdCommand.parameters[1];
+				mmdCommand.steppersData[stepperIndex].locatorLineNumberStart = mmdCommand.parameters[2];
+				mmdCommand.steppersData[stepperIndex].locatorLineNumberTerminal = mmdCommand.parameters[3];
+				mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_APPROACHING_HOME;
+				mmdCommand.steppersData[stepperIndex].stepPhase = STEP_PHASE_FINISH;
+				//reverse to home
+				MMD_stepper_forward(stepperIndex, false);
+				MMD_stepper_enable(stepperIndex, true);
 			}
 			break;
 
 			case COMMAND_STEPPER_QUREY:
 			{
-				MMD_stepper_query(mmdCommand.parameters[0]);
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				
+				MMD_stepper_query(stepperIndex);
 			}
 			break;
 
 			case COMMAND_LOCATOR_QUERY:
 			{
-				MMD_locator_query(mmdCommand.parameters[0]);
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				
+				MMD_locator_query(stepperIndex);
 			}
 			break;
 
@@ -2007,12 +2225,12 @@ static void MMD_run_command()
 	}
 }
 
-static void MMD_check_status()
+static void MMD_check_status(void)
 {
 	
 }
 
-void ecd300MixedMotorDrivers()
+void ecd300MixedMotorDrivers(void)
 {
 	unsigned char c;
 
