@@ -68,6 +68,8 @@ static const char * STR_INVALID_PARAMETER = "Invalid parameter\r\n";
 static const char * STR_WRONG_PARAMETER_AMOUNT = "Wrong parameter amount\r\n";
 static const char * STR_STEPPER_INDEX_OUT_OF_SCOPE = "Stepper index is out of scope\r\n";
 static const char * STR_STEPPER_NOT_POSITIONED = "Stepper has not been positioned\r\n";
+static const char * STR_STEPPER_UNDER_SCOPE = "Stepper is under scope ";
+static const char * STR_STEPPER_OVER_SCOPE = "Stepper is over scope ";
 static const char * STR_LOCATOR_INDEX_OUT_OF_SCOPE = "Locator index is out of scope\r\n";
 static const char * STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE = "Locator line index is out of scope\r\n";
 static const char * STR_LOCATOR_LINE_INDEX_DUPLICATE = "Duplicated locator line index\r\n";
@@ -979,474 +981,6 @@ static void MMD_stepper_clock_high(unsigned char stepperIndex, bool high)
 	}
 }
 
-void MMD_stepper_approach_home_locator(struct MMD_stepper_data * pData)
-{
-	if(pData == NULL) {
-		return;
-	}
-
-	switch(pData->stepPhase)
-	{
-		case STEP_PHASE_FINISH:
-		{
-			if(pData->locatorLineNumberStart == MMD_locator_get(pData->locatorIndex)) {
-				//home locator is triggered, then switch to the next state
-				MMD_stepper_forward(pData->stepperIndex, true);
-				pData->state = STEPPER_STATE_LEAVING_HOME_LOCATOR;
-			}
-			else {
-				//continue moving to home
-				pData->stepPhase = STEP_PHASE_CLK_LOW;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-
-		case STEP_PHASE_CLK_LOW:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseLowClocks) {
-				//trigger a rising edge at the end of lower phase
-				MMD_stepper_clock_high(pData->stepperIndex, true);
-				pData->stepPhase = STEP_PHASE_CLK_HIGH;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-
-		case STEP_PHASE_CLK_HIGH:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
-				MMD_stepper_clock_high(pData->stepperIndex, false);
-				pData->stepPhase = STEP_PHASE_FINISH;
-			}
-		}
-		break;
-
-		case STEP_PHASE_DELAY:
-		{
-			// no delay phase in STEPPER_STATE_APPROACHING_HOME
-		}
-		break;
-
-		default:
-		break;
-	}
-}
-
-void MMD_stepper_leave_home_locator(struct MMD_stepper_data * pData)
-{
-	if(pData == NULL) {
-		return;
-	}
-
-	switch(pData->stepPhase)
-	{
-		case STEP_PHASE_FINISH:
-		{
-			if(pData->locatorLineNumberStart != MMD_locator_get(pData->locatorIndex)) {
-				//stepper home line just changes to high, then switch to the next state
-				MMD_stepper_forward(pData->stepperIndex, true);
-				pData->state = STEPPER_STATE_GO_HOME;
-				pData->currentStepIndex = 0;
-			}
-			else {
-				//continue leaving home locator
-				pData->stepPhase = STEP_PHASE_CLK_LOW;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-		
-		case STEP_PHASE_CLK_LOW:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseLowClocks) {
-				//trigger a rising edge at the end of lower phase
-				MMD_stepper_clock_high(pData->stepperIndex, true);
-				pData->stepPhase = STEP_PHASE_CLK_HIGH;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-
-		case STEP_PHASE_CLK_HIGH:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
-				MMD_stepper_clock_high(pData->stepperIndex, false);
-				pData->stepPhase = STEP_PHASE_FINISH;
-			}
-		}
-		break;
-
-		case STEP_PHASE_DELAY:
-		{
-			// no delay phase in STEPPER_STATE_APPROACHING_HOME
-		}
-		break;
-
-		default:
-		break;
-	}
-}
-
-void MMD_stepper_go_home(struct MMD_stepper_data * pData)
-{
-	if(pData == NULL) {
-		return;
-	}
-
-	switch(pData->stepPhase)
-	{
-		case STEP_PHASE_FINISH:
-		{
-			if(pData->currentStepIndex >= MMD_ABSOLUTE_HOME_OFFSET_STEPS) {
-				//arrive at home position
-				MMD_stepper_forward(pData->stepperIndex, true);
-				pData->homeOffset = 0;
-				pData->totalSteps = 0;
-				pData->currentStepIndex = 0;
-				pData->state = STEPPER_STATE_KNOWN_POSITION;
-			}
-			else {
-				//continue moving to home
-				pData->stepPhase = STEP_PHASE_CLK_LOW;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-		
-		case STEP_PHASE_CLK_LOW:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseLowClocks) {
-				//trigger a rising edge at the end of lower phase
-				MMD_stepper_clock_high(pData->stepperIndex, true);
-				pData->stepPhase = STEP_PHASE_CLK_HIGH;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-
-		case STEP_PHASE_CLK_HIGH:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
-				MMD_stepper_clock_high(pData->stepperIndex, false);
-				pData->stepPhase = STEP_PHASE_FINISH;
-				pData->currentStepIndex++;
-			}
-		}
-		break;
-
-		case STEP_PHASE_DELAY:
-		{
-			// no delay phase in STEPPER_STATE_APPROACHING_HOME
-		}
-		break;
-
-		default:
-		break;
-	}
-}
-
-void MMD_stepper_accelerate(struct MMD_stepper_data * pData)
-{
-	if(pData == NULL) {
-		return;
-	}
-
-	switch(pData->stepPhase)
-	{
-		case STEP_PHASE_FINISH:
-		{
-			if(pData->currentStepIndex < pData->totalSteps) {
-				if(pData->currentStepIndex >= pData->decelerationStartingIndex) {
-					// no cruise state, change to state of deceleration
-					pData->state = STEPPER_STATE_DECELERATING;
-				}
-				else if(pData->accelerationLevel > 0) {
-					//still in acceleration state
-					pData->stepPhase = STEP_PHASE_CLK_LOW;
-					pData->stepPhaseStartingClock = MMD_current_clock();
-				}
-				else {
-					//acceleration finishes, change to state of cruising
-					pData->state = STEPPER_STATE_CRUISING;
-				}
-			}
-			else {
-				//change to state of known position.
-				pData->totalSteps = 0;
-				pData->currentStepIndex = 0;
-				pData->accelerationLevel = pData->accelerationBuffer;
-				pData->state = STEPPER_STATE_KNOWN_POSITION;
-			}
-		}
-		break;
-		
-		case STEP_PHASE_CLK_LOW:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseLowClocks) {
-				//trigger a rising edge at the end of lower phase
-				MMD_stepper_clock_high(pData->stepperIndex, true);
-				pData->stepPhase = STEP_PHASE_CLK_HIGH;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-
-		case STEP_PHASE_CLK_HIGH:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
-				MMD_stepper_clock_high(pData->stepperIndex, false);
-				pData->stepPhase = STEP_PHASE_DELAY;
-			}
-		}
-		break;
-
-		case STEP_PHASE_DELAY:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= (pData->stepPhaseHighClocks + pData->accelerationLevel)) {
-				if(pData->accelerationLevel > pData->accelerationDecrement) {
-					pData->accelerationLevel -= pData->accelerationDecrement;
-				}
-				else {
-					pData->accelerationLevel = 0;
-				}
-				
-				//increase step index
-				pData->currentStepIndex++;
-				if(pData->forward) {
-					pData->homeOffset++;
-				}
-				else {
-					pData->homeOffset--;
-				}
-				
-				pData->stepPhase = STEP_PHASE_FINISH;
-			}
-		}
-		break;
-
-		default:
-		break;
-	}	
-}
-
-void MMD_stepper_cruise(struct MMD_stepper_data * pData)
-{
-	if(pData == NULL) {
-		return;
-	}
-
-	switch(pData->stepPhase)
-	{
-		case STEP_PHASE_FINISH:
-		{
-			if(pData->currentStepIndex < pData->totalSteps) {
-				if(pData->currentStepIndex >= pData->decelerationStartingIndex) {
-					// no cruise state, change to state of deceleration
-					pData->state = STEPPER_STATE_DECELERATING;
-				}
-				else {
-					//still in cruising state
-					pData->stepPhase = STEP_PHASE_CLK_LOW;
-					pData->stepPhaseStartingClock = MMD_current_clock();
-				}
-			}
-			else {
-				//change to state of known position.
-				pData->totalSteps = 0;
-				pData->currentStepIndex = 0;
-				pData->accelerationLevel = pData->accelerationBuffer;
-				pData->state = STEPPER_STATE_KNOWN_POSITION;
-			}
-		}
-		break;
-		
-		case STEP_PHASE_CLK_LOW:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseLowClocks) {
-				//trigger a rising edge at the end of lower phase
-				MMD_stepper_clock_high(pData->stepperIndex, true);
-				pData->stepPhase = STEP_PHASE_CLK_HIGH;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-
-		case STEP_PHASE_CLK_HIGH:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
-				MMD_stepper_clock_high(pData->stepperIndex, false);
-				//increase step index
-				pData->currentStepIndex++;
-				if(pData->forward) {
-					pData->homeOffset++;
-				}
-				else {
-					pData->homeOffset--;
-				}
-				
-				pData->stepPhase = STEP_PHASE_FINISH;
-			}
-		}
-		break;
-
-		case STEP_PHASE_DELAY:
-		{
-			//no delay phase in cruising state
-		}
-		break;
-
-		default:
-		break;
-	}	
-}
-
-void MMD_stepper_decelerate(struct MMD_stepper_data * pData)
-{
-	if(pData == NULL) {
-		return;
-	}
-
-	switch(pData->stepPhase)
-	{
-		case STEP_PHASE_FINISH:
-		{
-			if(pData->currentStepIndex < pData->totalSteps) {
-				//still in deceleration state
-				pData->stepPhase = STEP_PHASE_CLK_LOW;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-			else {
-				//change to state of known position.
-				pData->totalSteps = 0;
-				pData->currentStepIndex = 0;
-				pData->accelerationLevel = pData->accelerationBuffer;
-				pData->state = STEPPER_STATE_KNOWN_POSITION;
-			}
-		}
-		break;
-		
-		case STEP_PHASE_CLK_LOW:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseLowClocks) {
-				//trigger a rising edge at the end of lower phase
-				MMD_stepper_clock_high(pData->stepperIndex, true);
-				pData->stepPhase = STEP_PHASE_CLK_HIGH;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-
-		case STEP_PHASE_CLK_HIGH:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
-				MMD_stepper_clock_high(pData->stepperIndex, false);
-				
-				pData->stepPhase = STEP_PHASE_DELAY;
-			}
-		}
-		break;
-
-		case STEP_PHASE_DELAY:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= (pData->stepPhaseHighClocks + pData->decelerationLevel)) {
-				//increase step index
-				pData->currentStepIndex++;
-				if(pData->forward) {
-					pData->homeOffset++;
-				}
-				else {
-					pData->homeOffset--;
-				}
-				//adjust delay
-				pData->decelerationLevel += pData->decelerationIncrement;
-				
-				pData->stepPhase = STEP_PHASE_FINISH;
-			}
-		}
-		break;
-
-		default:
-		break;
-	}	
-}
-
-void MMD_steppers_run(void)
-{
-	struct MMD_stepper_data * pStepper;
-	
-	//update current clock with system counter.
-	mmdCurrentClock = counter_get();
-
-	for(unsigned char stepperIndex; stepperIndex < MMD_STEPPERS_AMOUNT; stepperIndex++)
-	{
-		pStepper = &(mmdCommand.steppersData[stepperIndex]);
-		switch(pStepper->state)
-		{
-			case STEPPER_STATE_UNKNOWN_POSITION:
-			{
-				//do nothing.
-			}
-			break;
-			
-			case STEPPER_STATE_APPROACHING_HOME_LOCATOR:
-			{
-				MMD_stepper_approach_home_locator(pStepper);
-			}
-			break;
-
-			case STEPPER_STATE_LEAVING_HOME_LOCATOR:
-			{
-				MMD_stepper_leave_home_locator(pStepper);
-			}
-			break;
-			
-			case STEPPER_STATE_GO_HOME:
-			{
-				MMD_stepper_go_home(pStepper);
-			}
-			break;
-
-			case STEPPER_STATE_KNOWN_POSITION:
-			{
-				//do nothing
-			}
-			break;
-
-			case STEPPER_STATE_ACCELERATING:
-			{
-				MMD_stepper_accelerate(pStepper);
-			}
-			break;
-			
-			case STEPPER_STATE_CRUISING:
-			{
-				MMD_stepper_cruise(pStepper);
-			}
-			break;
-			
-			case STEPPER_STATE_DECELERATING:
-			{
-				MMD_stepper_decelerate(pStepper);
-			}
-			break;
-
-			default:
-			break;
-		}
-	}
-}
-
-void MMD_stepper_query(unsigned char stepperIndex)
-{
-
-}
-
-void MMD_locator_query(unsigned char hubIndex)
-{
-
-}
-
 // power on all bi-direction direct current motor
 static void MMD_power_on_bdcms(bool on)
 {
@@ -1806,7 +1340,528 @@ static enum MMD_BDCM_STATE MMD_get_bdcm_state(unsigned char index)
 	}
 }
 
-static void MMD_parse_command(void)
+static void mmd_stepper_out_of_scope(struct MMD_stepper_data * pData)
+{
+	if(pData == NULL) {
+		return;
+	}
+	
+	MMD_stepper_enable(pData->stepperIndex, false);
+	pData->state = STEPPER_STATE_UNKNOWN_POSITION;
+	mmdCommand.state = AWAITING_COMMAND;
+}
+
+// check if stepper is under scope or over scope,
+// and cancel current command if out of scope happens.
+static void mmd_stepper_check_scope(struct MMD_stepper_data * pData)
+{
+	if(pData == NULL) {
+		return;
+	}
+	
+	switch(pData->state)
+	{
+		case STEPPER_STATE_UNKNOWN_POSITION:
+		case STEPPER_STATE_APPROACHING_HOME_LOCATOR:
+		case STEPPER_STATE_LEAVING_HOME_LOCATOR:
+		case STEPPER_STATE_GO_HOME:
+			//no need to check stepper scope
+		break;
+		
+		default:
+		{
+			unsigned char lineNumber = MMD_locator_get(pData->locatorIndex);
+			
+			if(pData->locatorLineNumberStart == lineNumber) {
+				// under scope 
+				mmd_stepper_out_of_scope(pData);
+				writeOutputBufferString(STR_STEPPER_UNDER_SCOPE);
+				writeOutputBufferHex(pData->stepperIndex);
+				writeOutputBufferString("\r\n");
+			}
+			else if(pData->locatorLineNumberTerminal == lineNumber) {
+				// over scope
+				mmd_stepper_out_of_scope(pData);
+				writeOutputBufferString(STR_STEPPER_OVER_SCOPE);
+				writeOutputBufferHex(pData->stepperIndex);
+				writeOutputBufferString("\r\n");
+			}
+		}
+		break;
+	}
+}
+
+static void mmd_stepper_approach_home_locator(struct MMD_stepper_data * pData)
+{
+	if(pData == NULL) {
+		return;
+	}
+
+	switch(pData->stepPhase)
+	{
+		case STEP_PHASE_FINISH:
+		{
+			if(pData->locatorLineNumberStart == MMD_locator_get(pData->locatorIndex)) {
+				//home locator is triggered, then switch to the next state
+				MMD_stepper_forward(pData->stepperIndex, true);
+				pData->state = STEPPER_STATE_LEAVING_HOME_LOCATOR;
+			}
+			else {
+				//continue moving to home
+				pData->stepPhase = STEP_PHASE_CLK_LOW;
+				pData->stepPhaseStartingClock = MMD_current_clock();
+			}
+		}
+		break;
+
+		case STEP_PHASE_CLK_LOW:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseLowClocks) {
+				//trigger a rising edge at the end of lower phase
+				MMD_stepper_clock_high(pData->stepperIndex, true);
+				pData->stepPhase = STEP_PHASE_CLK_HIGH;
+				pData->stepPhaseStartingClock = MMD_current_clock();
+			}
+		}
+		break;
+
+		case STEP_PHASE_CLK_HIGH:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
+				MMD_stepper_clock_high(pData->stepperIndex, false);
+				pData->stepPhase = STEP_PHASE_FINISH;
+			}
+		}
+		break;
+
+		case STEP_PHASE_DELAY:
+		{
+			// no delay phase in STEPPER_STATE_APPROACHING_HOME
+		}
+		break;
+
+		default:
+		break;
+	}
+}
+
+static void mmd_stepper_leave_home_locator(struct MMD_stepper_data * pData)
+{
+	if(pData == NULL) {
+		return;
+	}
+
+	switch(pData->stepPhase)
+	{
+		case STEP_PHASE_FINISH:
+		{
+			if(pData->locatorLineNumberStart != MMD_locator_get(pData->locatorIndex)) {
+				//stepper home line just changes to high, then switch to the next state
+				MMD_stepper_forward(pData->stepperIndex, true);
+				pData->state = STEPPER_STATE_GO_HOME;
+				pData->currentStepIndex = 0;
+			}
+			else {
+				//continue leaving home locator
+				pData->stepPhase = STEP_PHASE_CLK_LOW;
+				pData->stepPhaseStartingClock = MMD_current_clock();
+			}
+		}
+		break;
+		
+		case STEP_PHASE_CLK_LOW:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseLowClocks) {
+				//trigger a rising edge at the end of lower phase
+				MMD_stepper_clock_high(pData->stepperIndex, true);
+				pData->stepPhase = STEP_PHASE_CLK_HIGH;
+				pData->stepPhaseStartingClock = MMD_current_clock();
+			}
+		}
+		break;
+
+		case STEP_PHASE_CLK_HIGH:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
+				MMD_stepper_clock_high(pData->stepperIndex, false);
+				pData->stepPhase = STEP_PHASE_FINISH;
+			}
+		}
+		break;
+
+		case STEP_PHASE_DELAY:
+		{
+			// no delay phase in STEPPER_STATE_APPROACHING_HOME
+		}
+		break;
+
+		default:
+		break;
+	}
+}
+
+static void mmd_stepper_go_home(struct MMD_stepper_data * pData)
+{
+	if(pData == NULL) {
+		return;
+	}
+
+	switch(pData->stepPhase)
+	{
+		case STEP_PHASE_FINISH:
+		{
+			if(pData->currentStepIndex >= MMD_ABSOLUTE_HOME_OFFSET_STEPS) {
+				//arrive at home position
+				MMD_stepper_forward(pData->stepperIndex, true);
+				pData->homeOffset = 0;
+				pData->totalSteps = 0;
+				pData->currentStepIndex = 0;
+				pData->state = STEPPER_STATE_KNOWN_POSITION;
+			}
+			else {
+				//continue moving to home
+				pData->stepPhase = STEP_PHASE_CLK_LOW;
+				pData->stepPhaseStartingClock = MMD_current_clock();
+			}
+		}
+		break;
+		
+		case STEP_PHASE_CLK_LOW:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseLowClocks) {
+				//trigger a rising edge at the end of lower phase
+				MMD_stepper_clock_high(pData->stepperIndex, true);
+				pData->stepPhase = STEP_PHASE_CLK_HIGH;
+				pData->stepPhaseStartingClock = MMD_current_clock();
+			}
+		}
+		break;
+
+		case STEP_PHASE_CLK_HIGH:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
+				MMD_stepper_clock_high(pData->stepperIndex, false);
+				pData->stepPhase = STEP_PHASE_FINISH;
+				pData->currentStepIndex++;
+			}
+		}
+		break;
+
+		case STEP_PHASE_DELAY:
+		{
+			// no delay phase in STEPPER_STATE_APPROACHING_HOME
+		}
+		break;
+
+		default:
+		break;
+	}
+}
+
+static void mmd_stepper_accelerate(struct MMD_stepper_data * pData)
+{
+	if(pData == NULL) {
+		return;
+	}
+
+	switch(pData->stepPhase)
+	{
+		case STEP_PHASE_FINISH:
+		{
+			if(pData->currentStepIndex < pData->totalSteps) {
+				if(pData->currentStepIndex >= pData->decelerationStartingIndex) {
+					// no cruise state, change to state of deceleration
+					pData->state = STEPPER_STATE_DECELERATING;
+				}
+				else if(pData->accelerationLevel > 0) {
+					//still in acceleration state
+					pData->stepPhase = STEP_PHASE_CLK_LOW;
+					pData->stepPhaseStartingClock = MMD_current_clock();
+				}
+				else {
+					//acceleration finishes, change to state of cruising
+					pData->state = STEPPER_STATE_CRUISING;
+				}
+			}
+			else {
+				//change to state of known position.
+				pData->totalSteps = 0;
+				pData->currentStepIndex = 0;
+				pData->accelerationLevel = pData->accelerationBuffer;
+				pData->state = STEPPER_STATE_KNOWN_POSITION;
+			}
+		}
+		break;
+		
+		case STEP_PHASE_CLK_LOW:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseLowClocks) {
+				//trigger a rising edge at the end of lower phase
+				MMD_stepper_clock_high(pData->stepperIndex, true);
+				pData->stepPhase = STEP_PHASE_CLK_HIGH;
+				pData->stepPhaseStartingClock = MMD_current_clock();
+			}
+		}
+		break;
+
+		case STEP_PHASE_CLK_HIGH:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
+				MMD_stepper_clock_high(pData->stepperIndex, false);
+				pData->stepPhase = STEP_PHASE_DELAY;
+			}
+		}
+		break;
+
+		case STEP_PHASE_DELAY:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= (pData->stepPhaseHighClocks + pData->accelerationLevel)) {
+				if(pData->accelerationLevel > pData->accelerationDecrement) {
+					pData->accelerationLevel -= pData->accelerationDecrement;
+				}
+				else {
+					pData->accelerationLevel = 0;
+				}
+				
+				//increase step index
+				pData->currentStepIndex++;
+				if(pData->forward) {
+					pData->homeOffset++;
+				}
+				else {
+					pData->homeOffset--;
+				}
+				
+				pData->stepPhase = STEP_PHASE_FINISH;
+			}
+		}
+		break;
+
+		default:
+		break;
+	}
+}
+
+static void mmd_stepper_cruise(struct MMD_stepper_data * pData)
+{
+	if(pData == NULL) {
+		return;
+	}
+
+	switch(pData->stepPhase)
+	{
+		case STEP_PHASE_FINISH:
+		{
+			if(pData->currentStepIndex < pData->totalSteps) {
+				if(pData->currentStepIndex >= pData->decelerationStartingIndex) {
+					// no cruise state, change to state of deceleration
+					pData->state = STEPPER_STATE_DECELERATING;
+				}
+				else {
+					//still in cruising state
+					pData->stepPhase = STEP_PHASE_CLK_LOW;
+					pData->stepPhaseStartingClock = MMD_current_clock();
+				}
+			}
+			else {
+				//change to state of known position.
+				pData->totalSteps = 0;
+				pData->currentStepIndex = 0;
+				pData->accelerationLevel = pData->accelerationBuffer;
+				pData->state = STEPPER_STATE_KNOWN_POSITION;
+			}
+		}
+		break;
+		
+		case STEP_PHASE_CLK_LOW:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseLowClocks) {
+				//trigger a rising edge at the end of lower phase
+				MMD_stepper_clock_high(pData->stepperIndex, true);
+				pData->stepPhase = STEP_PHASE_CLK_HIGH;
+				pData->stepPhaseStartingClock = MMD_current_clock();
+			}
+		}
+		break;
+
+		case STEP_PHASE_CLK_HIGH:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
+				MMD_stepper_clock_high(pData->stepperIndex, false);
+				//increase step index
+				pData->currentStepIndex++;
+				if(pData->forward) {
+					pData->homeOffset++;
+				}
+				else {
+					pData->homeOffset--;
+				}
+				
+				pData->stepPhase = STEP_PHASE_FINISH;
+			}
+		}
+		break;
+
+		case STEP_PHASE_DELAY:
+		{
+			//no delay phase in cruising state
+		}
+		break;
+
+		default:
+		break;
+	}
+}
+
+static void mmd_stepper_decelerate(struct MMD_stepper_data * pData)
+{
+	if(pData == NULL) {
+		return;
+	}
+
+	switch(pData->stepPhase)
+	{
+		case STEP_PHASE_FINISH:
+		{
+			if(pData->currentStepIndex < pData->totalSteps) {
+				//still in deceleration state
+				pData->stepPhase = STEP_PHASE_CLK_LOW;
+				pData->stepPhaseStartingClock = MMD_current_clock();
+			}
+			else {
+				//change to state of known position.
+				pData->totalSteps = 0;
+				pData->currentStepIndex = 0;
+				pData->accelerationLevel = pData->accelerationBuffer;
+				pData->state = STEPPER_STATE_KNOWN_POSITION;
+			}
+		}
+		break;
+		
+		case STEP_PHASE_CLK_LOW:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseLowClocks) {
+				//trigger a rising edge at the end of lower phase
+				MMD_stepper_clock_high(pData->stepperIndex, true);
+				pData->stepPhase = STEP_PHASE_CLK_HIGH;
+				pData->stepPhaseStartingClock = MMD_current_clock();
+			}
+		}
+		break;
+
+		case STEP_PHASE_CLK_HIGH:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
+				MMD_stepper_clock_high(pData->stepperIndex, false);
+				
+				pData->stepPhase = STEP_PHASE_DELAY;
+			}
+		}
+		break;
+
+		case STEP_PHASE_DELAY:
+		{
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= (pData->stepPhaseHighClocks + pData->decelerationLevel)) {
+				//increase step index
+				pData->currentStepIndex++;
+				if(pData->forward) {
+					pData->homeOffset++;
+				}
+				else {
+					pData->homeOffset--;
+				}
+				//adjust delay
+				pData->decelerationLevel += pData->decelerationIncrement;
+				
+				pData->stepPhase = STEP_PHASE_FINISH;
+			}
+		}
+		break;
+
+		default:
+		break;
+	}
+}
+
+static void mmd_steppers_run(void)
+{
+	struct MMD_stepper_data * pStepper;
+	
+	//update current clock with system counter.
+	mmdCurrentClock = counter_get();
+
+	for(unsigned char stepperIndex; stepperIndex < MMD_STEPPERS_AMOUNT; stepperIndex++)
+	{
+		pStepper = &(mmdCommand.steppersData[stepperIndex]);
+		switch(pStepper->state)
+		{
+			case STEPPER_STATE_UNKNOWN_POSITION:
+			{
+				//do nothing.
+			}
+			break;
+			
+			case STEPPER_STATE_APPROACHING_HOME_LOCATOR:
+			{
+				mmd_stepper_approach_home_locator(pStepper);
+			}
+			break;
+
+			case STEPPER_STATE_LEAVING_HOME_LOCATOR:
+			{
+				mmd_stepper_leave_home_locator(pStepper);
+			}
+			break;
+			
+			case STEPPER_STATE_GO_HOME:
+			{
+				mmd_stepper_go_home(pStepper);
+			}
+			break;
+
+			case STEPPER_STATE_KNOWN_POSITION:
+			{
+				//do nothing
+			}
+			break;
+
+			case STEPPER_STATE_ACCELERATING:
+			{
+				mmd_stepper_accelerate(pStepper);
+			}
+			break;
+			
+			case STEPPER_STATE_CRUISING:
+			{
+				mmd_stepper_cruise(pStepper);
+			}
+			break;
+			
+			case STEPPER_STATE_DECELERATING:
+			{
+				mmd_stepper_decelerate(pStepper);
+			}
+			break;
+
+			default:
+			break;
+		}
+		
+		mmd_stepper_check_scope(pStepper);
+	}
+}
+
+static void mmd_stepper_query(unsigned char stepperIndex)
+{
+
+}
+
+static void mmd_locator_query(unsigned char hubIndex)
+{
+
+}
+
+static void mmd_parse_command(void)
 {
 	unsigned char tag;
 	unsigned char cmd = 0;
@@ -1951,7 +2006,7 @@ static void MMD_parse_command(void)
 	}
 }
 
-static void MMD_run_command(void)
+static void mmd_run_command(void)
 {
 	if(mmdCommand.state == STARTING_COMMAND)
 	{
@@ -2491,7 +2546,7 @@ static void MMD_run_command(void)
 
 			case COMMAND_STEPPER_RUN:
 			{
-				MMD_steppers_run();
+				mmd_steppers_run();
 			}
 			break;
 
@@ -2514,7 +2569,7 @@ static void MMD_run_command(void)
 			{
 				unsigned char stepperIndex = mmdCommand.parameters[0];
 				
-				MMD_stepper_query(stepperIndex);
+				mmd_stepper_query(stepperIndex);
 			}
 			break;
 
@@ -2522,7 +2577,7 @@ static void MMD_run_command(void)
 			{
 				unsigned char stepperIndex = mmdCommand.parameters[0];
 				
-				MMD_locator_query(stepperIndex);
+				mmd_locator_query(stepperIndex);
 			}
 			break;
 
@@ -2535,7 +2590,7 @@ static void MMD_run_command(void)
 	}
 }
 
-static void MMD_check_status(void)
+static void mmd_check_status(void)
 {
 	
 }
@@ -2578,13 +2633,13 @@ void ecd300MixedMotorDrivers(void)
 			// 0x0D is command terminator
 			if((key == 0x0D) && (mmdCommand.state == AWAITING_COMMAND))
 			{
-				MMD_parse_command();
+				mmd_parse_command();
 			}
 		}
 
-		MMD_run_command();
+		mmd_run_command();
 		
-		MMD_check_status();
+		mmd_check_status();
 
 		sendOutputBufferToHost();
 	}
