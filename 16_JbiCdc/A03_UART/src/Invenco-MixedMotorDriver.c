@@ -1,6 +1,6 @@
 #include "Invenco_lib.h"
 
-#define MMD_LOCATOR_AMOUNT 5
+#define MMD_LOCATOR_AMOUNT 8
 #define MMD_STEPPERS_AMOUNT 5
 #define MMD_DIRECT_CURRENT_MOTORS_AMOUNT 2
 #define MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT 6
@@ -278,117 +278,124 @@ static unsigned char MMD_locator_get(unsigned char locatorIndex)
 	switch(locatorIndex)
 	{
 		case 0: //LC1
-		if((PORTD_IN & 0x10) == 0)
-		return 1;
-		else if((PORTD_IN & 0x20) == 0)
-		return 2;
-		else
-		return 0;
+		{
+			if((PORTD_IN & 0x10) == 0)
+				return 1;
+			else if((PORTD_IN & 0x20) == 0)
+				return 2;
+			else
+				return 0;
+		}
 		
 		case 1: //LC2
-		if((PORTC_IN & 0x80) != 0)
-		return 0;
-		else {
-			unsigned char n = 0;
+		{
+			if((PORTC_IN & 0x80) != 0)
+				return 0;
+			else {
+				unsigned char n = 0;
 			
-			if((PORTC_IN & 0x40) != 0)
-			n += 1;
-			if((PORTC_IN & 0x20) != 0)
-			n += 2;
-			if((PORTC_IN & 0x10) != 0)
-			n += 4;
-			return n;
+				if((PORTC_IN & 0x40) != 0)
+					n += 1;
+				if((PORTC_IN & 0x20) != 0)
+					n += 2;
+				if((PORTC_IN & 0x10) != 0)
+					n += 4;
+				return n + 1;
+			}
 		}
 		
 		case 2: //LC3
-		if((PORTC_IN & 0x08) != 0)
-		return 0;
-		else {
-			unsigned char n = 0;
+		{
+			if((PORTC_IN & 0x08) != 0)
+				return 0;
+			else {
+				unsigned char n = 0;
 			
-			if((PORTC_IN & 0x04) != 0)
-			n += 1;
-			if((PORTC_IN & 0x02) != 0)
-			n += 2;
-			if((PORTC_IN & 0x01) != 0)
-			n += 4;
-			return n;
+				if((PORTC_IN & 0x04) != 0)
+					n += 1;
+				if((PORTC_IN & 0x02) != 0)
+					n += 2;
+				if((PORTC_IN & 0x01) != 0)
+					n += 4;
+				return n + 1;
+			}
+			
 		}
 		
 		case 3: //LC4
-		if((PORTB_IN & 0x80) != 0)
-		return 0;
-		else {
-			unsigned char n = 0;
+			if((PORTB_IN & 0x80) != 0)
+				return 0;
+			else {
+				unsigned char n = 0;
 			
-			if((PORTB_IN & 0x40) != 0)
-			n += 1;
-			if((PORTB_IN & 0x20) != 0)
-			n += 2;
-			if((PORTB_IN & 0x10) != 0)
-			n += 4;
-			return n;
-		}
+				if((PORTB_IN & 0x40) != 0)
+					n += 1;
+				if((PORTB_IN & 0x20) != 0)
+					n += 2;
+				if((PORTB_IN & 0x10) != 0)
+					n += 4;
+				return n + 1;
+			}
 		
 		case 4: //LC5
-		if((PORTB_IN & 0x08) != 0)
-		return 0;
-		else {
-			unsigned char n = 0;
-			
-			if((PORTB_IN & 0x04) != 0)
-			n += 1;
-			if((PORTB_IN & 0x02) != 0)
-			n += 2;
-			if((PORTB_IN & 0x01) != 0)
-			n += 4;
-			return n;
-		}
+			if((PORTB_IN & 0x08) != 0)
+				return 0;
+			else {
+				unsigned char n = 0;
+				
+				if((PORTB_IN & 0x04) != 0)
+					n += 1;
+				if((PORTB_IN & 0x02) != 0)
+					n += 2;
+				if((PORTB_IN & 0x01) != 0)
+					n += 4;
+				return n + 1;
+			}
 		
 		case 5: //LC6
-		if((PORTA_IN & 0x80) != 0)
-		return 0;
-		else {
-			unsigned char n = 0;
+			if((PORTA_IN & 0x80) != 0)
+				return 0;
+			else {
+				unsigned char n = 0;
 			
-			if((PORTA_IN & 0x40) != 0)
-			n += 1;
-			if((PORTA_IN & 0x20) != 0)
-			n += 2;
-			if((PORTA_IN & 0x10) != 0)
-			n += 4;
-			return n;
-		}
+				if((PORTA_IN & 0x40) != 0)
+					n += 1;
+				if((PORTA_IN & 0x20) != 0)
+					n += 2;
+				if((PORTA_IN & 0x10) != 0)
+					n += 4;
+				return n + 1;
+			}
 		
 		case 6: //LC7
-		if((PORTA_IN & 0x08) != 0)
-		return 0;
-		else {
-			unsigned char n = 0;
-			
-			if((PORTA_IN & 0x04) != 0)
-			n += 1;
-			if((PORTA_IN & 0x02) != 0)
-			n += 2;
-			if((PORTA_IN & 0x01) != 0)
-			n += 4;
-			return n;
-		}
+			if((PORTA_IN & 0x08) != 0)
+				return 0;
+			else {
+				unsigned char n = 0;
+				
+				if((PORTA_IN & 0x04) != 0)
+					n += 1;
+				if((PORTA_IN & 0x02) != 0)
+					n += 2;
+				if((PORTA_IN & 0x01) != 0)
+					n += 4;
+				return n + 1;
+			}
 		
 		case 7: //LC8
-		if((PORTR_IN & 0x02) != 0)
-		return 0;
-		else {
-			unsigned char n = 0;
-			
-			if((PORTR_IN & 0x01) != 0)
-			n += 1;
-			if((PORTQ_IN & 0x08) != 0)
-			n += 2;
-			if((PORTQ_IN & 0x04) != 0)
-			n += 4;
-			return n;
-		}
+			if((PORTR_IN & 0x02) != 0)
+				return 0;
+			else {
+				unsigned char n = 0;
+				
+				if((PORTR_IN & 0x01) != 0)
+					n += 1;
+				if((PORTQ_IN & 0x08) != 0)
+					n += 2;
+				if((PORTQ_IN & 0x04) != 0)
+					n += 4;
+				return n + 1;
+			}
 		
 		default:
 		return 0;
@@ -683,6 +690,10 @@ static bool MMD_is_stepper_forward(unsigned char stepperIndex)
 
 static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 {
+	if(stepperIndex >= MMD_STEPPERS_AMOUNT) {
+		return;
+	}
+	
 	switch(stepperIndex) 
 	{
 		case 0: //stepper 1
@@ -696,6 +707,9 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 				PORTQ_OUTCLR = 0x01;
 			}
 			mmdCommand.steppersData[stepperIndex].enabled = enable;
+			if(!enable) {
+				mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_UNKNOWN_POSITION;
+			}
 		}
 		break;
 		
@@ -710,6 +724,9 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 				PORTK_OUTCLR = 0x20;
 			}
 			mmdCommand.steppersData[stepperIndex].enabled = enable;
+			if(!enable) {
+				mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_UNKNOWN_POSITION;
+			}
 		}
 		break;
 		
@@ -724,6 +741,9 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 				PORTK_OUTCLR = 0x04;
 			}
 			mmdCommand.steppersData[stepperIndex].enabled = enable;
+			if(!enable) {
+				mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_UNKNOWN_POSITION;
+			}
 		}
 		break;
 		
@@ -738,6 +758,9 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 				PORTJ_OUTCLR = 0x80;
 			}
 			mmdCommand.steppersData[stepperIndex].enabled = enable;
+			if(!enable) {
+				mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_UNKNOWN_POSITION;
+			}
 		}
 		break;
 		
@@ -752,6 +775,9 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 				PORTJ_OUTCLR = 0x10;
 			}
 			mmdCommand.steppersData[stepperIndex].enabled = enable;
+			if(!enable) {
+				mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_UNKNOWN_POSITION;
+			}
 		}
 		break;
 		
@@ -1347,7 +1373,6 @@ static void mmd_stepper_out_of_scope(struct MMD_stepper_data * pData)
 	}
 	
 	MMD_stepper_enable(pData->stepperIndex, false);
-	pData->state = STEPPER_STATE_UNKNOWN_POSITION;
 	mmdCommand.state = AWAITING_COMMAND;
 }
 
@@ -1853,12 +1878,157 @@ static void mmd_steppers_run(void)
 
 static void mmd_stepper_query(unsigned char stepperIndex)
 {
+	struct MMD_stepper_data * pData;
+	
+	if(stepperIndex >= MMD_STEPPERS_AMOUNT) {
+		return;
+	}
+	
+	pData = &(mmdCommand.steppersData[stepperIndex]);
+	
+	//stepper state
+	writeOutputBufferString("Stepper: ");
+	writeOutputBufferHex(stepperIndex);
+	writeOutputBufferString(" state ");
+	writeOutputBufferHex(pData->state);
+	writeOutputBufferString("\r\n");
+	if(pData->state == STEPPER_STATE_UNKNOWN_POSITION) {
+		return;
+	}
+	
+	//enabled
+	writeOutputBufferString("Stepper: ");
+	writeOutputBufferHex(stepperIndex);
+	writeOutputBufferString(" is enabled ");
+	writeOutputBufferHex(pData->enabled);
+	writeOutputBufferString("\r\n");
+	
+	//forward
+	writeOutputBufferString("Stepper: ");
+	writeOutputBufferHex(stepperIndex);
+	writeOutputBufferString(" forward ");
+	writeOutputBufferHex(pData->forward);
+	writeOutputBufferString("\r\n");
+	
+	//home offset
+	writeOutputBufferString("Stepper: ");
+	writeOutputBufferHex(stepperIndex);
+	writeOutputBufferString(" home offset ");
+	writeOutputBufferHex(pData->homeOffset >> 8);
+	writeOutputBufferHex(pData->homeOffset & 0xff);
+	writeOutputBufferString("\r\n");
+	
+	//step phase low clocks
+	writeOutputBufferString("Stepper: ");
+	writeOutputBufferHex(stepperIndex);
+	writeOutputBufferString(" step low clocks ");
+	writeOutputBufferHex(pData->stepPhaseLowClocks >> 8);
+	writeOutputBufferHex(pData->stepPhaseLowClocks & 0xff);
+	writeOutputBufferString("\r\n");
 
+	//step phase high clocks
+	writeOutputBufferString("Stepper: ");
+	writeOutputBufferHex(stepperIndex);
+	writeOutputBufferString(" step high clocks ");
+	writeOutputBufferHex(pData->stepPhaseHighClocks >> 8);
+	writeOutputBufferHex(pData->stepPhaseHighClocks & 0xff);
+	writeOutputBufferString("\r\n");
+	
+	//acceleration buffer
+	writeOutputBufferString("Stepper: ");
+	writeOutputBufferHex(stepperIndex);
+	writeOutputBufferString(" acceleration buffer ");
+	writeOutputBufferHex(pData->accelerationBuffer >> 8);
+	writeOutputBufferHex(pData->accelerationBuffer & 0xff);
+	writeOutputBufferString("\r\n");
+
+	//acceleration decrement
+	writeOutputBufferString("Stepper: ");
+	writeOutputBufferHex(stepperIndex);
+	writeOutputBufferString(" acceleration decrement ");
+	writeOutputBufferHex(pData->accelerationDecrement >> 8);
+	writeOutputBufferHex(pData->accelerationDecrement & 0xff);
+	writeOutputBufferString("\r\n");
+
+	//deceleration buffer
+	writeOutputBufferString("Stepper: ");
+	writeOutputBufferHex(stepperIndex);
+	writeOutputBufferString(" deceleration buffer ");
+	writeOutputBufferHex(pData->decelerationBuffer >> 8);
+	writeOutputBufferHex(pData->decelerationBuffer & 0xff);
+	writeOutputBufferString("\r\n");
+
+	//deceleration increment
+	writeOutputBufferString("Stepper: ");
+	writeOutputBufferHex(stepperIndex);
+	writeOutputBufferString(" deceleration increment ");
+	writeOutputBufferHex(pData->decelerationIncrement >> 8);
+	writeOutputBufferHex(pData->decelerationIncrement & 0xff);
+	writeOutputBufferString("\r\n");
 }
 
-static void mmd_locator_query(unsigned char hubIndex)
+static void mmd_locator_query(unsigned char locatorIndex)
 {
-
+	if(locatorIndex >= MMD_LOCATOR_AMOUNT) {
+		return;
+	}
+	
+	switch(locatorIndex)
+	{
+		case 0:
+		{
+			unsigned char locator = MMD_locator_get(locatorIndex);
+			
+			writeOutputBufferString("Locator "); 
+			writeOutputBufferHex(locatorIndex);
+			if(locator == 0) {
+				writeOutputBufferString(" no low input\r\n");
+			}
+			else if((locator > 0) && (locator < 3)) {
+				writeOutputBufferString(" low input ");
+				writeOutputBufferHex(locator);
+				writeOutputBufferString("\r\n");
+			}
+			else {
+				writeOutputBufferString(" wrong locator output\r\n");
+			}
+		}
+		break;
+		
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+		case 5:
+		case 6:
+		case 7:
+		{
+			unsigned char locator = MMD_locator_get(locatorIndex);
+			
+			writeOutputBufferString("Locator ");
+			writeOutputBufferHex(locatorIndex);
+			if(locator == 0) {
+				writeOutputBufferString(" no low input\r\n");
+			}
+			else if((locator > 0) && (locator < 9)) {
+				writeOutputBufferString(" low input ");
+				writeOutputBufferHex(locator);
+				writeOutputBufferString("\r\n");
+			}
+			else {
+				writeOutputBufferString(" wrong locator output\r\n");
+			}
+		}
+		break;
+		
+		default:
+		{
+			writeOutputBufferString("Locator wrong index ");
+			writeOutputBufferHex(locatorIndex);
+			writeOutputBufferString("\r\n");
+		}
+		break;
+	}
 }
 
 static void mmd_parse_command(void)
