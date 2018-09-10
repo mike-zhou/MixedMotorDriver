@@ -76,6 +76,37 @@ static const char * STR_LOCATOR_LINE_INDEX_DUPLICATE = "Duplicated locator line 
 static const char * STR_DCM_INDEX_OUT_OF_SCOPE = "DCM index is out of scope\r\n";
 static const char * STR_BDC_INDEX_OUT_OF_SCOPE = "BDC index is out of scope\r\n";
 
+static const char * STATUS_MAIN_POWER_IS_ON = "Main power is on\r\n";
+static const char * STATUS_MAIN_POWER_IS_OFF = "Main fuse is off\r\n";
+static const char * STATUS_MAIN_FUSE_IS_ON = "Main fuse is ok\r\n";
+static const char * STATUS_MAIN_FUSE_IS_OFF = "Main fuse is off\r\n";
+static const char * STATUS_OPT_IS_POWERED_ON = "OPT is powered on\r\n";
+static const char * STATUS_OPT_IS_POWERED_OFF = "OPT is powered off\r\n";
+static const char * STATUS_DCM_IS_POWERED_ON = "DCM is powered on: ";
+static const char * STATUS_DCM_IS_POWERED_OFF = "DCM is powered off: ";
+static const char * STATUS_BDCS_ARE_POWERED_ON = "BDCs are powered on\r\n";
+static const char * STATUS_BDCS_ARE_POWERED_OFF = "BDCs are powered off\r\n";
+static const char * STATUS_BDC_COAST = "BDC coast: ";
+static const char * STATUS_BDC_REVERSE = "BDC reverse: ";
+static const char * STATUS_BDC_FORWARD = "BDC forward: ";
+static const char * STATUS_BDC_BREAK = "BDC break: ";
+static const char * STATUS_BDC_WRONT_STATE = "BDC wrong state: ";
+static const char * STATUS_STEPPERS_ARE_POWERED_ON = "Steppers are powered on\r\n";
+static const char * STATUS_STEPPERS_ARE_POWERED_OFF = "Steppers are powered off\r\n";
+static const char * STATUS_STEPPER_IS_ENABLED = "Stepper is enabled: ";
+static const char * STATUS_STEPPER_IS_DISABLED = "Stepper is disabled: ";
+static const char * STATUS_STEPPER_FORWORD = "Stepper forward: ";
+static const char * STATUS_STEPPER_BACKWORD = "Stepper backward: ";
+static const char * STATUS_STEPPER_STATE_UNKNOWN_POSITION = "Stepper unknown position: ";
+static const char * STATUS_STEPPER_STATE_APPROACH_HOME = "Stepper approach home locator: ";
+static const char * STATUS_STEPPER_STATE_LEAVE_HOME = "Stepper leave home locator: ";
+static const char * STATUS_STEPPER_STATE_GO_HOME = "Stepper go home: ";
+static const char * STATUS_STEPPER_STATE_KNOWN_POSITION = "Stepper known position: ";
+static const char * STATUS_STEPPER_STATE_ACCELERATE = "Stepper accelerate: ";
+static const char * STATUS_STEPPER_STATE_CRUISE = "Stepper cruise: ";
+static const char * STATUS_STEPPER_STATE_DECELERATE = "Stepper decelerate: ";
+static const char * STATUS_STEPPER_STATE_WRONG_STATE = "Stepper wrong state: ";
+
 static unsigned short mmdCurrentClock;
 
 struct MMD_stepper_data
@@ -120,13 +151,13 @@ struct MMD_command
 	struct MMD_stepper_data steppersData[MMD_STEPPERS_AMOUNT];
 } mmdCommand;
 
-enum MMD_BDCM_STATE
+enum MMD_BDC_STATE
 {
-	BDCM_STATE_ERROR = 0,
-	BDCM_STATE_COAST,
-	BDCM_STATE_REVERSE,
-	BDCM_STATE_FORWARD,
-	BDCM_STATE_BREAK
+	BDC_STATE_ERROR = 0,
+	BDC_STATE_COAST,
+	BDC_STATE_REVERSE,
+	BDC_STATE_FORWARD,
+	BDC_STATE_BREAK
 };
 
 struct MMD_status
@@ -145,17 +176,17 @@ struct MMD_status
 	unsigned char locatorHubs[MMD_LOCATOR_AMOUNT];
 	
 	//steppers
-	bool steppersArePowered;
-	bool steppersEnabled[MMD_STEPPERS_AMOUNT];
-	bool steppersForward[MMD_STEPPERS_AMOUNT];
-	enum MMD_stepper_state steppersSpeed[MMD_STEPPERS_AMOUNT];
+	bool areSteppersPowered;
+	bool stepperEnabled[MMD_STEPPERS_AMOUNT];
+	bool stepperForward[MMD_STEPPERS_AMOUNT];
+	enum MMD_stepper_state stepperState[MMD_STEPPERS_AMOUNT];
 	
 	//dcms
-	bool dcmsPowered[MMD_DIRECT_CURRENT_MOTORS_AMOUNT];
+	bool dcmPowered[MMD_DIRECT_CURRENT_MOTORS_AMOUNT];
 	
-	//bdcms
-	bool bdcmsPowerOk;
-	enum MMD_BDCM_STATE bdcmsState[MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT];
+	//bdcs
+	bool areBdcsPowered;
+	enum MMD_BDC_STATE bdcState[MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT];
 
 	//command
 	enum CommandState cmdState;
@@ -206,18 +237,18 @@ static void MMD_init(void)
 	for(index=0; index<MMD_LOCATOR_AMOUNT; index++) {
 		mmdStatus.locatorHubs[index] = 0;
 	}
-	mmdStatus.steppersArePowered = false;
+	mmdStatus.areSteppersPowered = false;
 	for(index=0; index<MMD_STEPPERS_AMOUNT; index++) {
-		mmdStatus.steppersEnabled[index] = false;
-		mmdStatus.steppersForward[index] = true;
-		mmdStatus.steppersSpeed[index] = STEPPER_STATE_UNKNOWN_POSITION;
+		mmdStatus.stepperEnabled[index] = false;
+		mmdStatus.stepperForward[index] = true;
+		mmdStatus.stepperState[index] = STEPPER_STATE_UNKNOWN_POSITION;
 	}
 	for(index=0; index<MMD_DIRECT_CURRENT_MOTORS_AMOUNT; index++){
-		mmdStatus.dcmsPowered[index] = false;
+		mmdStatus.dcmPowered[index] = false;
 	}
-	mmdStatus.bdcmsPowerOk = false;
+	mmdStatus.areBdcsPowered = false;
 	for(index=0; index<MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT; index++) {
-		mmdStatus.bdcmsState[index] = BDCM_STATE_COAST;
+		mmdStatus.bdcState[index] = BDC_STATE_COAST;
 	}
 	mmdStatus.cmdState = AWAITING_COMMAND;
 }
@@ -1008,7 +1039,7 @@ static void MMD_stepper_clock_high(unsigned char stepperIndex, bool high)
 }
 
 // power on all bi-direction direct current motor
-static void MMD_power_on_bdcms(bool on)
+static void MMD_power_on_bdcs(bool on)
 {
 	if(on) {
 		//activate PF7
@@ -1020,13 +1051,13 @@ static void MMD_power_on_bdcms(bool on)
 	}
 }
 
-static bool MMD_are_bdcms_powered_on(void)
+static bool MMD_are_bdcs_powered_on(void)
 {
 	//read PF6
 	return (PORTF_IN & 0x40) != 0;
 }
 
-static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
+static void MMD_bdc_set_state(unsigned char index, enum MMD_BDC_STATE state)
 {
 	switch(index)
 	{
@@ -1034,7 +1065,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 			//bdcm1
 			switch(state)
 			{
-				case BDCM_STATE_COAST:
+				case BDC_STATE_COAST:
 				{
 					//IN1: 0; IN2: 0
 					PORTF_OUTCLR = 0x30;
@@ -1042,7 +1073,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 			
-				case BDCM_STATE_REVERSE:
+				case BDC_STATE_REVERSE:
 				{
 					//IN1: 0; IN2: 1
 					PORTF_OUTCLR = 0x20; 
@@ -1051,7 +1082,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 			
-				case BDCM_STATE_FORWARD:
+				case BDC_STATE_FORWARD:
 				{
 					//IN1: 1; IN2: 0
 					PORTF_OUTSET = 0x20;
@@ -1060,7 +1091,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 			
-				case BDCM_STATE_BREAK:
+				case BDC_STATE_BREAK:
 				{
 					//IN1: 1; IN2: 1
 					PORTF_OUTSET = 0x30;
@@ -1078,7 +1109,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 			//bdcm2
 			switch(state)
 			{
-				case BDCM_STATE_COAST:
+				case BDC_STATE_COAST:
 				{
 					//IN1: 0; IN2: 0
 					PORTF_OUTCLR = 0xC0;
@@ -1086,7 +1117,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_REVERSE:
+				case BDC_STATE_REVERSE:
 				{
 					//IN1: 0; IN2: 1
 					PORTF_OUTCLR = 0x80;
@@ -1095,7 +1126,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_FORWARD:
+				case BDC_STATE_FORWARD:
 				{
 					//IN1: 1; IN2: 0
 					PORTF_OUTSET = 0x80;
@@ -1104,7 +1135,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_BREAK:
+				case BDC_STATE_BREAK:
 				{
 					//IN1: 1; IN2: 1
 					PORTF_OUTSET = 0xC0;
@@ -1122,7 +1153,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 			//bdcm3
 			switch(state)
 			{
-				case BDCM_STATE_COAST:
+				case BDC_STATE_COAST:
 				{
 					//IN1: 0; IN2: 0
 					PORTF_OUTCLR = 0x03;
@@ -1130,7 +1161,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_REVERSE:
+				case BDC_STATE_REVERSE:
 				{
 					//IN1: 0; IN2: 1
 					PORTF_OUTCLR = 0x02;
@@ -1139,7 +1170,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_FORWARD:
+				case BDC_STATE_FORWARD:
 				{
 					//IN1: 1; IN2: 0
 					PORTF_OUTSET = 0x02;
@@ -1148,7 +1179,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_BREAK:
+				case BDC_STATE_BREAK:
 				{
 					//IN1: 1; IN2: 1
 					PORTF_OUTSET = 0x03;
@@ -1166,7 +1197,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 			//bdcm4
 			switch(state)
 			{
-				case BDCM_STATE_COAST:
+				case BDC_STATE_COAST:
 				{
 					//IN1: 0; IN2: 0
 					PORTE_OUTCLR = 0x30;
@@ -1174,7 +1205,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_REVERSE:
+				case BDC_STATE_REVERSE:
 				{
 					//IN1: 0; IN2: 1
 					PORTE_OUTCLR = 0x20;
@@ -1183,7 +1214,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_FORWARD:
+				case BDC_STATE_FORWARD:
 				{
 					//IN1: 1; IN2: 0
 					PORTE_OUTSET = 0x20;
@@ -1192,7 +1223,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_BREAK:
+				case BDC_STATE_BREAK:
 				{
 					//IN1: 1; IN2: 1
 					PORTE_OUTSET = 0x30;
@@ -1210,7 +1241,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 			//bdcm5
 			switch(state)
 			{
-				case BDCM_STATE_COAST:
+				case BDC_STATE_COAST:
 				{
 					//IN1: 0; IN2: 0
 					PORTE_OUTCLR = 0xC0;
@@ -1218,7 +1249,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_REVERSE:
+				case BDC_STATE_REVERSE:
 				{
 					//IN1: 0; IN2: 1
 					PORTE_OUTCLR = 0x80;
@@ -1227,7 +1258,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_FORWARD:
+				case BDC_STATE_FORWARD:
 				{
 					//IN1: 1; IN2: 0
 					PORTE_OUTSET = 0x80;
@@ -1236,7 +1267,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_BREAK:
+				case BDC_STATE_BREAK:
 				{
 					//IN1: 1; IN2: 1
 					PORTE_OUTSET = 0xC0;
@@ -1254,7 +1285,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 			//bdcm6
 			switch(state)
 			{
-				case BDCM_STATE_COAST:
+				case BDC_STATE_COAST:
 				{
 					//IN1: 0; IN2: 0
 					PORTE_OUTCLR = 0x03;
@@ -1262,7 +1293,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_REVERSE:
+				case BDC_STATE_REVERSE:
 				{
 					//IN1: 0; IN2: 1
 					PORTE_OUTCLR = 0x02;
@@ -1271,7 +1302,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_FORWARD:
+				case BDC_STATE_FORWARD:
 				{
 					//IN1: 1; IN2: 0
 					PORTE_OUTSET = 0x02;
@@ -1280,7 +1311,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 				}
 				break;
 				
-				case BDCM_STATE_BREAK:
+				case BDC_STATE_BREAK:
 				{
 					//IN1: 1; IN2: 1
 					PORTE_OUTSET = 0x03;
@@ -1299,7 +1330,7 @@ static void MMD_set_bdcm_state(unsigned char index, enum MMD_BDCM_STATE state)
 	}
 }
 
-static enum MMD_BDCM_STATE MMD_get_bdcm_state(unsigned char index)
+static enum MMD_BDC_STATE MMD_bdc_get_state(unsigned char index)
 {
 	unsigned char data = 0;
 	
@@ -1342,26 +1373,26 @@ static enum MMD_BDCM_STATE MMD_get_bdcm_state(unsigned char index)
 		break;
 		
 		default:
-			return BDCM_STATE_ERROR;
+			return BDC_STATE_ERROR;
 	}
 	
 	switch(data)
 	{
 		case 0:
 		{
-			return BDCM_STATE_COAST;
+			return BDC_STATE_COAST;
 		}
 		case 1:
 		{
-			return BDCM_STATE_REVERSE;
+			return BDC_STATE_REVERSE;
 		}
 		case 2:
 		{
-			return BDCM_STATE_FORWARD;
+			return BDC_STATE_FORWARD;
 		}
 		default:
 		{
-			return BDCM_STATE_BREAK;
+			return BDC_STATE_BREAK;
 		}
 	}
 }
@@ -1815,7 +1846,7 @@ static void mmd_steppers_run(void)
 	//update current clock with system counter.
 	mmdCurrentClock = counter_get();
 
-	for(unsigned char stepperIndex; stepperIndex < MMD_STEPPERS_AMOUNT; stepperIndex++)
+	for(unsigned char stepperIndex = 0; stepperIndex < MMD_STEPPERS_AMOUNT; stepperIndex++)
 	{
 		pStepper = &(mmdCommand.steppersData[stepperIndex]);
 		switch(pStepper->state)
@@ -2036,7 +2067,6 @@ static void mmd_parse_command(void)
 	unsigned char tag;
 	unsigned char cmd = 0;
 	unsigned char data;
-	unsigned short param;
 	bool validCmd = true;
 
 	//command format:
@@ -2531,21 +2561,21 @@ static void mmd_run_command(void)
 			
 			case COMMAND_BDCS_POWER_ON:
 			{
-				MMD_power_on_bdcms(true);
+				MMD_power_on_bdcs(true);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
 			case COMMAND_BDCS_POWER_OFF:
 			{
-				MMD_power_on_bdcms(false);
+				MMD_power_on_bdcs(false);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
 			case COMMAND_BDCS_POWER_QUERY:
 			{
-				if(MMD_are_bdcms_powered_on()) {
+				if(MMD_are_bdcs_powered_on()) {
 					writeOutputBufferString("BDCMs are powered on\r\n");
 				}
 				else {
@@ -2558,7 +2588,7 @@ static void mmd_run_command(void)
 			case COMMAND_BDC_COAST:
 			{
 				unsigned char index = mmdCommand.parameters[0];
-				MMD_set_bdcm_state(index, BDCM_STATE_COAST);
+				MMD_bdc_set_state(index, BDC_STATE_COAST);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2566,7 +2596,7 @@ static void mmd_run_command(void)
 			case COMMAND_BDC_REVERSE:
 			{
 				unsigned char index = mmdCommand.parameters[0];
-				MMD_set_bdcm_state(index, BDCM_STATE_REVERSE);
+				MMD_bdc_set_state(index, BDC_STATE_REVERSE);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2574,7 +2604,7 @@ static void mmd_run_command(void)
 			case COMMAND_BDC_FORWARD:
 			{
 				unsigned char index = mmdCommand.parameters[0];
-				MMD_set_bdcm_state(index, BDCM_STATE_FORWARD);
+				MMD_bdc_set_state(index, BDC_STATE_FORWARD);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2582,7 +2612,7 @@ static void mmd_run_command(void)
 			case COMMAND_BDC_BREAK:
 			{
 				unsigned char index = mmdCommand.parameters[0];
-				MMD_set_bdcm_state(index, BDCM_STATE_BREAK);
+				MMD_bdc_set_state(index, BDC_STATE_BREAK);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2594,18 +2624,18 @@ static void mmd_run_command(void)
 				writeOutputBufferString("BDCM ");
 				writeOutputBufferHex(index);
 				writeOutputBufferString(" state: ");
-				switch(MMD_get_bdcm_state(index))
+				switch(MMD_bdc_get_state(index))
 				{
-					case BDCM_STATE_COAST:
+					case BDC_STATE_COAST:
 						writeOutputBufferString("COAST\r\n");
 						break;
-					case BDCM_STATE_REVERSE:
+					case BDC_STATE_REVERSE:
 						writeOutputBufferString("REVERSE\r\n");
 						break;
-					case BDCM_STATE_FORWARD:
+					case BDC_STATE_FORWARD:
 						writeOutputBufferString("FORWARD\r\n");
 						break;
-					case BDCM_STATE_BREAK:
+					case BDC_STATE_BREAK:
 						writeOutputBufferString("BREAK\r\n");
 						break;
 					default:
@@ -2698,7 +2728,7 @@ static void mmd_run_command(void)
 				unsigned char stepperIndex = mmdCommand.parameters[0];
 				bool forward = mmdCommand.parameters[1] != 0;
 
-				MMD_stepper_forward(mmdCommand.parameters[0], forward);
+				MMD_stepper_forward(stepperIndex, forward);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2762,13 +2792,230 @@ static void mmd_run_command(void)
 
 static void mmd_check_status(void)
 {
+	bool b;
+	unsigned char index;
 	
+	// main power
+	b = MMD_is_main_power_ok();
+	if(mmdStatus.isMainPowerOk != b) {
+		if(b) {
+			writeOutputBufferString(STATUS_MAIN_POWER_IS_ON);
+		}
+		else {
+			writeOutputBufferString(STATUS_MAIN_POWER_IS_OFF);
+		}
+		mmdStatus.isMainPowerOk = b;
+	}
+	
+	//main fuse
+	b = MMD_is_main_fuse_ok();
+	if(mmdStatus.isMainFuseOk != b) {
+		if(b) {
+			writeOutputBufferString(STATUS_MAIN_FUSE_IS_ON);
+		}
+		else {
+			writeOutputBufferString(STATUS_MAIN_FUSE_IS_OFF);
+		}
+		mmdStatus.isMainFuseOk = b;
+	}
+	
+	//opt power
+	b = MMD_is_opt_powered_on();
+	if(mmdStatus.isOptPowered != b) {
+		if(b) {
+			writeOutputBufferString(STATUS_OPT_IS_POWERED_ON);
+		}
+		else {
+			writeOutputBufferString(STATUS_OPT_IS_POWERED_OFF);
+		}
+		mmdStatus.isOptPowered = b;
+	}
+	
+	//dcms
+	for(index = 0; index < MMD_DIRECT_CURRENT_MOTORS_AMOUNT; index++)
+	{
+		b = MMD_is_dcm_powered_on(index);
+		if(mmdStatus.dcmPowered[index] != b) 
+		{
+			if(b) {
+				writeOutputBufferString(STATUS_DCM_IS_POWERED_ON);
+			}
+			else {
+				writeOutputBufferString(STATUS_DCM_IS_POWERED_OFF);
+			}
+			writeOutputBufferHex(index);
+			writeOutputBufferString("\r\n");
+			mmdStatus.dcmPowered[index] = b;
+		}
+	}
+	
+	//bdcs
+	b = MMD_are_bdcs_powered_on();
+	if(mmdStatus.areBdcsPowered != b) {
+		if(b) {
+			writeOutputBufferString(STATUS_BDCS_ARE_POWERED_ON);
+		}
+		else {
+			writeOutputBufferString(STATUS_BDCS_ARE_POWERED_OFF);
+		}
+		mmdStatus.areBdcsPowered = b;
+	}
+	for(index = 0; index < MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT; index++)
+	{
+		enum MMD_BDC_STATE state = MMD_bdc_get_state(index);
+		if(mmdStatus.bdcState[index] != state) 
+		{
+			switch(state)
+			{
+				case BDC_STATE_COAST:
+				{
+					writeOutputBufferString(STATUS_BDC_COAST);
+				}
+				break;
+				
+				case BDC_STATE_REVERSE:
+				{
+					writeOutputBufferString(STATUS_BDC_REVERSE);
+				}
+				break;
+				
+				case BDC_STATE_FORWARD:
+				{
+					writeOutputBufferString(STATUS_BDC_FORWARD);
+				}
+				break;
+				
+				case BDC_STATE_BREAK:
+				{
+					writeOutputBufferString(STATUS_BDC_BREAK);
+				}
+				break;
+				
+				default:
+				{
+					writeOutputBufferString(STATUS_BDC_WRONT_STATE);
+				}
+				break;
+			}
+			writeOutputBufferHex(index);
+			writeOutputBufferString("\r\n");
+			
+			mmdStatus.bdcState[index] = state;
+		}
+	}
+	
+	//steppers
+	b = MMD_are_steppers_powered_on();
+	if(mmdStatus.areSteppersPowered != b){
+		if(b) {
+			writeOutputBufferString(STATUS_STEPPERS_ARE_POWERED_ON);
+		}
+		else {
+			writeOutputBufferString(STATUS_STEPPERS_ARE_POWERED_OFF);
+		}
+		mmdStatus.areSteppersPowered = b;
+	}
+	for(index = 0; index < MMD_STEPPERS_AMOUNT; index++)
+	{
+		enum MMD_stepper_state state;
+		
+		b = MMD_is_stepper_enabled(index);
+		if(mmdStatus.stepperEnabled[index] != b) {
+			if(b) {
+				writeOutputBufferString(STATUS_STEPPER_IS_ENABLED);
+			}
+			else {
+				writeOutputBufferString(STATUS_STEPPER_IS_DISABLED);
+			}
+			writeOutputBufferHex(index);
+			writeOutputBufferString("\r\n");
+			
+			mmdStatus.stepperEnabled[index] = b;
+		}
+		
+		b = MMD_is_stepper_forward(index);
+		if(mmdStatus.stepperForward[index] != b) {
+			if(b) {
+				writeOutputBufferString(STATUS_STEPPER_FORWORD);
+			}
+			else {
+				writeOutputBufferString(STATUS_STEPPER_BACKWORD);
+			}
+			writeOutputBufferHex(index);
+			writeOutputBufferString("\r\n");
+			
+			mmdStatus.stepperForward[index] = b;
+		}
+		
+		state = mmdCommand.steppersData[index].state;
+		if(mmdStatus.stepperState[index] != state)
+		{
+			switch(state)
+			{
+				case STEPPER_STATE_UNKNOWN_POSITION:
+				{
+					writeOutputBufferString(STATUS_STEPPER_STATE_UNKNOWN_POSITION);
+				}
+				break;
+				
+				case STEPPER_STATE_APPROACHING_HOME_LOCATOR:
+				{
+					writeOutputBufferString(STATUS_STEPPER_STATE_APPROACH_HOME);
+				}
+				break;
+
+				case STEPPER_STATE_LEAVING_HOME_LOCATOR:
+				{
+					writeOutputBufferString(STATUS_STEPPER_STATE_LEAVE_HOME);
+				}
+				break;
+
+				case STEPPER_STATE_GO_HOME:
+				{
+					writeOutputBufferString(STATUS_STEPPER_STATE_GO_HOME);
+				}
+				break;
+
+				case STEPPER_STATE_KNOWN_POSITION:
+				{
+					writeOutputBufferString(STATUS_STEPPER_STATE_KNOWN_POSITION);
+				}
+				break;
+
+				case STEPPER_STATE_ACCELERATING:
+				{
+					writeOutputBufferString(STATUS_STEPPER_STATE_ACCELERATE);
+				}
+				break;
+
+				case STEPPER_STATE_CRUISING:
+				{
+					writeOutputBufferString(STATUS_STEPPER_STATE_CRUISE);
+				}
+				break;
+
+				case STEPPER_STATE_DECELERATING:
+				{
+					writeOutputBufferString(STATUS_STEPPER_STATE_DECELERATE);
+				}
+				break;
+				
+				default:
+				{
+					writeOutputBufferString(STATUS_STEPPER_STATE_WRONG_STATE);
+				}
+				break;
+			}
+			writeOutputBufferHex(index);
+			writeOutputBufferString("\r\n");
+			
+			mmdStatus.stepperState[index] = state;
+		}
+	}
 }
 
 void ecd300MixedMotorDrivers(void)
 {
-	unsigned char c;
-
 	Invenco_init();
 	MMD_init();
 
