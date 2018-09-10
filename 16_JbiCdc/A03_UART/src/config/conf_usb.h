@@ -69,7 +69,7 @@
 
 //! USB Device string definitions (Optional)
 #define  USB_DEVICE_MANUFACTURE_NAME      "Deeply Customized Device"
-#define  USB_DEVICE_PRODUCT_NAME          "Power Allocator v1.0, D.C.D"
+#define  USB_DEVICE_PRODUCT_NAME          "Name needs to be queried"
 // #define  USB_DEVICE_SERIAL_NAME           "12...EF"
 
 

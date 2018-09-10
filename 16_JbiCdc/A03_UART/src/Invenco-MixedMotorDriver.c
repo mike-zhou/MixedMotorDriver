@@ -1,5 +1,7 @@
 #include "Invenco_lib.h"
 
+#define MMD_PRODUCT_NAME "Mixed Motor Drivers HV1.0 SV1.0"
+
 #define MMD_LOCATOR_AMOUNT 8
 #define MMD_STEPPERS_AMOUNT 5
 #define MMD_DIRECT_CURRENT_MOTORS_AMOUNT 2
@@ -10,6 +12,7 @@
 enum MMD_command_e
 {
 	COMMAND_INVALID = 0,
+	COMMAND_QUREY_NAME = 1,				// C 1
 	COMMAND_OPT_POWER_ON = 10,			// C 10
 	COMMAND_OPT_POWER_OFF = 11,			// C 11
 	COMMAND_OPT_POWER_QUERY = 12,		// C 12
@@ -2164,6 +2167,7 @@ static void mmd_parse_command(void)
 	else {
 		switch(cmd)
 		{
+		case COMMAND_QUREY_NAME:
 		case COMMAND_OPT_POWER_ON:
 		case COMMAND_OPT_POWER_OFF:
 		case COMMAND_OPT_POWER_QUERY:
@@ -2213,6 +2217,7 @@ static void mmd_run_command(void)
 		//prepare for execution.
 		switch(mmdCommand.command)
 		{
+			case COMMAND_QUREY_NAME:
 			case COMMAND_OPT_POWER_ON:
 			case COMMAND_OPT_POWER_OFF:
 			case COMMAND_OPT_POWER_QUERY:
@@ -2478,6 +2483,14 @@ static void mmd_run_command(void)
 	{
 		switch(mmdCommand.command)
 		{
+			case COMMAND_QUREY_NAME:
+			{
+				writeOutputBufferString(MMD_PRODUCT_NAME);
+				writeOutputBufferString("\r\n");
+				mmdCommand.state = AWAITING_COMMAND;
+			}
+			break;
+			
 			case COMMAND_OPT_POWER_ON:
 			{
 				MMD_power_on_opt(true);
