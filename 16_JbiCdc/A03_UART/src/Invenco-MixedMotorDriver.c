@@ -109,6 +109,7 @@ static const char * STATUS_STEPPER_STATE_ACCELERATE = "Stepper accelerate: ";
 static const char * STATUS_STEPPER_STATE_CRUISE = "Stepper cruise: ";
 static const char * STATUS_STEPPER_STATE_DECELERATE = "Stepper decelerate: ";
 static const char * STATUS_STEPPER_STATE_WRONG_STATE = "Stepper wrong state: ";
+static const char * STATUS_LOCATOR = "Locator: ";
 
 static unsigned short mmdCurrentClock;
 
@@ -3023,6 +3024,32 @@ static void mmd_check_status(void)
 			writeOutputBufferString("\r\n");
 			
 			mmdStatus.stepperState[index] = state;
+		}
+	}
+	
+	//locator
+	index = MMD_locator_get(0);
+	if(mmdStatus.locatorHubs[0] != index)
+	{
+		writeOutputBufferString(STATUS_LOCATOR);
+		writeOutputBufferHex(0);
+		writeOutputBufferString(": ");
+		writeOutputBufferHex(index);
+		writeOutputBufferString("\r\n");
+		
+		mmdStatus.locatorHubs[0] = index;
+	}
+	for(index = 1; index < MMD_LOCATOR_AMOUNT; index++) 
+	{
+		unsigned char locator = MMD_locator_get(index);
+		if(mmdStatus.locatorHubs[index] != locator) {
+			writeOutputBufferString(STATUS_LOCATOR);
+			writeOutputBufferHex(index);
+			writeOutputBufferString(": ");
+			writeOutputBufferHex(locator);
+			writeOutputBufferString("\r\n");
+		
+			mmdStatus.locatorHubs[index] = locator;
 		}
 	}
 }
