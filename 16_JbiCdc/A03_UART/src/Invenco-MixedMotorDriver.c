@@ -65,23 +65,40 @@ enum MMD_stepper_step_phase
 	STEP_PHASE_DELAY
 };
 
-static const char * STR_INVALID_COMMAND = "Invalid command\r\n";
-static const char * STR_TOO_MANY_PARAMETERS = "Too many parameters\r\n";
-static const char * STR_UNKNOWN_COMMAND = "Unknown command\r\n";
-static const char * STR_WRONG_COMMAND_FORMAT = "Wrong command format\r\n";
-static const char * STR_INVALID_PARAMETER = "Invalid parameter\r\n";
-static const char * STR_WRONG_PARAMETER_AMOUNT = "Wrong parameter amount\r\n";
-static const char * STR_STEPPER_INDEX_OUT_OF_SCOPE = "Stepper index is out of scope\r\n";
-static const char * STR_STEPPER_NOT_POSITIONED = "Stepper has not been positioned\r\n";
-static const char * STR_STEPPER_UNDER_SCOPE = "Stepper is under scope ";
-static const char * STR_STEPPER_OVER_SCOPE = "Stepper is over scope ";
-static const char * STR_LOCATOR_INDEX_OUT_OF_SCOPE = "Locator index is out of scope\r\n";
-static const char * STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE = "Locator line index is out of scope\r\n";
-static const char * STR_LOCATOR_LINE_INDEX_DUPLICATE = "Duplicated locator line index\r\n";
-static const char * STR_DCM_INDEX_OUT_OF_SCOPE = "DCM index is out of scope\r\n";
+static const char * STR_CARRIAGE_RETURN = "\r\n";
+static const char * STR_INVALID_COMMAND = "Error: Invalid command\r\n";
+static const char * STR_TOO_MANY_PARAMETERS = "Error: Too many parameters\r\n";
+static const char * STR_UNKNOWN_COMMAND = "Error: Unknown command\r\n";
+static const char * STR_WRONG_COMMAND_FORMAT = "Error: Wrong command format\r\n";
+static const char * STR_INVALID_PARAMETER = "Error: Invalid parameter\r\n";
+static const char * STR_WRONG_PARAMETER_AMOUNT = "Error: Wrong parameter amount\r\n";
+static const char * STR_STEPPER_INDEX_OUT_OF_SCOPE = "Error: Stepper index is out of scope\r\n";
+static const char * STR_STEPPER_NOT_POSITIONED = "Error: Stepper has not been positioned\r\n";
+static const char * STR_STEPPER_UNDER_SCOPE = "Error: Stepper is under scope ";
+static const char * STR_STEPPER_OVER_SCOPE = "Error: Stepper is over scope ";
+static const char * STR_STEPPER_STATE = "State: ";
+static const char * STR_STEPPER_LOCATOR_INDEX = "Locator index: ";
+static const char * STR_STEPPER_LOCATOR_LINE_NUMBER_START = "Locator line number start: ";
+static const char * STR_STEPPER_LOCATOR_LINE_NUMBER_TERMINAL = "Locator line number terminal: ";
+static const char * STR_STEPPER_IS_ENABLED = "Enabled: ";
+static const char * STR_STEPPER_FORWARD = "Forward: ";
+static const char * STR_STEPPER_HOME_OFFSET = "Home offset: ";
+static const char * STR_STEPPER_TOTAL_STEPS = "Total steps: ";
+static const char * STR_STEPPER_CURRENT_STEP_INDEX = "Current step index: ";
+static const char * STR_STEPPER_DECELERATION_STARTING_INDEX = "Deceleration starting index: ";
+static const char * STR_STEPPER_ACCELERATION_BUFFER = "Acceleration buffer: ";
+static const char * STR_STEPPER_ACCELERATION_DECREMENT = "Acceleration decrement: ";
+static const char * STR_STEPPER_DECELERATION_BUFFER = "Deceleration buffer: ";
+static const char * STR_STEPPER_DECELERATION_INCREMENT = "Deceleration increment: ";
+static const char * STR_STEPPER_PHASE_LOW_CLOCKS = "Low phase clocks: ";
+static const char * STR_STEPPER_PHASE_HIGH_CLOCKS = "High phase clocks: ";
+static const char * STR_LOCATOR_INDEX_OUT_OF_SCOPE = "Error: Locator index is out of scope\r\n";
+static const char * STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE = "Error: Locator line index is out of scope\r\n";
+static const char * STR_LOCATOR_LINE_INDEX_DUPLICATE = "Error: Duplicated locator line index\r\n";
+static const char * STR_DCM_INDEX_OUT_OF_SCOPE = "Error: DCM index is out of scope\r\n";
 static const char * STR_DCM_IS_POWERED_ON = "DCM is powered on: ";
 static const char * STR_DCM_IS_POWERED_OFF = "DCM is powered off: ";
-static const char * STR_BDC_INDEX_OUT_OF_SCOPE = "BDC index is out of scope\r\n";
+static const char * STR_BDC_INDEX_OUT_OF_SCOPE = "Error: BDC index is out of scope\r\n";
 static const char * STR_BDC_STATE_FORWARD = "BDC forward: ";
 static const char * STR_BDC_STATE_COAST = "BDC coast: ";
 static const char * STR_BDC_STATE_REVERSE = "BDC reverse: ";
@@ -619,11 +636,11 @@ static void MMD_stepper_forward(unsigned char stepperIndex, bool forward)
 		{
 			//Q12, PK1
 			if(forward) {
-				PORTK_OUTCLR = 0x01;
+				PORTK_OUTCLR = 0x02;
 			}
 			else {
-				PORTK_OUTSET = 0x01;
-				PORTK_DIRSET = 0x01;
+				PORTK_OUTSET = 0x02;
+				PORTK_DIRSET = 0x02;
 			}
 			mmdCommand.steppersData[stepperIndex].forward = forward;
 		}
@@ -693,7 +710,7 @@ static bool MMD_is_stepper_forward(unsigned char stepperIndex)
 		case 2: // stepper 3
 		{
 			//Q12, PK1
-			if(PORTK_IN & 0x01) {
+			if(PORTK_IN & 0x02) {
 				return false;
 			}
 			else {
@@ -1446,14 +1463,14 @@ static void mmd_stepper_check_scope(struct MMD_stepper_data * pData)
 				mmd_stepper_out_of_scope(pData);
 				writeOutputBufferString(STR_STEPPER_UNDER_SCOPE);
 				writeOutputBufferHex(pData->stepperIndex);
-				writeOutputBufferString("\r\n");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 			}
 			else if(pData->locatorLineNumberTerminal == lineNumber) {
 				// over scope
 				mmd_stepper_out_of_scope(pData);
 				writeOutputBufferString(STR_STEPPER_OVER_SCOPE);
 				writeOutputBufferHex(pData->stepperIndex);
-				writeOutputBufferString("\r\n");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 			}
 		}
 		break;
@@ -1931,84 +1948,94 @@ static void mmd_stepper_query(unsigned char stepperIndex)
 	pData = &(mmdCommand.steppersData[stepperIndex]);
 	
 	//stepper state
-	writeOutputBufferString("Stepper: ");
-	writeOutputBufferHex(stepperIndex);
-	writeOutputBufferString(" state ");
+	writeOutputBufferString(STR_STEPPER_STATE);
 	writeOutputBufferHex(pData->state);
-	writeOutputBufferString("\r\n");
-	if(pData->state == STEPPER_STATE_UNKNOWN_POSITION) {
-		return;
-	}
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
 	
 	//enabled
-	writeOutputBufferString("Stepper: ");
-	writeOutputBufferHex(stepperIndex);
-	writeOutputBufferString(" is enabled ");
+	writeOutputBufferString(STR_STEPPER_IS_ENABLED);
 	writeOutputBufferHex(pData->enabled);
-	writeOutputBufferString("\r\n");
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
 	
 	//forward
-	writeOutputBufferString("Stepper: ");
-	writeOutputBufferHex(stepperIndex);
-	writeOutputBufferString(" forward ");
+	writeOutputBufferString(STR_STEPPER_FORWARD);
 	writeOutputBufferHex(pData->forward);
-	writeOutputBufferString("\r\n");
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	
+	//locator
+	writeOutputBufferString(STR_STEPPER_LOCATOR_INDEX);
+	writeOutputBufferHex(pData->locatorIndex);
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	
+	//locator line number start
+	writeOutputBufferString(STR_STEPPER_LOCATOR_LINE_NUMBER_START);
+	writeOutputBufferHex(pData->locatorLineNumberStart);
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	
+	//locator line number terminal
+	writeOutputBufferString(STR_STEPPER_LOCATOR_LINE_NUMBER_TERMINAL);
+	writeOutputBufferHex(pData->locatorLineNumberTerminal);
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
 	
 	//home offset
-	writeOutputBufferString("Stepper: ");
-	writeOutputBufferHex(stepperIndex);
-	writeOutputBufferString(" home offset ");
+	writeOutputBufferString(STR_STEPPER_HOME_OFFSET);
 	writeOutputBufferHex(pData->homeOffset >> 8);
 	writeOutputBufferHex(pData->homeOffset & 0xff);
-	writeOutputBufferString("\r\n");
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
 	
 	//step phase low clocks
-	writeOutputBufferString("Stepper: ");
-	writeOutputBufferHex(stepperIndex);
-	writeOutputBufferString(" step low clocks ");
+	writeOutputBufferString(STR_STEPPER_PHASE_LOW_CLOCKS);
 	writeOutputBufferHex(pData->stepPhaseLowClocks >> 8);
 	writeOutputBufferHex(pData->stepPhaseLowClocks & 0xff);
-	writeOutputBufferString("\r\n");
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
 
 	//step phase high clocks
-	writeOutputBufferString("Stepper: ");
-	writeOutputBufferHex(stepperIndex);
-	writeOutputBufferString(" step high clocks ");
+	writeOutputBufferString(STR_STEPPER_PHASE_HIGH_CLOCKS);
 	writeOutputBufferHex(pData->stepPhaseHighClocks >> 8);
 	writeOutputBufferHex(pData->stepPhaseHighClocks & 0xff);
-	writeOutputBufferString("\r\n");
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
 	
 	//acceleration buffer
-	writeOutputBufferString("Stepper: ");
-	writeOutputBufferHex(stepperIndex);
-	writeOutputBufferString(" acceleration buffer ");
+	writeOutputBufferString(STR_STEPPER_ACCELERATION_BUFFER);
 	writeOutputBufferHex(pData->accelerationBuffer >> 8);
 	writeOutputBufferHex(pData->accelerationBuffer & 0xff);
-	writeOutputBufferString("\r\n");
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
 
 	//acceleration decrement
-	writeOutputBufferString("Stepper: ");
-	writeOutputBufferHex(stepperIndex);
-	writeOutputBufferString(" acceleration decrement ");
+	writeOutputBufferString(STR_STEPPER_ACCELERATION_DECREMENT);
 	writeOutputBufferHex(pData->accelerationDecrement >> 8);
 	writeOutputBufferHex(pData->accelerationDecrement & 0xff);
-	writeOutputBufferString("\r\n");
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
 
 	//deceleration buffer
-	writeOutputBufferString("Stepper: ");
-	writeOutputBufferHex(stepperIndex);
-	writeOutputBufferString(" deceleration buffer ");
+	writeOutputBufferString(STR_STEPPER_DECELERATION_BUFFER);
 	writeOutputBufferHex(pData->decelerationBuffer >> 8);
 	writeOutputBufferHex(pData->decelerationBuffer & 0xff);
-	writeOutputBufferString("\r\n");
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
 
 	//deceleration increment
-	writeOutputBufferString("Stepper: ");
-	writeOutputBufferHex(stepperIndex);
-	writeOutputBufferString(" deceleration increment ");
+	writeOutputBufferString(STR_STEPPER_DECELERATION_INCREMENT);
 	writeOutputBufferHex(pData->decelerationIncrement >> 8);
 	writeOutputBufferHex(pData->decelerationIncrement & 0xff);
-	writeOutputBufferString("\r\n");
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	
+	//total steps
+	writeOutputBufferString(STR_STEPPER_TOTAL_STEPS);
+	writeOutputBufferHex(pData->totalSteps >> 8);
+	writeOutputBufferHex(pData->totalSteps & 0xff);
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	
+	//deceleration starting index
+	writeOutputBufferString(STR_STEPPER_DECELERATION_STARTING_INDEX);
+	writeOutputBufferHex(pData->decelerationStartingIndex >> 8);
+	writeOutputBufferHex(pData->decelerationStartingIndex & 0xff);
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	
+	//current step index
+	writeOutputBufferString(STR_STEPPER_CURRENT_STEP_INDEX);
+	writeOutputBufferHex(pData->currentStepIndex >> 8);
+	writeOutputBufferHex(pData->currentStepIndex & 0xff);
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
 }
 
 static void mmd_locator_query(unsigned char locatorIndex)
@@ -2031,7 +2058,7 @@ static void mmd_locator_query(unsigned char locatorIndex)
 			else if((locator > 0) && (locator < 3)) {
 				writeOutputBufferString(" low input ");
 				writeOutputBufferHex(locator);
-				writeOutputBufferString("\r\n");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 			}
 			else {
 				writeOutputBufferString(" wrong locator output\r\n");
@@ -2057,7 +2084,7 @@ static void mmd_locator_query(unsigned char locatorIndex)
 			else if((locator > 0) && (locator < 9)) {
 				writeOutputBufferString(" low input ");
 				writeOutputBufferHex(locator);
-				writeOutputBufferString("\r\n");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 			}
 			else {
 				writeOutputBufferString(" wrong locator output\r\n");
@@ -2069,7 +2096,7 @@ static void mmd_locator_query(unsigned char locatorIndex)
 		{
 			writeOutputBufferString("Locator wrong index ");
 			writeOutputBufferHex(locatorIndex);
-			writeOutputBufferString("\r\n");
+			writeOutputBufferString(STR_CARRIAGE_RETURN);
 		}
 		break;
 	}
@@ -2508,7 +2535,7 @@ static void mmd_run_command(void)
 			case COMMAND_QUREY_NAME:
 			{
 				writeOutputBufferString(MMD_PRODUCT_NAME);
-				writeOutputBufferString("\r\n");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2590,7 +2617,7 @@ static void mmd_run_command(void)
 					writeOutputBufferString(STR_DCM_IS_POWERED_OFF);
 				}
 				writeOutputBufferHex(index & 0xff);
-				writeOutputBufferString("\r\n");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2676,7 +2703,7 @@ static void mmd_run_command(void)
 						break;
 				}
 				writeOutputBufferHex(index);
-				writeOutputBufferString("\r\n");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2689,7 +2716,7 @@ static void mmd_run_command(void)
 				writeOutputBufferHex(resolution >> 8);
 				writeOutputBufferString(" ");
 				writeOutputBufferHex(resolution & 0xff);
-				writeOutputBufferString("\r\n");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2883,7 +2910,7 @@ static void mmd_check_status(void)
 				writeOutputBufferString(STATUS_DCM_IS_POWERED_OFF);
 			}
 			writeOutputBufferHex(index);
-			writeOutputBufferString("\r\n");
+			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			mmdStatus.dcmPowered[index] = b;
 		}
 	}
@@ -2937,7 +2964,7 @@ static void mmd_check_status(void)
 				break;
 			}
 			writeOutputBufferHex(index);
-			writeOutputBufferString("\r\n");
+			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			
 			mmdStatus.bdcState[index] = state;
 		}
@@ -2967,7 +2994,7 @@ static void mmd_check_status(void)
 				writeOutputBufferString(STATUS_STEPPER_IS_DISABLED);
 			}
 			writeOutputBufferHex(index);
-			writeOutputBufferString("\r\n");
+			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			
 			mmdStatus.stepperEnabled[index] = b;
 		}
@@ -2981,7 +3008,7 @@ static void mmd_check_status(void)
 				writeOutputBufferString(STATUS_STEPPER_BACKWORD);
 			}
 			writeOutputBufferHex(index);
-			writeOutputBufferString("\r\n");
+			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			
 			mmdStatus.stepperForward[index] = b;
 		}
@@ -3046,7 +3073,7 @@ static void mmd_check_status(void)
 				break;
 			}
 			writeOutputBufferHex(index);
-			writeOutputBufferString("\r\n");
+			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			
 			mmdStatus.stepperState[index] = state;
 		}
@@ -3060,7 +3087,7 @@ static void mmd_check_status(void)
 		writeOutputBufferHex(0);
 		writeOutputBufferString(": ");
 		writeOutputBufferHex(index);
-		writeOutputBufferString("\r\n");
+		writeOutputBufferString(STR_CARRIAGE_RETURN);
 		
 		mmdStatus.locatorHubs[0] = index;
 	}
@@ -3072,7 +3099,7 @@ static void mmd_check_status(void)
 			writeOutputBufferHex(index);
 			writeOutputBufferString(": ");
 			writeOutputBufferHex(locator);
-			writeOutputBufferString("\r\n");
+			writeOutputBufferString(STR_CARRIAGE_RETURN);
 		
 			mmdStatus.locatorHubs[index] = locator;
 		}
