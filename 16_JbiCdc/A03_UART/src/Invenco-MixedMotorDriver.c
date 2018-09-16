@@ -2200,7 +2200,7 @@ static void mmd_parse_command(void)
 					}
 				}
 				if(index >= MMD_MAX_COMMAND_PARAMETERS) {
-					writeOutputBufferString("Too many parameters\r\n");
+					writeOutputBufferString(STR_TOO_MANY_PARAMETERS);
 					validCmd = false;
 				}
 			}
@@ -2247,16 +2247,36 @@ static void mmd_parse_command(void)
 		case COMMAND_STEPPER_CONFIG_HOME:
 		case COMMAND_STEPPER_QUREY:
 		case COMMAND_LOCATOR_QUERY:
+		{
 			mmdCommand.command = cmd;
 			mmdCommand.state = STARTING_COMMAND;
-			break;
+			
+			writeOutputBufferString("Command: ");
+			writeOutputBufferHex(mmdCommand.command);
+			writeOutputBufferString(STR_CARRIAGE_RETURN);
+			for(unsigned char i = 0; i < mmdCommand.parameterAmount; i++) {
+				writeOutputBufferString("Param: ");
+				writeOutputBufferHex(mmdCommand.parameters[i] >> 8);
+				writeOutputBufferHex(mmdCommand.parameters[i] & 0xff);
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
+			}
+		}
+		break;
 		default:
+		{
 			mmdCommand.command = COMMAND_INVALID;
 			mmdCommand.state = AWAITING_COMMAND;
-			writeOutputBufferString("Unknown command\r\n");
+			writeOutputBufferString(STR_UNKNOWN_COMMAND);
+		}
 			break;
 		}
 	}
+}
+
+static void mmd_cancel_command(void)
+{
+	clearInputBuffer();
+	mmdCommand.state = AWAITING_COMMAND;
 }
 
 static void mmd_run_command(void)
@@ -2481,6 +2501,7 @@ static void mmd_run_command(void)
 					mmdCommand.state = EXECUTING_COMMAND;
 				}
 			}
+			break;
 			
 			case COMMAND_STEPPER_QUREY:
 			{
@@ -3122,11 +3143,11 @@ void ecd300MixedMotorDrivers(void)
 		
 		if (udi_cdc_is_rx_ready())
 		{
-			//read a command from USB buffer.
+			//read a char from USB buffer.
 			key = (unsigned char)udi_cdc_getc();
 			
-			writeInputBuffer(key);
-			writeOutputBufferChar(key);
+			writeInputBuffer(key); //append to input buffer
+			writeOutputBufferChar(key); //echo char to host
 			if(key == 0x0D) {
 				writeOutputBufferChar(0x0A); //append a line feed.
 			}
@@ -3140,9 +3161,14 @@ void ecd300MixedMotorDrivers(void)
 			}
 			
 			// 0x0D is command terminator
-			if((key == 0x0D) && (mmdCommand.state == AWAITING_COMMAND))
+			if(key == 0x0D) 
 			{
-				mmd_parse_command();
+				if(mmdCommand.state == AWAITING_COMMAND) {
+					mmd_parse_command();
+				}
+				else {
+					mmd_cancel_command();
+				}
 			}
 		}
 
