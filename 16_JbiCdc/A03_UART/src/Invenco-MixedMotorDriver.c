@@ -1141,7 +1141,7 @@ static void MMD_power_on_bdcs(bool on)
 static bool MMD_are_bdcs_powered_on(void)
 {
 	//read PF6
-	return (PORTF_IN & 0x40) != 0;
+	return (PORTF_IN & 0x40) == 0;
 }
 
 static void MMD_bdc_set_state(unsigned char index, enum MMD_BDC_STATE state)
