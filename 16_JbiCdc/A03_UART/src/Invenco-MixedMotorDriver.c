@@ -3203,6 +3203,19 @@ void ecd300MixedMotorDrivers(void)
 			//read a char from USB buffer.
 			key = (unsigned char)udi_cdc_getc();
 			
+			//echo to serial port for debug
+			{
+				unsigned char serialBuf[4];
+				
+				printHex(key);printString(":");
+				serialBuf[0] = key;
+				serialBuf[1] = '\r';
+				serialBuf[2] = '\n';
+				serialBuf[3] = 0;
+				printString(serialBuf);
+			}
+			
+			
 			writeInputBuffer(key); //append to input buffer
 			writeOutputBufferChar(key); //echo char to host
 			if(key == 0x0D) {
