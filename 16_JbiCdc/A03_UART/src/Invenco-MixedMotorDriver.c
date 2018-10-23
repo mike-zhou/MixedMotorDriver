@@ -12,37 +12,37 @@
 enum MMD_command_e
 {
 	COMMAND_INVALID = 0,
-	COMMAND_QUREY_NAME = 1,				// C 1
-	COMMAND_OPT_POWER_ON = 10,			// C 10
-	COMMAND_OPT_POWER_OFF = 11,			// C 11
-	COMMAND_OPT_POWER_QUERY = 12,		// C 12
-	COMMAND_STEPPERS_POWER_ON = 20,		// C 13
-	COMMAND_STEPPERS_POWER_OFF = 21,	// C 14
-	COMMAND_STEPPERS_POWER_QUERY = 22,  // C 15
-	COMMAND_DCM_POWER_ON = 30,			// C 30 dcmIndex
-	COMMAND_DCM_POWER_OFF = 31,			// C 31 dcmIndex
-	COMMAND_DCM_POWER_QUERY = 32,		// C 32 dcmIndex
-	COMMAND_BDCS_POWER_ON = 40,			// C 40
-	COMMAND_BDCS_POWER_OFF = 41,		// C 41
-	COMMAND_BDCS_POWER_QUERY = 42,		// C 42
-	COMMAND_BDC_COAST = 43,				// C 43 bdcIndex
-	COMMAND_BDC_REVERSE = 44,			// C 44 bdcIndex
-	COMMAND_BDC_FORWARD = 45,			// C 45 bdcIndex
-	COMMAND_BDC_BREAK = 46,				// C 46 bdcIndex
-	COMMAND_BDC_QUERY = 47,				// C 47 bdcIndex
-	COMMAND_STEPPER_STEP_RESOLUTION_QUERY = 50,			// C 50
-	COMMAND_STEPPER_CONFIG_STEP = 51,					// C 51 stepperIndex lowClks highClks
-	COMMAND_STEPPER_ACCELERATION_BUFFER = 52,			// C 52 stepperIndex buffer
-	COMMAND_STEPPER_ACCELERATION_BUFFER_DECREMENT = 53,	// C 53 stepperIndex decrement
-	COMMAND_STEPPER_DECELERATION_BUFFER = 54,			// C 54 stepperIndex buffer
-	COMMAND_STEPPER_DECELERATION_BUFFER_INCREMENT = 55,	// C 55 stepperIndex increment
-	COMMAND_STEPPER_ENABLE = 56,		// C 56 stepperIndex 1/0
-	COMMAND_STEPPER_DIR = 57,			// C 57 stepperIndex 1/0
-	COMMAND_STEPPER_STEPS = 58,			// C 58 stepperIndex steps
-	COMMAND_STEPPER_RUN = 59,			// c 59
-	COMMAND_STEPPER_CONFIG_HOME = 60,	// C 60 stepperIndex locatorIndex lineNumberStart lineNumberTerminal
-	COMMAND_STEPPER_QUREY = 61,			// C 61 stepperIndex
-	COMMAND_LOCATOR_QUERY = 100			// C 100 locatorHubIndex
+	COMMAND_QUREY_NAME = 1,				// C 1 cmdId
+	COMMAND_OPT_POWER_ON = 10,			// C 10 cmdId
+	COMMAND_OPT_POWER_OFF = 11,			// C 11 cmdId
+	COMMAND_OPT_POWER_QUERY = 12,		// C 12 cmdId
+	COMMAND_STEPPERS_POWER_ON = 20,		// C 13 cmdId
+	COMMAND_STEPPERS_POWER_OFF = 21,	// C 14 cmdId
+	COMMAND_STEPPERS_POWER_QUERY = 22,  // C 15 cmdId
+	COMMAND_DCM_POWER_ON = 30,			// C 30 dcmIndex cmdId
+	COMMAND_DCM_POWER_OFF = 31,			// C 31 dcmIndex cmdId
+	COMMAND_DCM_POWER_QUERY = 32,		// C 32 dcmIndex cmdId
+	COMMAND_BDCS_POWER_ON = 40,			// C 40 cmdId
+	COMMAND_BDCS_POWER_OFF = 41,		// C 41 cmdId
+	COMMAND_BDCS_POWER_QUERY = 42,		// C 42 cmdId
+	COMMAND_BDC_COAST = 43,				// C 43 bdcIndex cmdId
+	COMMAND_BDC_REVERSE = 44,			// C 44 bdcIndex cmdId
+	COMMAND_BDC_FORWARD = 45,			// C 45 bdcIndex cmdId
+	COMMAND_BDC_BREAK = 46,				// C 46 bdcIndex cmdId
+	COMMAND_BDC_QUERY = 47,				// C 47 bdcIndex cmdId
+	COMMAND_STEPPER_STEP_RESOLUTION_QUERY = 50,			// C 50 cmdId
+	COMMAND_STEPPER_CONFIG_STEP = 51,					// C 51 stepperIndex lowClks highClks cmdId
+	COMMAND_STEPPER_ACCELERATION_BUFFER = 52,			// C 52 stepperIndex buffer cmdId
+	COMMAND_STEPPER_ACCELERATION_BUFFER_DECREMENT = 53,	// C 53 stepperIndex decrement cmdId
+	COMMAND_STEPPER_DECELERATION_BUFFER = 54,			// C 54 stepperIndex buffer cmdId
+	COMMAND_STEPPER_DECELERATION_BUFFER_INCREMENT = 55,	// C 55 stepperIndex increment cmdId
+	COMMAND_STEPPER_ENABLE = 56,		// C 56 stepperIndex 1/0 cmdId
+	COMMAND_STEPPER_DIR = 57,			// C 57 stepperIndex 1/0 cmdId
+	COMMAND_STEPPER_STEPS = 58,			// C 58 stepperIndex steps cmdId
+	COMMAND_STEPPER_RUN = 59,			// c 59 cmdId
+	COMMAND_STEPPER_CONFIG_HOME = 60,	// C 60 stepperIndex locatorIndex lineNumberStart lineNumberTerminal cmdId
+	COMMAND_STEPPER_QUREY = 61,			// C 61 stepperIndex cmdId
+	COMMAND_LOCATOR_QUERY = 100			// C 100 locatorHubIndex cmdId
 };
 
 enum MMD_stepper_state
@@ -66,39 +66,39 @@ enum MMD_stepper_step_phase
 };
 
 static const char * STR_CARRIAGE_RETURN = "\r\n";
-static const char * STR_INVALID_COMMAND = "Error: Invalid command\r\n";
-static const char * STR_TOO_MANY_PARAMETERS = "Error: Too many parameters\r\n";
-static const char * STR_UNKNOWN_COMMAND = "Error: Unknown command\r\n";
-static const char * STR_WRONG_COMMAND_FORMAT = "Error: Wrong command format\r\n";
-static const char * STR_INVALID_PARAMETER = "Error: Invalid parameter\r\n";
-static const char * STR_WRONG_PARAMETER_AMOUNT = "Error: Wrong parameter amount\r\n";
-static const char * STR_STEPPER_INDEX_OUT_OF_SCOPE = "Error: Stepper index is out of scope\r\n";
-static const char * STR_STEPPER_NOT_POSITIONED = "Error: Stepper has not been positioned\r\n";
-static const char * STR_STEPPER_UNDER_SCOPE = "Error: Stepper is under scope ";
-static const char * STR_STEPPER_OVER_SCOPE = "Error: Stepper is over scope ";
-static const char * STR_STEPPER_STATE = "State: ";
-static const char * STR_STEPPER_LOCATOR_INDEX = "Locator index: ";
-static const char * STR_STEPPER_LOCATOR_LINE_NUMBER_START = "Locator line number start: ";
-static const char * STR_STEPPER_LOCATOR_LINE_NUMBER_TERMINAL = "Locator line number terminal: ";
-static const char * STR_STEPPER_IS_ENABLED = "Enabled: ";
-static const char * STR_STEPPER_FORWARD = "Forward: ";
-static const char * STR_STEPPER_HOME_OFFSET = "Home offset: ";
-static const char * STR_STEPPER_TOTAL_STEPS = "Total steps: ";
-static const char * STR_STEPPER_CURRENT_STEP_INDEX = "Current step index: ";
-static const char * STR_STEPPER_DECELERATION_STARTING_INDEX = "Deceleration starting index: ";
-static const char * STR_STEPPER_ACCELERATION_BUFFER = "Acceleration buffer: ";
-static const char * STR_STEPPER_ACCELERATION_DECREMENT = "Acceleration decrement: ";
-static const char * STR_STEPPER_DECELERATION_BUFFER = "Deceleration buffer: ";
-static const char * STR_STEPPER_DECELERATION_INCREMENT = "Deceleration increment: ";
-static const char * STR_STEPPER_PHASE_LOW_CLOCKS = "Low phase clocks: ";
-static const char * STR_STEPPER_PHASE_HIGH_CLOCKS = "High phase clocks: ";
-static const char * STR_LOCATOR_INDEX_OUT_OF_SCOPE = "Error: Locator index is out of scope\r\n";
-static const char * STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE = "Error: Locator line index is out of scope\r\n";
-static const char * STR_LOCATOR_LINE_INDEX_DUPLICATE = "Error: Duplicated locator line index\r\n";
-static const char * STR_DCM_INDEX_OUT_OF_SCOPE = "Error: DCM index is out of scope\r\n";
+static const char * STR_INVALID_COMMAND = "\"error\":\"invalid command\"";
+static const char * STR_TOO_MANY_PARAMETERS = "\"error\":\"too many parameters\"";
+static const char * STR_UNKNOWN_COMMAND = "\"error\":\"unknown command\"";
+static const char * STR_WRONG_COMMAND_FORMAT = "\"error\":\"wrong command format\"";
+static const char * STR_INVALID_PARAMETER = "\"error\":\"invalid parameter\"";
+static const char * STR_WRONG_PARAMETER_AMOUNT = "\"error\":\"wrong parameter amount\"";
+static const char * STR_STEPPER_INDEX_OUT_OF_SCOPE = "\"error\":\"stepper index is out of scope\"";
+static const char * STR_STEPPER_NOT_POSITIONED = "\"error\":\"stepper has not been positioned\"";
+static const char * STR_STEPPER_UNDER_SCOPE = "\"error\":\"stepper is under scope\"";
+static const char * STR_STEPPER_OVER_SCOPE = "\"error\":\"stepper is over scope\"";
+static const char * STR_STEPPER_STATE = "\"state\":";
+static const char * STR_STEPPER_LOCATOR_INDEX = "\"locatorIndex\":";
+static const char * STR_STEPPER_LOCATOR_LINE_NUMBER_START = "\"locatorLineNumberStart\":";
+static const char * STR_STEPPER_LOCATOR_LINE_NUMBER_TERMINAL = "\"locatorLineNumberTerminal\":";
+static const char * STR_STEPPER_IS_ENABLED = "\"enabled\":";
+static const char * STR_STEPPER_FORWARD = "\"forward\":";
+static const char * STR_STEPPER_HOME_OFFSET = "\"homeOffset\":";
+static const char * STR_STEPPER_TOTAL_STEPS = "\"totalSteps\":";
+static const char * STR_STEPPER_CURRENT_STEP_INDEX = "\"currentStepIndex\":";
+static const char * STR_STEPPER_DECELERATION_STARTING_INDEX = "\"decelerationStartingIndex\":";
+static const char * STR_STEPPER_ACCELERATION_BUFFER = "\"acceleration buffer\":";
+static const char * STR_STEPPER_ACCELERATION_DECREMENT = "\"accelerationDecrement\":";
+static const char * STR_STEPPER_DECELERATION_BUFFER = "\"decelerationBuffer\":";
+static const char * STR_STEPPER_DECELERATION_INCREMENT = "\"decelerationIncrement\":";
+static const char * STR_STEPPER_PHASE_LOW_CLOCKS = "\"lowClks\":";
+static const char * STR_STEPPER_PHASE_HIGH_CLOCKS = "\"highClks\":";
+static const char * STR_LOCATOR_INDEX_OUT_OF_SCOPE = "\"error\":\"locator index is out of scope\"";
+static const char * STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE = "\"error\":\"locator line index is out of scope\"";
+static const char * STR_LOCATOR_LINE_INDEX_DUPLICATE = "\"error\":\"duplicated locator line index\"";
+static const char * STR_DCM_INDEX_OUT_OF_SCOPE = "\"error\":\"DCM index is out of scope\"";
 static const char * STR_DCM_IS_POWERED_ON = "DCM is powered on: ";
 static const char * STR_DCM_IS_POWERED_OFF = "DCM is powered off: ";
-static const char * STR_BDC_INDEX_OUT_OF_SCOPE = "Error: BDC index is out of scope\r\n";
+static const char * STR_BDC_INDEX_OUT_OF_SCOPE = "\"error\":\"BDC index is out of scope\"";
 static const char * STR_BDC_STATE_FORWARD = "BDC forward: ";
 static const char * STR_BDC_STATE_COAST = "BDC coast: ";
 static const char * STR_BDC_STATE_REVERSE = "BDC reverse: ";
@@ -1494,6 +1494,29 @@ static void mmd_stepper_out_of_scope(struct MMD_stepper_data * pData)
 	mmdCommand.state = AWAITING_COMMAND;
 }
 
+//write command and parameters to output buffer.
+static void mmd_write_reply_header()
+{
+	writeOutputBufferString("\"cmd\":\"");
+	writeOutputBufferHex(mmdCommand.command);
+	writeOutputBufferString("\",\"params\":[");
+	//the first parameter
+	writeOutputBufferChar('"');
+	writeOutputBufferHex(mmdCommand.parameters[0] >> 8);
+	writeOutputBufferHex(mmdCommand.parameters[0] & 0xff);
+	writeOutputBufferChar('"');
+	//other parameters
+	for(int i=1; i<mmdCommand.parameterAmount; i++) {
+		writeOutputBufferChar(',');
+		writeOutputBufferChar('"');
+		writeOutputBufferHex(mmdCommand.parameters[0] >> 8);
+		writeOutputBufferHex(mmdCommand.parameters[0] & 0xff);
+		writeOutputBufferChar('"');
+	}
+	writeOutputBufferChar(']');
+	writeOutputBufferChar(',');
+}
+
 // check if stepper is under scope or over scope,
 // and cancel current command if out of scope happens.
 static void mmd_stepper_check_scope(struct MMD_stepper_data * pData)
@@ -2243,7 +2266,7 @@ static void mmd_parse_command(void)
 								break; //command number ends.
 							}
 							else {
-								continue;
+								continue; //ignore continuous ' ' ahead of a parameter.
 							}
 						}
 						else {
@@ -2257,7 +2280,9 @@ static void mmd_parse_command(void)
 					}
 				}
 				if(index >= MMD_MAX_COMMAND_PARAMETERS) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_TOO_MANY_PARAMETERS);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					validCmd = false;
 				}
 			}
@@ -2268,7 +2293,9 @@ static void mmd_parse_command(void)
 		mmdCommand.command = COMMAND_INVALID;
 		mmdCommand.parameterAmount = 0;
 		clearInputBuffer();
+		mmd_write_reply_header();
 		writeOutputBufferString(STR_INVALID_COMMAND);
+		writeOutputBufferString(STR_CARRIAGE_RETURN);
 	}
 	else {
 		switch(cmd)
@@ -2308,22 +2335,24 @@ static void mmd_parse_command(void)
 			mmdCommand.command = cmd;
 			mmdCommand.state = STARTING_COMMAND;
 			
-			writeOutputBufferString("Command: ");
-			writeOutputBufferHex(mmdCommand.command);
-			writeOutputBufferString(STR_CARRIAGE_RETURN);
-			for(unsigned char i = 0; i < mmdCommand.parameterAmount; i++) {
-				writeOutputBufferString("Param: ");
-				writeOutputBufferHex(mmdCommand.parameters[i] >> 8);
-				writeOutputBufferHex(mmdCommand.parameters[i] & 0xff);
-				writeOutputBufferString(STR_CARRIAGE_RETURN);
-			}
+			//writeOutputBufferString("Command: ");
+			//writeOutputBufferHex(mmdCommand.command);
+			//writeOutputBufferString(STR_CARRIAGE_RETURN);
+			//for(unsigned char i = 0; i < mmdCommand.parameterAmount; i++) {
+				//writeOutputBufferString("Param: ");
+				//writeOutputBufferHex(mmdCommand.parameters[i] >> 8);
+				//writeOutputBufferHex(mmdCommand.parameters[i] & 0xff);
+				//writeOutputBufferString(STR_CARRIAGE_RETURN);
+			//}
 		}
 		break;
 		default:
 		{
 			mmdCommand.command = COMMAND_INVALID;
 			mmdCommand.state = AWAITING_COMMAND;
+			mmd_write_reply_header();
 			writeOutputBufferString(STR_UNKNOWN_COMMAND);
+			writeOutputBufferString(STR_CARRIAGE_RETURN);
 		}
 			break;
 		}
@@ -2352,7 +2381,9 @@ static void mmd_run_command(void)
 			case COMMAND_STEPPERS_POWER_QUERY:
 			{
 				if(mmdCommand.parameterAmount > 0) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2367,12 +2398,16 @@ static void mmd_run_command(void)
 			case COMMAND_DCM_POWER_QUERY:
 			{
 				if(mmdCommand.parameterAmount != 1){
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_DIRECT_CURRENT_MOTORS_AMOUNT) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_DCM_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2387,7 +2422,9 @@ static void mmd_run_command(void)
 			case COMMAND_BDCS_POWER_QUERY:
 			{
 				if(mmdCommand.parameterAmount > 0) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2404,12 +2441,16 @@ static void mmd_run_command(void)
 			case COMMAND_BDC_QUERY:
 			{
 				if(mmdCommand.parameterAmount != 1){
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_BDC_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2422,7 +2463,9 @@ static void mmd_run_command(void)
 			case COMMAND_STEPPER_STEP_RESOLUTION_QUERY:
 			{
 				if(mmdCommand.parameterAmount > 0) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2435,12 +2478,16 @@ static void mmd_run_command(void)
 			case COMMAND_STEPPER_CONFIG_STEP:
 			{
 				if(mmdCommand.parameterAmount != 3){
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_STEPPERS_AMOUNT) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2458,12 +2505,16 @@ static void mmd_run_command(void)
 			case COMMAND_STEPPER_DIR:
 			{
 				if(mmdCommand.parameterAmount != 2){
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_STEPPERS_AMOUNT) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2479,22 +2530,30 @@ static void mmd_run_command(void)
 				unsigned short steps = mmdCommand.parameters[1];
 				
 				if(mmdCommand.parameterAmount != 2){
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(stepperIndex >= MMD_STEPPERS_AMOUNT) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.steppersData[stepperIndex].state != STEPPER_STATE_KNOWN_POSITION) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_NOT_POSITIONED);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(steps < 1) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_INVALID_PARAMETER);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2507,7 +2566,9 @@ static void mmd_run_command(void)
 			case COMMAND_STEPPER_RUN:
 			{
 				if(mmdCommand.parameterAmount > 0) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2525,32 +2586,44 @@ static void mmd_run_command(void)
 				unsigned char lineNumberTerminal = mmdCommand.parameters[3];
 				
 				if(mmdCommand.parameterAmount != 4){
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(stepperIndex >= MMD_STEPPERS_AMOUNT) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(locatorIndex >= MMD_LOCATOR_AMOUNT) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_LOCATOR_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if((lineNumberStart < 1) || (lineNumberStart > 8)) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if((lineNumberTerminal < 1) || (lineNumberTerminal > 8)) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(lineNumberStart == lineNumberTerminal) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_LOCATOR_LINE_INDEX_DUPLICATE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2563,12 +2636,16 @@ static void mmd_run_command(void)
 			case COMMAND_STEPPER_QUREY:
 			{
 				if(mmdCommand.parameterAmount != 1){
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_STEPPERS_AMOUNT) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2581,12 +2658,16 @@ static void mmd_run_command(void)
 			case COMMAND_LOCATOR_QUERY:
 			{
 				if(mmdCommand.parameterAmount != 1){
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString("\r\n");
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_LOCATOR_AMOUNT) {
+					mmd_write_reply_header();
 					writeOutputBufferString(STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString("\r\n");
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2598,7 +2679,9 @@ static void mmd_run_command(void)
 
 			default:
 			{
+				mmd_write_reply_header();
 				writeOutputBufferString(STR_UNKNOWN_COMMAND);
+				writeOutputBufferString("\r\n");
 				clearInputBuffer();
 				mmdCommand.state = AWAITING_COMMAND;
 
@@ -2613,7 +2696,7 @@ static void mmd_run_command(void)
 			case COMMAND_QUREY_NAME:
 			{
 				writeOutputBufferString(MMD_PRODUCT_NAME);
-				writeOutputBufferString(STR_CARRIAGE_RETURN);
+				writeOutputBufferString("\r\n");
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2880,6 +2963,9 @@ static void mmd_run_command(void)
 				
 				MMD_stepper_set_steps(stepperIndex,  steps);
 				MMD_stepper_enable(stepperIndex, true);
+				mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_ACCELERATING;
+				mmdCommand.steppersData[stepperIndex].stepPhase = STEP_PHASE_FINISH;
+				
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -3219,7 +3305,7 @@ void ecd300MixedMotorDrivers(void)
 			writeInputBuffer(key); //append to input buffer
 			writeOutputBufferChar(key); //echo char to host
 			if(key == 0x0D) {
-				writeOutputBufferChar(0x0A); //append a line feed.
+				writeOutputBufferChar(0x0A); //append a new line.
 			}
 			
 			//toggle PD0 to indicate character reception.
