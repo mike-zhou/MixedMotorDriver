@@ -86,7 +86,7 @@ static const char * STR_STEPPER_HOME_OFFSET = "\"homeOffset\":";
 static const char * STR_STEPPER_TOTAL_STEPS = "\"totalSteps\":";
 static const char * STR_STEPPER_CURRENT_STEP_INDEX = "\"currentStepIndex\":";
 static const char * STR_STEPPER_DECELERATION_STARTING_INDEX = "\"decelerationStartingIndex\":";
-static const char * STR_STEPPER_ACCELERATION_BUFFER = "\"acceleration buffer\":";
+static const char * STR_STEPPER_ACCELERATION_BUFFER = "\"accelerationBuffer\":";
 static const char * STR_STEPPER_ACCELERATION_DECREMENT = "\"accelerationDecrement\":";
 static const char * STR_STEPPER_DECELERATION_BUFFER = "\"decelerationBuffer\":";
 static const char * STR_STEPPER_DECELERATION_INCREMENT = "\"decelerationIncrement\":";
@@ -96,14 +96,8 @@ static const char * STR_LOCATOR_INDEX_OUT_OF_SCOPE = "\"error\":\"locator index 
 static const char * STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE = "\"error\":\"locator line index is out of scope\"";
 static const char * STR_LOCATOR_LINE_INDEX_DUPLICATE = "\"error\":\"duplicated locator line index\"";
 static const char * STR_DCM_INDEX_OUT_OF_SCOPE = "\"error\":\"DCM index is out of scope\"";
-static const char * STR_DCM_IS_POWERED_ON = "DCM is powered on: ";
-static const char * STR_DCM_IS_POWERED_OFF = "DCM is powered off: ";
 static const char * STR_BDC_INDEX_OUT_OF_SCOPE = "\"error\":\"BDC index is out of scope\"";
-static const char * STR_BDC_STATE_FORWARD = "BDC forward: ";
-static const char * STR_BDC_STATE_COAST = "BDC coast: ";
-static const char * STR_BDC_STATE_REVERSE = "BDC reverse: ";
-static const char * STR_BDC_STATE_BREAK = "BDC break: ";
-static const char * STR_BDC_STATE_ERROR = "BDC error: ";
+
 
 static const char * STATUS_MAIN_POWER_IS_ON = "Status: Main power is on\r\n";
 static const char * STATUS_MAIN_POWER_IS_OFF = "Status: Main fuse is off\r\n";
@@ -1495,6 +1489,28 @@ static void mmd_stepper_out_of_scope(struct MMD_stepper_data * pData)
 }
 
 //write command and parameters to output buffer.
+static void mmd_write_succeess_reply() 
+{
+	writeOutputBufferString("\"cmd\":\"");
+	writeOutputBufferHex(mmdCommand.command);
+	writeOutputBufferString("\",\"params\":[");
+	//the first parameter
+	writeOutputBufferChar('"');
+	writeOutputBufferHex(mmdCommand.parameters[0] >> 8);
+	writeOutputBufferHex(mmdCommand.parameters[0] & 0xff);
+	writeOutputBufferChar('"');
+	//other parameters
+	for(int i=1; i<mmdCommand.parameterAmount; i++) {
+		writeOutputBufferChar(',');
+		writeOutputBufferChar('"');
+		writeOutputBufferHex(mmdCommand.parameters[0] >> 8);
+		writeOutputBufferHex(mmdCommand.parameters[0] & 0xff);
+		writeOutputBufferChar('"');
+	}
+	writeOutputBufferChar(']');
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
+}
+
 static void mmd_write_reply_header()
 {
 	writeOutputBufferString("\"cmd\":\"");
@@ -2021,165 +2037,91 @@ static void mmd_stepper_query(unsigned char stepperIndex)
 {
 	struct MMD_stepper_data * pData;
 	
-	if(stepperIndex >= MMD_STEPPERS_AMOUNT) {
-		return;
-	}
-	
 	pData = &(mmdCommand.steppersData[stepperIndex]);
 	
+	mmd_write_reply_header();
 	//stepper state
 	writeOutputBufferString(STR_STEPPER_STATE);
 	writeOutputBufferHex(pData->state);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	writeOutputBufferString(",");
 	
 	//enabled
 	writeOutputBufferString(STR_STEPPER_IS_ENABLED);
 	writeOutputBufferHex(pData->enabled);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	writeOutputBufferString(",");
 	
 	//forward
 	writeOutputBufferString(STR_STEPPER_FORWARD);
 	writeOutputBufferHex(pData->forward);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	writeOutputBufferString(",");
 	
 	//locator
 	writeOutputBufferString(STR_STEPPER_LOCATOR_INDEX);
 	writeOutputBufferHex(pData->locatorIndex);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	writeOutputBufferString(",");
 	
 	//locator line number start
 	writeOutputBufferString(STR_STEPPER_LOCATOR_LINE_NUMBER_START);
 	writeOutputBufferHex(pData->locatorLineNumberStart);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	writeOutputBufferString(",");
 	
 	//locator line number terminal
 	writeOutputBufferString(STR_STEPPER_LOCATOR_LINE_NUMBER_TERMINAL);
 	writeOutputBufferHex(pData->locatorLineNumberTerminal);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	writeOutputBufferString(",");
 	
 	//home offset
 	writeOutputBufferString(STR_STEPPER_HOME_OFFSET);
 	writeOutputBufferHex(pData->homeOffset >> 8);
 	writeOutputBufferHex(pData->homeOffset & 0xff);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	writeOutputBufferString(",");
 	
 	//step phase low clocks
 	writeOutputBufferString(STR_STEPPER_PHASE_LOW_CLOCKS);
 	writeOutputBufferHex(pData->stepPhaseLowClocks >> 8);
 	writeOutputBufferHex(pData->stepPhaseLowClocks & 0xff);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	writeOutputBufferString(",");
 
 	//step phase high clocks
 	writeOutputBufferString(STR_STEPPER_PHASE_HIGH_CLOCKS);
 	writeOutputBufferHex(pData->stepPhaseHighClocks >> 8);
 	writeOutputBufferHex(pData->stepPhaseHighClocks & 0xff);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	writeOutputBufferString(",");
 	
 	//acceleration buffer
 	writeOutputBufferString(STR_STEPPER_ACCELERATION_BUFFER);
 	writeOutputBufferHex(pData->accelerationBuffer >> 8);
 	writeOutputBufferHex(pData->accelerationBuffer & 0xff);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	writeOutputBufferString(",");
 
 	//acceleration decrement
 	writeOutputBufferString(STR_STEPPER_ACCELERATION_DECREMENT);
 	writeOutputBufferHex(pData->accelerationDecrement >> 8);
 	writeOutputBufferHex(pData->accelerationDecrement & 0xff);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	writeOutputBufferString(",");
 
 	//deceleration buffer
 	writeOutputBufferString(STR_STEPPER_DECELERATION_BUFFER);
 	writeOutputBufferHex(pData->decelerationBuffer >> 8);
 	writeOutputBufferHex(pData->decelerationBuffer & 0xff);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
+	writeOutputBufferString(",");
 
 	//deceleration increment
 	writeOutputBufferString(STR_STEPPER_DECELERATION_INCREMENT);
 	writeOutputBufferHex(pData->decelerationIncrement >> 8);
 	writeOutputBufferHex(pData->decelerationIncrement & 0xff);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
-	
-	//total steps
-	writeOutputBufferString(STR_STEPPER_TOTAL_STEPS);
-	writeOutputBufferHex(pData->totalSteps >> 8);
-	writeOutputBufferHex(pData->totalSteps & 0xff);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
-	
-	//deceleration starting index
-	writeOutputBufferString(STR_STEPPER_DECELERATION_STARTING_INDEX);
-	writeOutputBufferHex(pData->decelerationStartingIndex >> 8);
-	writeOutputBufferHex(pData->decelerationStartingIndex & 0xff);
-	writeOutputBufferString(STR_CARRIAGE_RETURN);
-	
-	//current step index
-	writeOutputBufferString(STR_STEPPER_CURRENT_STEP_INDEX);
-	writeOutputBufferHex(pData->currentStepIndex >> 8);
-	writeOutputBufferHex(pData->currentStepIndex & 0xff);
+
 	writeOutputBufferString(STR_CARRIAGE_RETURN);
 }
 
 static void mmd_locator_query(unsigned char locatorIndex)
 {
-	if(locatorIndex >= MMD_LOCATOR_AMOUNT) {
-		return;
-	}
+	unsigned char locator = MMD_locator_get(locatorIndex);
 	
-	switch(locatorIndex)
-	{
-		case 0:
-		{
-			unsigned char locator = MMD_locator_get(locatorIndex);
-			
-			writeOutputBufferString("Locator "); 
-			writeOutputBufferHex(locatorIndex);
-			if(locator == 0) {
-				writeOutputBufferString(" no low input\r\n");
-			}
-			else if((locator > 0) && (locator < 3)) {
-				writeOutputBufferString(" low input ");
-				writeOutputBufferHex(locator);
-				writeOutputBufferString(STR_CARRIAGE_RETURN);
-			}
-			else {
-				writeOutputBufferString(" wrong locator output\r\n");
-			}
-		}
-		break;
-		
-		case 1:
-		case 2:
-		case 3:
-		case 4:
-		case 5:
-		case 6:
-		case 7:
-		{
-			unsigned char locator = MMD_locator_get(locatorIndex);
-			
-			writeOutputBufferString("Locator ");
-			writeOutputBufferHex(locatorIndex);
-			if(locator == 0) {
-				writeOutputBufferString(" no low input\r\n");
-			}
-			else if((locator > 0) && (locator < 9)) {
-				writeOutputBufferString(" low input ");
-				writeOutputBufferHex(locator);
-				writeOutputBufferString(STR_CARRIAGE_RETURN);
-			}
-			else {
-				writeOutputBufferString(" wrong locator output\r\n");
-			}
-		}
-		break;
-		
-		default:
-		{
-			writeOutputBufferString("Locator wrong index ");
-			writeOutputBufferHex(locatorIndex);
-			writeOutputBufferString(STR_CARRIAGE_RETURN);
-		}
-		break;
-	}
+	mmd_write_reply_header();
+	writeOutputBufferString("\"lowInput\":");
+	writeOutputBufferHex(locator);
+	writeOutputBufferString(STR_CARRIAGE_RETURN);
 }
 
 static void mmd_parse_command(void)
@@ -2380,7 +2322,7 @@ static void mmd_run_command(void)
 			case COMMAND_STEPPERS_POWER_OFF:
 			case COMMAND_STEPPERS_POWER_QUERY:
 			{
-				if(mmdCommand.parameterAmount > 0) {
+				if(mmdCommand.parameterAmount != 1) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -2397,7 +2339,7 @@ static void mmd_run_command(void)
 			case COMMAND_DCM_POWER_OFF:
 			case COMMAND_DCM_POWER_QUERY:
 			{
-				if(mmdCommand.parameterAmount != 1){
+				if(mmdCommand.parameterAmount != 2){
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -2421,7 +2363,7 @@ static void mmd_run_command(void)
 			case COMMAND_BDCS_POWER_OFF:
 			case COMMAND_BDCS_POWER_QUERY:
 			{
-				if(mmdCommand.parameterAmount > 0) {
+				if(mmdCommand.parameterAmount != 1) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -2440,7 +2382,7 @@ static void mmd_run_command(void)
 			case COMMAND_BDC_BREAK:
 			case COMMAND_BDC_QUERY:
 			{
-				if(mmdCommand.parameterAmount != 1){
+				if(mmdCommand.parameterAmount != 2){
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -2462,7 +2404,7 @@ static void mmd_run_command(void)
 			
 			case COMMAND_STEPPER_STEP_RESOLUTION_QUERY:
 			{
-				if(mmdCommand.parameterAmount > 0) {
+				if(mmdCommand.parameterAmount != 1) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -2477,7 +2419,7 @@ static void mmd_run_command(void)
 
 			case COMMAND_STEPPER_CONFIG_STEP:
 			{
-				if(mmdCommand.parameterAmount != 3){
+				if(mmdCommand.parameterAmount != 4){
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -2504,7 +2446,7 @@ static void mmd_run_command(void)
 			case COMMAND_STEPPER_ENABLE:
 			case COMMAND_STEPPER_DIR:
 			{
-				if(mmdCommand.parameterAmount != 2){
+				if(mmdCommand.parameterAmount != 3){
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -2529,7 +2471,7 @@ static void mmd_run_command(void)
 				unsigned char stepperIndex = mmdCommand.parameters[0];
 				unsigned short steps = mmdCommand.parameters[1];
 				
-				if(mmdCommand.parameterAmount != 2){
+				if(mmdCommand.parameterAmount != 3){
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -2565,7 +2507,7 @@ static void mmd_run_command(void)
 
 			case COMMAND_STEPPER_RUN:
 			{
-				if(mmdCommand.parameterAmount > 0) {
+				if(mmdCommand.parameterAmount != 1) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -2585,7 +2527,7 @@ static void mmd_run_command(void)
 				unsigned char lineNumberStart = mmdCommand.parameters[2];
 				unsigned char lineNumberTerminal = mmdCommand.parameters[3];
 				
-				if(mmdCommand.parameterAmount != 4){
+				if(mmdCommand.parameterAmount != 5){
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -2635,7 +2577,7 @@ static void mmd_run_command(void)
 			
 			case COMMAND_STEPPER_QUREY:
 			{
-				if(mmdCommand.parameterAmount != 1){
+				if(mmdCommand.parameterAmount != 2){
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -2657,17 +2599,17 @@ static void mmd_run_command(void)
 			
 			case COMMAND_LOCATOR_QUERY:
 			{
-				if(mmdCommand.parameterAmount != 1){
+				if(mmdCommand.parameterAmount != 2){
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
-					writeOutputBufferString("\r\n");
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_LOCATOR_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE);
-					writeOutputBufferString("\r\n");
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
@@ -2681,7 +2623,7 @@ static void mmd_run_command(void)
 			{
 				mmd_write_reply_header();
 				writeOutputBufferString(STR_UNKNOWN_COMMAND);
-				writeOutputBufferString("\r\n");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 				clearInputBuffer();
 				mmdCommand.state = AWAITING_COMMAND;
 
@@ -2695,8 +2637,9 @@ static void mmd_run_command(void)
 		{
 			case COMMAND_QUREY_NAME:
 			{
-				writeOutputBufferString(MMD_PRODUCT_NAME);
-				writeOutputBufferString("\r\n");
+				mmd_write_reply_header();
+				writeOutputBufferString("\"name\":\""); writeOutputBufferString(MMD_PRODUCT_NAME); writeOutputBufferString("\"");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2704,6 +2647,7 @@ static void mmd_run_command(void)
 			case COMMAND_OPT_POWER_ON:
 			{
 				MMD_power_on_opt(true);
+				mmd_write_succeess_reply();			
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2711,16 +2655,19 @@ static void mmd_run_command(void)
 			case COMMAND_OPT_POWER_OFF:
 			{
 				MMD_power_on_opt(false);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
 			case COMMAND_OPT_POWER_QUERY:
 			{
+				mmd_write_reply_header();
 				if(MMD_is_opt_powered_on())
-					writeOutputBufferString("OPT is powered on\r\n");
+					writeOutputBufferString("\"state\":\"OPT is powered on\"");
 				else
-					writeOutputBufferString("OPT is powered off\r\n");
+					writeOutputBufferString("\"state\":\"OPT is powered off\"");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 					
 				mmdCommand.state = AWAITING_COMMAND;
 			}
@@ -2729,6 +2676,7 @@ static void mmd_run_command(void)
 			case COMMAND_STEPPERS_POWER_ON:
 			{
 				MMD_power_on_steppers(true);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2736,16 +2684,20 @@ static void mmd_run_command(void)
 			case COMMAND_STEPPERS_POWER_OFF:
 			{
 				MMD_power_on_steppers(false);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
 			case COMMAND_STEPPERS_POWER_QUERY:
 			{
+				mmd_write_reply_header();
+				
 				if(MMD_are_steppers_powered_on())
-					writeOutputBufferString("Steppers are powered on\r\n");
+					writeOutputBufferString("\"state\":\"steppers are powered on\"");
 				else
-					writeOutputBufferString("Steppers are powered off\r\n");
+					writeOutputBufferString("\"state\":\"steppers are powered off\"");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 					
 				mmdCommand.state = AWAITING_COMMAND;
 			}
@@ -2755,6 +2707,7 @@ static void mmd_run_command(void)
 			{
 				unsigned char index = mmdCommand.parameters[0];
 				MMD_power_on_dcm(index, true);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2763,6 +2716,7 @@ static void mmd_run_command(void)
 			{
 				unsigned char index = mmdCommand.parameters[0];
 				MMD_power_on_dcm(index, false);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2771,14 +2725,15 @@ static void mmd_run_command(void)
 			{
 				unsigned char index = mmdCommand.parameters[0];
 				
+				mmd_write_reply_header();
 				if(MMD_is_dcm_powered_on(index)) {
-					writeOutputBufferString(STR_DCM_IS_POWERED_ON);
+					writeOutputBufferString("\"state\":\"dcm is powered on\"");
 				}
 				else {
-					writeOutputBufferString(STR_DCM_IS_POWERED_OFF);
+					writeOutputBufferString("\"state\":\"dcm is powered off\"");
 				}
-				writeOutputBufferHex(index & 0xff);
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
+				
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2786,6 +2741,7 @@ static void mmd_run_command(void)
 			case COMMAND_BDCS_POWER_ON:
 			{
 				MMD_power_on_bdcs(true);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2793,18 +2749,22 @@ static void mmd_run_command(void)
 			case COMMAND_BDCS_POWER_OFF:
 			{
 				MMD_power_on_bdcs(false);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
 			case COMMAND_BDCS_POWER_QUERY:
 			{
+				mmd_write_reply_header();
 				if(MMD_are_bdcs_powered_on()) {
-					writeOutputBufferString("BDCMs are powered on\r\n");
+					writeOutputBufferString("\"state\":\"BDCs are powered on\"");
 				}
 				else {
-					writeOutputBufferString("BDCMs are powered off\r\n");
+					writeOutputBufferString("\"state\":\"BDCs are powered off\"");
 				}
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
+				
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2813,6 +2773,7 @@ static void mmd_run_command(void)
 			{
 				unsigned char index = mmdCommand.parameters[0];
 				MMD_bdc_set_state(index, BDC_STATE_COAST);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2821,6 +2782,7 @@ static void mmd_run_command(void)
 			{
 				unsigned char index = mmdCommand.parameters[0];
 				MMD_bdc_set_state(index, BDC_STATE_REVERSE);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2829,6 +2791,7 @@ static void mmd_run_command(void)
 			{
 				unsigned char index = mmdCommand.parameters[0];
 				MMD_bdc_set_state(index, BDC_STATE_FORWARD);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2837,6 +2800,7 @@ static void mmd_run_command(void)
 			{
 				unsigned char index = mmdCommand.parameters[0];
 				MMD_bdc_set_state(index, BDC_STATE_BREAK);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2845,25 +2809,25 @@ static void mmd_run_command(void)
 			{
 				unsigned char index = mmdCommand.parameters[0];
 				
+				mmd_write_reply_header();
 				switch(MMD_bdc_get_state(index))
 				{
 					case BDC_STATE_COAST:
-						writeOutputBufferString(STR_BDC_STATE_COAST);
+						writeOutputBufferString("\"state\":\"coast\"");
 						break;
 					case BDC_STATE_REVERSE:
-						writeOutputBufferString(STR_BDC_STATE_REVERSE);
+						writeOutputBufferString("\"state\":\"reverse\"");
 						break;
 					case BDC_STATE_FORWARD:
-						writeOutputBufferString(STR_BDC_STATE_FORWARD);
+						writeOutputBufferString("\"state\":\"forward\"");
 						break;
 					case BDC_STATE_BREAK:
-						writeOutputBufferString(STR_BDC_STATE_BREAK);
+						writeOutputBufferString("\"state\":\"break\"");
 						break;
 					default:
-						writeOutputBufferString(STR_BDC_STATE_ERROR);
+						writeOutputBufferString("\"error\":\"wrong BDC state\"");
 						break;
 				}
-				writeOutputBufferHex(index);
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
@@ -2873,11 +2837,13 @@ static void mmd_run_command(void)
 			{
 				unsigned short resolution = MMD_stepper_resolution();
 
-				writeOutputBufferString("Resolution: ");
+				mmd_write_reply_header();
+				writeOutputBufferString("\"resolution\":\"");
 				writeOutputBufferHex(resolution >> 8);
-				writeOutputBufferString(" ");
 				writeOutputBufferHex(resolution & 0xff);
+				writeOutputBufferString("\"");
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
+				
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2889,6 +2855,7 @@ static void mmd_run_command(void)
 				unsigned short highClocks = mmdCommand.parameters[2];
 				
 				MMD_stepper_config_step(stepperIndex, lowClocks, highClocks);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2899,6 +2866,7 @@ static void mmd_run_command(void)
 				unsigned short clocks = mmdCommand.parameters[1];
 				
 				MMD_stepper_set_acceleration_buffer(stepperIndex, clocks);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2909,6 +2877,7 @@ static void mmd_run_command(void)
 				unsigned short clocks = mmdCommand.parameters[1];
 				
 				MMD_stepper_set_acceleration_buffer_decrement(stepperIndex, clocks);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2919,6 +2888,7 @@ static void mmd_run_command(void)
 				unsigned short clocks = mmdCommand.parameters[1];
 
 				MMD_stepper_set_deceleration_buffer(stepperIndex, clocks);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2929,6 +2899,7 @@ static void mmd_run_command(void)
 				unsigned short clocks = mmdCommand.parameters[1];
 
 				MMD_stepper_set_deceleration_buffer_increment(stepperIndex, clocks);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2942,6 +2913,7 @@ static void mmd_run_command(void)
 				if(!enable) {
 					mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_UNKNOWN_POSITION;
 				}
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2952,6 +2924,7 @@ static void mmd_run_command(void)
 				bool forward = mmdCommand.parameters[1] != 0;
 
 				MMD_stepper_forward(stepperIndex, forward);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2965,7 +2938,7 @@ static void mmd_run_command(void)
 				MMD_stepper_enable(stepperIndex, true);
 				mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_ACCELERATING;
 				mmdCommand.steppersData[stepperIndex].stepPhase = STEP_PHASE_FINISH;
-				
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -2988,6 +2961,7 @@ static void mmd_run_command(void)
 				//reverse to home
 				MMD_stepper_forward(stepperIndex, false);
 				MMD_stepper_enable(stepperIndex, true);
+				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -3012,7 +2986,9 @@ static void mmd_run_command(void)
 
 			default:
 			{
+				mmd_write_reply_header();
 				writeOutputBufferString(STR_UNKNOWN_COMMAND);
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
