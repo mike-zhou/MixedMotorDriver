@@ -1,6 +1,6 @@
 #include "Invenco_lib.h"
 
-#define MMD_PRODUCT_NAME "Mixed Motor Drivers HV1.0 SV1.0"
+#define MMD_PRODUCT_NAME "Mixed_Motor_Drivers_HV1.0_SV1.0"
 
 #define MMD_LOCATOR_AMOUNT 8
 #define MMD_STEPPERS_AMOUNT 5
@@ -99,37 +99,37 @@ static const char * STR_DCM_INDEX_OUT_OF_SCOPE = "\"error\":\"DCM index is out o
 static const char * STR_BDC_INDEX_OUT_OF_SCOPE = "\"error\":\"BDC index is out of scope\"";
 
 
-static const char * STATUS_MAIN_POWER_IS_ON = "Status: Main power is on\r\n";
-static const char * STATUS_MAIN_POWER_IS_OFF = "Status: Main fuse is off\r\n";
-static const char * STATUS_MAIN_FUSE_IS_ON = "Status: Main fuse is ok\r\n";
-static const char * STATUS_MAIN_FUSE_IS_OFF = "Status: Main fuse is off\r\n";
-static const char * STATUS_OPT_IS_POWERED_ON = "Status: OPT is powered on\r\n";
-static const char * STATUS_OPT_IS_POWERED_OFF = "Status: OPT is powered off\r\n";
-static const char * STATUS_DCM_IS_POWERED_ON = "Status: DCM is powered on: ";
-static const char * STATUS_DCM_IS_POWERED_OFF = "Status: DCM is powered off: ";
-static const char * STATUS_BDCS_ARE_POWERED_ON = "Status: BDCs are powered on\r\n";
-static const char * STATUS_BDCS_ARE_POWERED_OFF = "Status: BDCs are powered off\r\n";
-static const char * STATUS_BDC_COAST = "Status: BDC coast: ";
-static const char * STATUS_BDC_REVERSE = "Status: BDC reverse: ";
-static const char * STATUS_BDC_FORWARD = "Status: BDC forward: ";
-static const char * STATUS_BDC_BREAK = "Status: BDC break: ";
-static const char * STATUS_BDC_WRONT_STATE = "Status: BDC wrong state: ";
-static const char * STATUS_STEPPERS_ARE_POWERED_ON = "Status: Steppers are powered on\r\n";
-static const char * STATUS_STEPPERS_ARE_POWERED_OFF = "Status: Steppers are powered off\r\n";
-static const char * STATUS_STEPPER_IS_ENABLED = "Status: Stepper is enabled: ";
-static const char * STATUS_STEPPER_IS_DISABLED = "Status: Stepper is disabled: ";
-static const char * STATUS_STEPPER_FORWORD = "Status: Stepper forward: ";
-static const char * STATUS_STEPPER_BACKWORD = "Status: Stepper backward: ";
-static const char * STATUS_STEPPER_STATE_UNKNOWN_POSITION = "Status: Stepper unknown position: ";
-static const char * STATUS_STEPPER_STATE_APPROACH_HOME = "Status: Stepper approach home locator: ";
-static const char * STATUS_STEPPER_STATE_LEAVE_HOME = "Status: Stepper leave home locator: ";
-static const char * STATUS_STEPPER_STATE_GO_HOME = "Status: Stepper go home: ";
-static const char * STATUS_STEPPER_STATE_KNOWN_POSITION = "Status: Stepper known position: ";
-static const char * STATUS_STEPPER_STATE_ACCELERATE = "Status: Stepper accelerate: ";
-static const char * STATUS_STEPPER_STATE_CRUISE = "Status: Stepper cruise: ";
-static const char * STATUS_STEPPER_STATE_DECELERATE = "Status: Stepper decelerate: ";
-static const char * STATUS_STEPPER_STATE_WRONG_STATE = "Status: Stepper wrong state: ";
-static const char * STATUS_LOCATOR = "Status: Locator: ";
+static const char * EVENT_MAIN_POWER_IS_ON = "\"event\":\"main power is on\"\r\n";
+static const char * EVENT_MAIN_POWER_IS_OFF = "\"event\":\"main fuse is off\"\r\n";
+static const char * EVENT_MAIN_FUSE_IS_ON = "\"event\":\"main fuse is ok\"\r\n";
+static const char * EVENT_MAIN_FUSE_IS_OFF = "\"event\":\"main fuse is off\"\r\n";
+static const char * EVENT_OPT_IS_POWERED_ON = "\"event\":\"OPT is powered on\"\r\n";
+static const char * EVENT_OPT_IS_POWERED_OFF = "\"event\":\"OPT is powered off\"\r\n";
+static const char * EVENT_DCM_IS_POWERED_ON = "\"event\":\"DCM is powered on\"";
+static const char * EVENT_DCM_IS_POWERED_OFF = "\"event\":\"DCM is powered off\"";
+static const char * EVENT_BDCS_ARE_POWERED_ON = "\"event\":\"BDCs are powered on\"\r\n";
+static const char * EVENT_BDCS_ARE_POWERED_OFF = "\"event\":\"BDCs are powered off\"\r\n";
+static const char * EVENT_BDC_COAST = "\"event\":\"BDC coast\"";
+static const char * EVENT_BDC_REVERSE = "\"event\":\"BDC reverse\"";
+static const char * EVENT_BDC_FORWARD = "\"event\":\"BDC forward\"";
+static const char * EVENT_BDC_BREAK = "\"event\":\"BDC break\"";
+static const char * EVENT_BDC_WRONT_STATE = "\"event\":\"BDC wrong state\"";
+static const char * EVENT_STEPPERS_ARE_POWERED_ON = "\"event\":\"steppers are powered on\"\r\n";
+static const char * EVENT_STEPPERS_ARE_POWERED_OFF = "\"event\":\"steppers are powered off\"\r\n";
+static const char * EVENT_STEPPER_IS_ENABLED = "\"event\":\"stepper is enabled\"";
+static const char * EVENT_STEPPER_IS_DISABLED = "\"event\":\"stepper is disabled\"";
+static const char * EVENT_STEPPER_FORWORD = "\"event\":\"stepper forward\"";
+static const char * EVENT_STEPPER_BACKWORD = "\"event\":\"stepper backward\"";
+static const char * EVENT_STEPPER_STATE_UNKNOWN_POSITION = "\"event\":\"stepper unknown position\"";
+static const char * EVENT_STEPPER_STATE_APPROACH_HOME = "\"event\":\"stepper approach home locator\"";
+static const char * EVENT_STEPPER_STATE_LEAVE_HOME = "\"event\":\"stepper leave home locator\"";
+static const char * EVENT_STEPPER_STATE_GO_HOME = "\"event\":\"stepper go home\"";
+static const char * EVENT_STEPPER_STATE_KNOWN_POSITION = "\"event\":\"stepper known position\"";
+static const char * EVENT_STEPPER_STATE_ACCELERATE = "\"event\":\"stepper accelerate\"";
+static const char * EVENT_STEPPER_STATE_CRUISE = "\"event\":\"stepper cruise\"";
+static const char * EVENT_STEPPER_STATE_DECELERATE = "\"event\":\"stepper decelerate\"";
+static const char * EVENT_STEPPER_STATE_WRONG_STATE = "\"event\":\"stepper wrong state\"";
+static const char * EVENT_LOCATOR = "\"event\":\"locator\"";
 
 static unsigned short mmdCurrentClock;
 
@@ -1503,8 +1503,8 @@ static void mmd_write_succeess_reply()
 	for(int i=1; i<mmdCommand.parameterAmount; i++) {
 		writeOutputBufferChar(',');
 		writeOutputBufferChar('"');
-		writeOutputBufferHex(mmdCommand.parameters[0] >> 8);
-		writeOutputBufferHex(mmdCommand.parameters[0] & 0xff);
+		writeOutputBufferHex(mmdCommand.parameters[i] >> 8);
+		writeOutputBufferHex(mmdCommand.parameters[i] & 0xff);
 		writeOutputBufferChar('"');
 	}
 	writeOutputBufferChar(']');
@@ -1525,8 +1525,8 @@ static void mmd_write_reply_header()
 	for(int i=1; i<mmdCommand.parameterAmount; i++) {
 		writeOutputBufferChar(',');
 		writeOutputBufferChar('"');
-		writeOutputBufferHex(mmdCommand.parameters[0] >> 8);
-		writeOutputBufferHex(mmdCommand.parameters[0] & 0xff);
+		writeOutputBufferHex(mmdCommand.parameters[i] >> 8);
+		writeOutputBufferHex(mmdCommand.parameters[i] & 0xff);
 		writeOutputBufferChar('"');
 	}
 	writeOutputBufferChar(']');
@@ -1557,14 +1557,20 @@ static void mmd_stepper_check_scope(struct MMD_stepper_data * pData)
 			if(pData->locatorLineNumberStart == lineNumber) {
 				// under scope 
 				mmd_stepper_out_of_scope(pData);
+				
+				mmd_write_reply_header();
 				writeOutputBufferString(STR_STEPPER_UNDER_SCOPE);
+				writeOutputBufferString(",\"index\":");
 				writeOutputBufferHex(pData->stepperIndex);
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
 			}
 			else if(pData->locatorLineNumberTerminal == lineNumber) {
 				// over scope
 				mmd_stepper_out_of_scope(pData);
+				
+				mmd_write_reply_header();
 				writeOutputBufferString(STR_STEPPER_OVER_SCOPE);
+				writeOutputBufferString(",\"index\":");
 				writeOutputBufferHex(pData->stepperIndex);
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
 			}
@@ -3005,10 +3011,10 @@ static void mmd_check_status(void)
 	b = MMD_is_main_power_ok();
 	if(mmdStatus.isMainPowerOk != b) {
 		if(b) {
-			writeOutputBufferString(STATUS_MAIN_POWER_IS_ON);
+			writeOutputBufferString(EVENT_MAIN_POWER_IS_ON);
 		}
 		else {
-			writeOutputBufferString(STATUS_MAIN_POWER_IS_OFF);
+			writeOutputBufferString(EVENT_MAIN_POWER_IS_OFF);
 		}
 		mmdStatus.isMainPowerOk = b;
 	}
@@ -3017,10 +3023,10 @@ static void mmd_check_status(void)
 	b = MMD_is_main_fuse_ok();
 	if(mmdStatus.isMainFuseOk != b) {
 		if(b) {
-			writeOutputBufferString(STATUS_MAIN_FUSE_IS_ON);
+			writeOutputBufferString(EVENT_MAIN_FUSE_IS_ON);
 		}
 		else {
-			writeOutputBufferString(STATUS_MAIN_FUSE_IS_OFF);
+			writeOutputBufferString(EVENT_MAIN_FUSE_IS_OFF);
 		}
 		mmdStatus.isMainFuseOk = b;
 	}
@@ -3029,10 +3035,10 @@ static void mmd_check_status(void)
 	b = MMD_is_opt_powered_on();
 	if(mmdStatus.isOptPowered != b) {
 		if(b) {
-			writeOutputBufferString(STATUS_OPT_IS_POWERED_ON);
+			writeOutputBufferString(EVENT_OPT_IS_POWERED_ON);
 		}
 		else {
-			writeOutputBufferString(STATUS_OPT_IS_POWERED_OFF);
+			writeOutputBufferString(EVENT_OPT_IS_POWERED_OFF);
 		}
 		mmdStatus.isOptPowered = b;
 	}
@@ -3044,11 +3050,12 @@ static void mmd_check_status(void)
 		if(mmdStatus.dcmPowered[index] != b) 
 		{
 			if(b) {
-				writeOutputBufferString(STATUS_DCM_IS_POWERED_ON);
+				writeOutputBufferString(EVENT_DCM_IS_POWERED_ON);
 			}
 			else {
-				writeOutputBufferString(STATUS_DCM_IS_POWERED_OFF);
+				writeOutputBufferString(EVENT_DCM_IS_POWERED_OFF);
 			}
+			writeOutputBufferString(",\"index\":\"");
 			writeOutputBufferHex(index);
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			mmdStatus.dcmPowered[index] = b;
@@ -3059,10 +3066,10 @@ static void mmd_check_status(void)
 	b = MMD_are_bdcs_powered_on();
 	if(mmdStatus.areBdcsPowered != b) {
 		if(b) {
-			writeOutputBufferString(STATUS_BDCS_ARE_POWERED_ON);
+			writeOutputBufferString(EVENT_BDCS_ARE_POWERED_ON);
 		}
 		else {
-			writeOutputBufferString(STATUS_BDCS_ARE_POWERED_OFF);
+			writeOutputBufferString(EVENT_BDCS_ARE_POWERED_OFF);
 		}
 		mmdStatus.areBdcsPowered = b;
 	}
@@ -3075,34 +3082,35 @@ static void mmd_check_status(void)
 			{
 				case BDC_STATE_COAST:
 				{
-					writeOutputBufferString(STATUS_BDC_COAST);
+					writeOutputBufferString(EVENT_BDC_COAST);
 				}
 				break;
 				
 				case BDC_STATE_REVERSE:
 				{
-					writeOutputBufferString(STATUS_BDC_REVERSE);
+					writeOutputBufferString(EVENT_BDC_REVERSE);
 				}
 				break;
 				
 				case BDC_STATE_FORWARD:
 				{
-					writeOutputBufferString(STATUS_BDC_FORWARD);
+					writeOutputBufferString(EVENT_BDC_FORWARD);
 				}
 				break;
 				
 				case BDC_STATE_BREAK:
 				{
-					writeOutputBufferString(STATUS_BDC_BREAK);
+					writeOutputBufferString(EVENT_BDC_BREAK);
 				}
 				break;
 				
 				default:
 				{
-					writeOutputBufferString(STATUS_BDC_WRONT_STATE);
+					writeOutputBufferString(EVENT_BDC_WRONT_STATE);
 				}
 				break;
 			}
+			writeOutputBufferString(",\"index\":\"");
 			writeOutputBufferHex(index);
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			
@@ -3114,10 +3122,10 @@ static void mmd_check_status(void)
 	b = MMD_are_steppers_powered_on();
 	if(mmdStatus.areSteppersPowered != b){
 		if(b) {
-			writeOutputBufferString(STATUS_STEPPERS_ARE_POWERED_ON);
+			writeOutputBufferString(EVENT_STEPPERS_ARE_POWERED_ON);
 		}
 		else {
-			writeOutputBufferString(STATUS_STEPPERS_ARE_POWERED_OFF);
+			writeOutputBufferString(EVENT_STEPPERS_ARE_POWERED_OFF);
 		}
 		mmdStatus.areSteppersPowered = b;
 	}
@@ -3128,11 +3136,12 @@ static void mmd_check_status(void)
 		b = MMD_is_stepper_enabled(index);
 		if(mmdStatus.stepperEnabled[index] != b) {
 			if(b) {
-				writeOutputBufferString(STATUS_STEPPER_IS_ENABLED);
+				writeOutputBufferString(EVENT_STEPPER_IS_ENABLED);
 			}
 			else {
-				writeOutputBufferString(STATUS_STEPPER_IS_DISABLED);
+				writeOutputBufferString(EVENT_STEPPER_IS_DISABLED);
 			}
+			writeOutputBufferString(",\"index\":\"");
 			writeOutputBufferHex(index);
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			
@@ -3142,11 +3151,12 @@ static void mmd_check_status(void)
 		b = MMD_is_stepper_forward(index);
 		if(mmdStatus.stepperForward[index] != b) {
 			if(b) {
-				writeOutputBufferString(STATUS_STEPPER_FORWORD);
+				writeOutputBufferString(EVENT_STEPPER_FORWORD);
 			}
 			else {
-				writeOutputBufferString(STATUS_STEPPER_BACKWORD);
+				writeOutputBufferString(EVENT_STEPPER_BACKWORD);
 			}
+			writeOutputBufferString(",\"index\":\"");
 			writeOutputBufferHex(index);
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			
@@ -3160,58 +3170,59 @@ static void mmd_check_status(void)
 			{
 				case STEPPER_STATE_UNKNOWN_POSITION:
 				{
-					writeOutputBufferString(STATUS_STEPPER_STATE_UNKNOWN_POSITION);
+					writeOutputBufferString(EVENT_STEPPER_STATE_UNKNOWN_POSITION);
 				}
 				break;
 				
 				case STEPPER_STATE_APPROACHING_HOME_LOCATOR:
 				{
-					writeOutputBufferString(STATUS_STEPPER_STATE_APPROACH_HOME);
+					writeOutputBufferString(EVENT_STEPPER_STATE_APPROACH_HOME);
 				}
 				break;
 
 				case STEPPER_STATE_LEAVING_HOME_LOCATOR:
 				{
-					writeOutputBufferString(STATUS_STEPPER_STATE_LEAVE_HOME);
+					writeOutputBufferString(EVENT_STEPPER_STATE_LEAVE_HOME);
 				}
 				break;
 
 				case STEPPER_STATE_GO_HOME:
 				{
-					writeOutputBufferString(STATUS_STEPPER_STATE_GO_HOME);
+					writeOutputBufferString(EVENT_STEPPER_STATE_GO_HOME);
 				}
 				break;
 
 				case STEPPER_STATE_KNOWN_POSITION:
 				{
-					writeOutputBufferString(STATUS_STEPPER_STATE_KNOWN_POSITION);
+					writeOutputBufferString(EVENT_STEPPER_STATE_KNOWN_POSITION);
 				}
 				break;
 
 				case STEPPER_STATE_ACCELERATING:
 				{
-					writeOutputBufferString(STATUS_STEPPER_STATE_ACCELERATE);
+					writeOutputBufferString(EVENT_STEPPER_STATE_ACCELERATE);
 				}
 				break;
 
 				case STEPPER_STATE_CRUISING:
 				{
-					writeOutputBufferString(STATUS_STEPPER_STATE_CRUISE);
+					writeOutputBufferString(EVENT_STEPPER_STATE_CRUISE);
 				}
 				break;
 
 				case STEPPER_STATE_DECELERATING:
 				{
-					writeOutputBufferString(STATUS_STEPPER_STATE_DECELERATE);
+					writeOutputBufferString(EVENT_STEPPER_STATE_DECELERATE);
 				}
 				break;
 				
 				default:
 				{
-					writeOutputBufferString(STATUS_STEPPER_STATE_WRONG_STATE);
+					writeOutputBufferString(EVENT_STEPPER_STATE_WRONG_STATE);
 				}
 				break;
 			}
+			writeOutputBufferString(",\"index\":\"");
 			writeOutputBufferHex(index);
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			
@@ -3223,9 +3234,10 @@ static void mmd_check_status(void)
 	index = MMD_locator_get(0);
 	if(mmdStatus.locatorHubs[0] != index)
 	{
-		writeOutputBufferString(STATUS_LOCATOR);
+		writeOutputBufferString(EVENT_LOCATOR);
+		writeOutputBufferString(",\"index\":\"");
 		writeOutputBufferHex(0);
-		writeOutputBufferString(": ");
+		writeOutputBufferString(",\"input\":");
 		writeOutputBufferHex(index);
 		writeOutputBufferString(STR_CARRIAGE_RETURN);
 		
@@ -3235,9 +3247,10 @@ static void mmd_check_status(void)
 	{
 		unsigned char locator = MMD_locator_get(index);
 		if(mmdStatus.locatorHubs[index] != locator) {
-			writeOutputBufferString(STATUS_LOCATOR);
+			writeOutputBufferString(EVENT_LOCATOR);
+			writeOutputBufferString(",\"index\":\"");
 			writeOutputBufferHex(index);
-			writeOutputBufferString(": ");
+			writeOutputBufferString(",\"input\":");
 			writeOutputBufferHex(locator);
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 		
