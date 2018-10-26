@@ -39,7 +39,7 @@ enum MMD_command_e
 	COMMAND_STEPPER_ENABLE = 56,		// C 56 stepperIndex 1/0 cmdId
 	COMMAND_STEPPER_DIR = 57,			// C 57 stepperIndex 1/0 cmdId
 	COMMAND_STEPPER_STEPS = 58,			// C 58 stepperIndex steps cmdId
-	COMMAND_STEPPER_RUN = 59,			// c 59 cmdId
+	COMMAND_STEPPER_RUN = 59,			// c 59 stepperIndex cmdId
 	COMMAND_STEPPER_CONFIG_HOME = 60,	// C 60 stepperIndex locatorIndex lineNumberStart lineNumberTerminal cmdId
 	COMMAND_STEPPER_QUREY = 61,			// C 61 stepperIndex cmdId
 	COMMAND_LOCATOR_QUERY = 100			// C 100 locatorHubIndex cmdId
@@ -2048,74 +2048,117 @@ static void mmd_stepper_query(unsigned char stepperIndex)
 	mmd_write_reply_header();
 	//stepper state
 	writeOutputBufferString(STR_STEPPER_STATE);
-	writeOutputBufferHex(pData->state);
-	writeOutputBufferString(",");
+	writeOutputBufferChar('"');
+	switch(pData->state)
+	{
+	case STEPPER_STATE_UNKNOWN_POSITION:
+		writeOutputBufferString("unknown position");
+		break;
+	case STEPPER_STATE_APPROACHING_HOME_LOCATOR:
+		writeOutputBufferString("approaching home locator");
+		break;
+	case STEPPER_STATE_LEAVING_HOME_LOCATOR:
+		writeOutputBufferString("leaving home locator");
+		break;
+	case STEPPER_STATE_GO_HOME:
+		writeOutputBufferString("going home");
+		break;
+	case STEPPER_STATE_KNOWN_POSITION:
+		writeOutputBufferString("known position");
+		break;
+	case STEPPER_STATE_ACCELERATING:
+		writeOutputBufferString("accelerating");
+		break;
+	case STEPPER_STATE_CRUISING:
+		writeOutputBufferString("cruising");
+		break;
+	case STEPPER_STATE_DECELERATING:
+		writeOutputBufferString("decelerating");
+		break;
+	default:
+		writeOutputBufferString("unknown state");
+		break;
+	}
+	writeOutputBufferString("\",");
 	
 	//enabled
 	writeOutputBufferString(STR_STEPPER_IS_ENABLED);
+	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->enabled);
-	writeOutputBufferString(",");
+	writeOutputBufferString("\",");
 	
 	//forward
 	writeOutputBufferString(STR_STEPPER_FORWARD);
+	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->forward);
-	writeOutputBufferString(",");
+	writeOutputBufferString("\",");
 	
 	//locator
 	writeOutputBufferString(STR_STEPPER_LOCATOR_INDEX);
+	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->locatorIndex);
-	writeOutputBufferString(",");
+	writeOutputBufferString("\",");
 	
 	//locator line number start
 	writeOutputBufferString(STR_STEPPER_LOCATOR_LINE_NUMBER_START);
+	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->locatorLineNumberStart);
-	writeOutputBufferString(",");
+	writeOutputBufferString("\",");
 	
 	//locator line number terminal
 	writeOutputBufferString(STR_STEPPER_LOCATOR_LINE_NUMBER_TERMINAL);
+	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->locatorLineNumberTerminal);
-	writeOutputBufferString(",");
+	writeOutputBufferString("\",");
 	
 	//home offset
 	writeOutputBufferString(STR_STEPPER_HOME_OFFSET);
+	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->homeOffset >> 8);
 	writeOutputBufferHex(pData->homeOffset & 0xff);
-	writeOutputBufferString(",");
+	writeOutputBufferString("\",");
 	
 	//step phase low clocks
 	writeOutputBufferString(STR_STEPPER_PHASE_LOW_CLOCKS);
+	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->stepPhaseLowClocks >> 8);
 	writeOutputBufferHex(pData->stepPhaseLowClocks & 0xff);
-	writeOutputBufferString(",");
+	writeOutputBufferString("\",");
 
 	//step phase high clocks
 	writeOutputBufferString(STR_STEPPER_PHASE_HIGH_CLOCKS);
+	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->stepPhaseHighClocks >> 8);
 	writeOutputBufferHex(pData->stepPhaseHighClocks & 0xff);
-	writeOutputBufferString(",");
+	writeOutputBufferString("\",");
 	
 	//acceleration buffer
 	writeOutputBufferString(STR_STEPPER_ACCELERATION_BUFFER);
+	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->accelerationBuffer >> 8);
 	writeOutputBufferHex(pData->accelerationBuffer & 0xff);
-	writeOutputBufferString(",");
+	writeOutputBufferString("\",");
 
 	//acceleration decrement
 	writeOutputBufferString(STR_STEPPER_ACCELERATION_DECREMENT);
+	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->accelerationDecrement >> 8);
 	writeOutputBufferHex(pData->accelerationDecrement & 0xff);
-	writeOutputBufferString(",");
+	writeOutputBufferString("\",");
 
 	//deceleration buffer
 	writeOutputBufferString(STR_STEPPER_DECELERATION_BUFFER);
+	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->decelerationBuffer >> 8);
 	writeOutputBufferHex(pData->decelerationBuffer & 0xff);
-	writeOutputBufferString(",");
+	writeOutputBufferString("\",");
 
 	//deceleration increment
 	writeOutputBufferString(STR_STEPPER_DECELERATION_INCREMENT);
+	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->decelerationIncrement >> 8);
 	writeOutputBufferHex(pData->decelerationIncrement & 0xff);
+	writeOutputBufferChar('"');
 
 	writeOutputBufferString(STR_CARRIAGE_RETURN);
 }
@@ -2125,8 +2168,9 @@ static void mmd_locator_query(unsigned char locatorIndex)
 	unsigned char locator = MMD_locator_get(locatorIndex);
 	
 	mmd_write_reply_header();
-	writeOutputBufferString("\"lowInput\":");
+	writeOutputBufferString("\"lowInput\":\"");
 	writeOutputBufferHex(locator);
+	writeOutputBufferChar('"');
 	writeOutputBufferString(STR_CARRIAGE_RETURN);
 }
 
@@ -2513,7 +2557,7 @@ static void mmd_run_command(void)
 
 			case COMMAND_STEPPER_RUN:
 			{
-				if(mmdCommand.parameterAmount != 1) {
+				if(mmdCommand.parameterAmount != 2) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
