@@ -13,6 +13,8 @@ enum MMD_command_e
 {
 	COMMAND_INVALID = 0,
 	COMMAND_QUREY_NAME = 1,				// C 1 cmdId
+	COMMAND_DEVICE_POWER_QUERY,			// C 2 cmdId
+	COMMAND_DEVICE_FUSE_QUERY,			// C 3 cmdId
 	COMMAND_OPT_POWER_ON = 10,			// C 10 cmdId
 	COMMAND_OPT_POWER_OFF = 11,			// C 11 cmdId
 	COMMAND_OPT_POWER_QUERY = 12,		// C 12 cmdId
@@ -2293,6 +2295,8 @@ static void mmd_parse_command(void)
 		switch(cmd)
 		{
 		case COMMAND_QUREY_NAME:
+		case COMMAND_DEVICE_POWER_QUERY:
+		case COMMAND_DEVICE_FUSE_QUERY:
 		case COMMAND_OPT_POWER_ON:
 		case COMMAND_OPT_POWER_OFF:
 		case COMMAND_OPT_POWER_QUERY:
@@ -2326,16 +2330,6 @@ static void mmd_parse_command(void)
 		{
 			mmdCommand.command = cmd;
 			mmdCommand.state = STARTING_COMMAND;
-			
-			//writeOutputBufferString("Command: ");
-			//writeOutputBufferHex(mmdCommand.command);
-			//writeOutputBufferString(STR_CARRIAGE_RETURN);
-			//for(unsigned char i = 0; i < mmdCommand.parameterAmount; i++) {
-				//writeOutputBufferString("Param: ");
-				//writeOutputBufferHex(mmdCommand.parameters[i] >> 8);
-				//writeOutputBufferHex(mmdCommand.parameters[i] & 0xff);
-				//writeOutputBufferString(STR_CARRIAGE_RETURN);
-			//}
 		}
 		break;
 		default:
@@ -2365,6 +2359,8 @@ static void mmd_run_command(void)
 		switch(mmdCommand.command)
 		{
 			case COMMAND_QUREY_NAME:
+			case COMMAND_DEVICE_POWER_QUERY:
+			case COMMAND_DEVICE_FUSE_QUERY:
 			case COMMAND_OPT_POWER_ON:
 			case COMMAND_OPT_POWER_OFF:
 			case COMMAND_OPT_POWER_QUERY:
@@ -2691,6 +2687,34 @@ static void mmd_run_command(void)
 				writeOutputBufferString("\"name\":\""); writeOutputBufferString(MMD_PRODUCT_NAME); writeOutputBufferString("\"");
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
 				mmdCommand.state = AWAITING_COMMAND;
+			}
+			break;
+			
+			case COMMAND_DEVICE_POWER_QUERY:
+			{
+				mmd_write_reply_header();
+				writeOutputBufferString("\"state\":");
+				if(MMD_is_main_power_ok()) {
+					writeOutputBufferString("\"powered on\"");
+				}
+				else {
+					writeOutputBufferString("\"powered off\"");
+				}
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
+			}
+			break;
+			
+			case COMMAND_DEVICE_FUSE_QUERY:
+			{
+				mmd_write_reply_header();
+				writeOutputBufferString("\"state\":");
+				if(MMD_is_main_power_ok()) {
+					writeOutputBufferString("\"fuse on\"");
+				}
+				else {
+					writeOutputBufferString("\"fuse off\"");
+				}
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
 			}
 			break;
 			
