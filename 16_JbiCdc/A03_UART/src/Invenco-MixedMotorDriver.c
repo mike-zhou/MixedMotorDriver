@@ -103,7 +103,7 @@ static const char * STR_BDC_INDEX_OUT_OF_SCOPE = "\"error\":\"BDC index is out o
 
 static const char * EVENT_MAIN_POWER_IS_ON = "\"event\":\"main power is on\"\r\n";
 static const char * EVENT_MAIN_POWER_IS_OFF = "\"event\":\"main fuse is off\"\r\n";
-static const char * EVENT_MAIN_FUSE_IS_ON = "\"event\":\"main fuse is ok\"\r\n";
+static const char * EVENT_MAIN_FUSE_IS_ON = "\"event\":\"main fuse is on\"\r\n";
 static const char * EVENT_MAIN_FUSE_IS_OFF = "\"event\":\"main fuse is off\"\r\n";
 static const char * EVENT_OPT_IS_POWERED_ON = "\"event\":\"OPT is powered on\"\r\n";
 static const char * EVENT_OPT_IS_POWERED_OFF = "\"event\":\"OPT is powered off\"\r\n";
@@ -1493,7 +1493,7 @@ static void mmd_stepper_out_of_scope(struct MMD_stepper_data * pData)
 //write command and parameters to output buffer.
 static void mmd_write_succeess_reply() 
 {
-	writeOutputBufferString("\"cmd\":\"");
+	writeOutputBufferString("\"command\":\"");
 	writeOutputBufferHex(mmdCommand.command);
 	writeOutputBufferString("\",\"params\":[");
 	//the first parameter
@@ -1515,7 +1515,7 @@ static void mmd_write_succeess_reply()
 
 static void mmd_write_reply_header()
 {
-	writeOutputBufferString("\"cmd\":\"");
+	writeOutputBufferString("\"command\":\"");
 	writeOutputBufferHex(mmdCommand.command);
 	writeOutputBufferString("\",\"params\":[");
 	//the first parameter
@@ -2334,11 +2334,11 @@ static void mmd_parse_command(void)
 		break;
 		default:
 		{
-			mmdCommand.command = COMMAND_INVALID;
-			mmdCommand.state = AWAITING_COMMAND;
 			mmd_write_reply_header();
 			writeOutputBufferString(STR_UNKNOWN_COMMAND);
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
+			mmdCommand.command = COMMAND_INVALID;
+			mmdCommand.state = AWAITING_COMMAND;
 		}
 			break;
 		}
@@ -2701,6 +2701,7 @@ static void mmd_run_command(void)
 					writeOutputBufferString("\"powered off\"");
 				}
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
+				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
@@ -2709,12 +2710,13 @@ static void mmd_run_command(void)
 				mmd_write_reply_header();
 				writeOutputBufferString("\"state\":");
 				if(MMD_is_main_power_ok()) {
-					writeOutputBufferString("\"fuse on\"");
+					writeOutputBufferString("\"main fuse is on\"");
 				}
 				else {
-					writeOutputBufferString("\"fuse off\"");
+					writeOutputBufferString("\"main fuse is off\"");
 				}
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
+				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
@@ -3125,6 +3127,7 @@ static void mmd_check_status(void)
 			}
 			writeOutputBufferString(",\"index\":\"");
 			writeOutputBufferHex(index);
+			writeOutputBufferChar('"');
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			mmdStatus.dcmPowered[index] = b;
 		}
@@ -3180,6 +3183,7 @@ static void mmd_check_status(void)
 			}
 			writeOutputBufferString(",\"index\":\"");
 			writeOutputBufferHex(index);
+			writeOutputBufferChar('"');
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			
 			mmdStatus.bdcState[index] = state;
@@ -3211,6 +3215,7 @@ static void mmd_check_status(void)
 			}
 			writeOutputBufferString(",\"index\":\"");
 			writeOutputBufferHex(index);
+			writeOutputBufferChar('"');
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			
 			mmdStatus.stepperEnabled[index] = b;
@@ -3226,6 +3231,7 @@ static void mmd_check_status(void)
 			}
 			writeOutputBufferString(",\"index\":\"");
 			writeOutputBufferHex(index);
+			writeOutputBufferChar('"');
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			
 			mmdStatus.stepperForward[index] = b;
@@ -3292,6 +3298,7 @@ static void mmd_check_status(void)
 			}
 			writeOutputBufferString(",\"index\":\"");
 			writeOutputBufferHex(index);
+			writeOutputBufferChar('"');
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 			
 			mmdStatus.stepperState[index] = state;
@@ -3305,8 +3312,9 @@ static void mmd_check_status(void)
 		writeOutputBufferString(EVENT_LOCATOR);
 		writeOutputBufferString(",\"index\":\"");
 		writeOutputBufferHex(0);
-		writeOutputBufferString(",\"input\":");
+		writeOutputBufferString("\",\"input\":\"");
 		writeOutputBufferHex(index);
+		writeOutputBufferChar('"');
 		writeOutputBufferString(STR_CARRIAGE_RETURN);
 		
 		mmdStatus.locatorHubs[0] = index;
@@ -3318,8 +3326,9 @@ static void mmd_check_status(void)
 			writeOutputBufferString(EVENT_LOCATOR);
 			writeOutputBufferString(",\"index\":\"");
 			writeOutputBufferHex(index);
-			writeOutputBufferString(",\"input\":");
+			writeOutputBufferString("\",\"input\":");
 			writeOutputBufferHex(locator);
+			writeOutputBufferChar('"');
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 		
 			mmdStatus.locatorHubs[index] = locator;
