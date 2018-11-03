@@ -814,11 +814,11 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 		{
 			//Q5, PQ1
 			if(enable) {
-				PORTQ_OUTSET = 0x01;
-				PORTQ_DIRSET = 0x01;
+				PORTQ_OUTSET = 0x02;
+				PORTQ_DIRSET = 0x02;
 			}
 			else {
-				PORTQ_OUTCLR = 0x01;
+				PORTQ_OUTCLR = 0x02;
 			}
 			mmdCommand.steppersData[stepperIndex].enabled = enable;
 			if(!enable) {
@@ -907,7 +907,7 @@ static bool MMD_is_stepper_enabled(unsigned char stepperIndex)
 		case 0: //stepper 1
 		{
 			//Q5, PQ1
-			if(PORTQ_IN & 0x01) {
+			if(PORTQ_IN & 0x02) {
 				return true;
 			}
 			else {
