@@ -18,9 +18,9 @@ enum MMD_command_e
 	COMMAND_OPT_POWER_ON = 10,			// C 10 cmdId
 	COMMAND_OPT_POWER_OFF = 11,			// C 11 cmdId
 	COMMAND_OPT_POWER_QUERY = 12,		// C 12 cmdId
-	COMMAND_STEPPERS_POWER_ON = 20,		// C 13 cmdId
-	COMMAND_STEPPERS_POWER_OFF = 21,	// C 14 cmdId
-	COMMAND_STEPPERS_POWER_QUERY = 22,  // C 15 cmdId
+	COMMAND_STEPPERS_POWER_ON = 20,		// C 20 cmdId
+	COMMAND_STEPPERS_POWER_OFF = 21,	// C 21 cmdId
+	COMMAND_STEPPERS_POWER_QUERY = 22,  // C 22 cmdId
 	COMMAND_DCM_POWER_ON = 30,			// C 30 dcmIndex cmdId
 	COMMAND_DCM_POWER_OFF = 31,			// C 31 dcmIndex cmdId
 	COMMAND_DCM_POWER_QUERY = 32,		// C 32 dcmIndex cmdId
@@ -2012,6 +2012,14 @@ static void mmd_steppers_run(void)
 			case STEPPER_STATE_KNOWN_POSITION:
 			{
 				//do nothing
+				if(stepperIndex == mmdCommand.parameters[0]) 
+				{
+					mmd_write_reply_header();
+					writeOutputBufferString("\"position\":\"0\"");
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+					
+					mmdCommand.state = AWAITING_COMMAND;
+				}
 			}
 			break;
 
