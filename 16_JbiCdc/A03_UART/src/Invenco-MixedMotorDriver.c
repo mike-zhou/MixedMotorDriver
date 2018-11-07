@@ -814,11 +814,11 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 		{
 			//Q5, PQ1
 			if(enable) {
-				PORTQ_OUTSET = 0x02;
-				PORTQ_DIRSET = 0x02;
+				PORTQ_OUTCLR = 0x02;
 			}
 			else {
-				PORTQ_OUTCLR = 0x02;
+				PORTQ_OUTSET = 0x02;
+				PORTQ_DIRSET = 0x02;
 			}
 			mmdCommand.steppersData[stepperIndex].enabled = enable;
 			if(!enable) {
@@ -831,11 +831,11 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 		{
 			//Q8, PK5
 			if(enable) {
-				PORTK_OUTSET = 0x20;
-				PORTK_DIRSET = 0x20;
+				PORTK_OUTCLR = 0x20;
 			}
 			else {
-				PORTK_OUTCLR = 0x20;
+				PORTK_OUTSET = 0x20;
+				PORTK_DIRSET = 0x20;
 			}
 			mmdCommand.steppersData[stepperIndex].enabled = enable;
 			if(!enable) {
@@ -848,11 +848,11 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 		{
 			//Q11, PK2
 			if(enable) {
-				PORTK_OUTSET = 0x04;
-				PORTK_DIRSET = 0x04;
+				PORTK_OUTCLR = 0x04;
 			}
 			else {
-				PORTK_OUTCLR = 0x04;
+				PORTK_OUTSET = 0x04;
+				PORTK_DIRSET = 0x04;
 			}
 			mmdCommand.steppersData[stepperIndex].enabled = enable;
 			if(!enable) {
@@ -865,11 +865,11 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 		{
 			//Q14, PJ7
 			if(enable) {
-				PORTJ_OUTSET = 0x80;
-				PORTJ_DIRSET = 0x80;
+				PORTJ_OUTCLR = 0x80;
 			}
 			else {
-				PORTJ_OUTCLR = 0x80;
+				PORTJ_OUTSET = 0x80;
+				PORTJ_DIRSET = 0x80;
 			}
 			mmdCommand.steppersData[stepperIndex].enabled = enable;
 			if(!enable) {
@@ -882,11 +882,11 @@ static void MMD_stepper_enable(unsigned char stepperIndex, bool enable)
 		{
 			//Q31, PJ4
 			if(enable) {
-				PORTJ_OUTSET = 0x10;
-				PORTJ_DIRSET = 0x10;
+				PORTJ_OUTCLR = 0x10;
 			}
 			else {
-				PORTJ_OUTCLR = 0x10;
+				PORTJ_OUTSET = 0x10;
+				PORTJ_DIRSET = 0x10;
 			}
 			mmdCommand.steppersData[stepperIndex].enabled = enable;
 			if(!enable) {
@@ -908,10 +908,10 @@ static bool MMD_is_stepper_enabled(unsigned char stepperIndex)
 		{
 			//Q5, PQ1
 			if(PORTQ_IN & 0x02) {
-				return true;
+				return false;
 			}
 			else {
-				return false;
+				return true;
 			}
 		}
 		break;
@@ -920,10 +920,10 @@ static bool MMD_is_stepper_enabled(unsigned char stepperIndex)
 		{
 			//Q8, PK5
 			if(PORTK_IN & 0x20) {
-				return true;
+				return false;
 			}
 			else {
-				return false;
+				return true;
 			}
 		}
 		break;
@@ -932,10 +932,10 @@ static bool MMD_is_stepper_enabled(unsigned char stepperIndex)
 		{
 			//Q11, PK2
 			if(PORTK_IN & 0x04) {
-				return true;
+				return false;
 			}
 			else {
-				return false;
+				return true;
 			}
 		}
 		break;
@@ -944,10 +944,10 @@ static bool MMD_is_stepper_enabled(unsigned char stepperIndex)
 		{
 			//Q14, PJ7
 			if(PORTJ_IN & 0x80) {
-				return true;
+				return false;
 			}
 			else {
-				return false;
+				return true;
 			}
 		}
 		break;
@@ -956,10 +956,10 @@ static bool MMD_is_stepper_enabled(unsigned char stepperIndex)
 		{
 			//Q31, PJ4
 			if(PORTJ_IN & 0x10) {
-				return true;
+				return false;
 			}
 			else {
-				return false;
+				return true;
 			}
 		}
 		break;
