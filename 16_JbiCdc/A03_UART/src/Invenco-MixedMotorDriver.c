@@ -44,6 +44,7 @@ enum MMD_command_e
 	COMMAND_STEPPER_RUN = 59,			// c 59 stepperIndex cmdId
 	COMMAND_STEPPER_CONFIG_HOME = 60,	// C 60 stepperIndex locatorIndex lineNumberStart lineNumberTerminal cmdId
 	COMMAND_STEPPER_QUREY = 61,			// C 61 stepperIndex cmdId
+	COMMAND_STEPPER_SET_STATE = 62,		// C 62 stepperIndex state cmdId
 	COMMAND_LOCATOR_QUERY = 100			// C 100 locatorHubIndex cmdId
 };
 
@@ -76,6 +77,7 @@ static const char * STR_INVALID_PARAMETER = "\"error\":\"invalid parameter\"";
 static const char * STR_WRONG_PARAMETER_AMOUNT = "\"error\":\"wrong parameter amount\"";
 static const char * STR_STEPPER_INDEX_OUT_OF_SCOPE = "\"error\":\"stepper index is out of scope\"";
 static const char * STR_STEPPER_NOT_POSITIONED = "\"error\":\"stepper has not been positioned\"";
+static const char * STR_STEPPER_WRONG_STATE = "\"error\":\"wrong stepper state\"";
 static const char * STR_STEPPER_UNDER_SCOPE = "\"error\":\"stepper is under scope\"";
 static const char * STR_STEPPER_OVER_SCOPE = "\"error\":\"stepper is over scope\"";
 static const char * STR_STEPPER_STATE = "\"state\":";
@@ -254,6 +256,20 @@ static void MMD_pull_up_gpio_inputs(void)
 	PORTD_PIN4CTRL = PORT_OPC_PULLUP_gc;
 	PORTD_PIN5CTRL = PORT_OPC_PULLUP_gc;
 	
+	//PORTE
+	PORTE_PIN0CTRL = PORT_OPC_PULLUP_gc;
+	PORTE_PIN1CTRL = PORT_OPC_PULLUP_gc;
+	PORTE_PIN2CTRL = PORT_OPC_PULLUP_gc;
+	PORTE_PIN3CTRL = PORT_OPC_PULLUP_gc;
+	PORTE_PIN4CTRL = PORT_OPC_PULLUP_gc;
+	PORTE_PIN5CTRL = PORT_OPC_PULLUP_gc;
+	
+	//PORTF pull up
+	PORTF_PIN0CTRL = PORT_OPC_PULLUP_gc;
+	PORTF_PIN1CTRL = PORT_OPC_PULLUP_gc;
+	PORTF_PIN2CTRL = PORT_OPC_PULLUP_gc;
+	PORTF_PIN3CTRL = PORT_OPC_PULLUP_gc;
+	
 	//PORTH pull up
 	PORTH_PIN0CTRL = PORT_OPC_PULLUP_gc;
 	PORTH_PIN2CTRL = PORT_OPC_PULLUP_gc;
@@ -340,10 +356,10 @@ static void MMD_init(void)
 static unsigned short MMD_elapsed_clocks(unsigned short clkStamp)
 {
 	if(mmdCurrentClock >= clkStamp) {
-		return mmdCurrentClock - clkStamp;
+		return (mmdCurrentClock - clkStamp);
 	}
 	else {
-		return 0xFFFF - clkStamp + mmdCurrentClock;
+		return (0xFFFF - clkStamp + mmdCurrentClock);
 	}
 }
 
@@ -1019,6 +1035,9 @@ static void MMD_stepper_set_deceleration_buffer_increment(unsigned char stepperI
 	if(stepperIndex >= MMD_STEPPERS_AMOUNT) {
 		return;
 	}
+	if(clocks == 0) {
+		clocks = 1;
+	}
 	
 	mmdCommand.steppersData[stepperIndex].decelerationIncrement = clocks;
 }
@@ -1036,14 +1055,21 @@ static void MMD_stepper_set_steps(unsigned char stepperIndex, unsigned short ste
 
 	//find out where deceleration should start
 	decelerationSteps = mmdCommand.steppersData[stepperIndex].decelerationBuffer / mmdCommand.steppersData[stepperIndex].decelerationIncrement;
-	if(decelerationSteps < (steps/2)) {
-		mmdCommand.steppersData[stepperIndex].decelerationStartingIndex = decelerationSteps;
+	if(decelerationSteps <= (steps/2)) {
+		//stepper can cruise
+		mmdCommand.steppersData[stepperIndex].decelerationStartingIndex = (steps - decelerationSteps);
 		mmdCommand.steppersData[stepperIndex].decelerationLevel = mmdCommand.steppersData[stepperIndex].decelerationIncrement;
 	}
 	else {
+		//no cruise
 		mmdCommand.steppersData[stepperIndex].decelerationStartingIndex = steps/2;
 		mmdCommand.steppersData[stepperIndex].decelerationLevel = mmdCommand.steppersData[stepperIndex].decelerationIncrement * (decelerationSteps - steps/2);
 	}
+	
+	mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_ACCELERATING;
+	mmdCommand.steppersData[stepperIndex].stepPhase = STEP_PHASE_FINISH;
+	mmdCommand.steppersData[stepperIndex].currentStepIndex = 0;
+	mmdCommand.steppersData[stepperIndex].accelerationLevel = mmdCommand.steppersData[stepperIndex].accelerationBuffer;
 }
 
 // set clk line of stepper controller to high
@@ -1754,17 +1780,22 @@ static void mmd_stepper_accelerate(struct MMD_stepper_data * pData)
 		return;
 	}
 
+	// STEP_PHASE_FINISH >> STEP_PHASE_CLK_LOW >> STEP_PHASE_CLK_HIGH >> STEP_PHASE_DELAY 
+	//        |_________________________________<<______________________________|
+
 	switch(pData->stepPhase)
 	{
 		case STEP_PHASE_FINISH:
 		{
-			if(pData->currentStepIndex < pData->totalSteps) {
+			if(pData->currentStepIndex < pData->totalSteps) 
+			{
 				if(pData->currentStepIndex >= pData->decelerationStartingIndex) {
 					// no cruise state, change to state of deceleration
 					pData->state = STEPPER_STATE_DECELERATING;
 				}
 				else if(pData->accelerationLevel > 0) {
 					//still in acceleration state
+					MMD_stepper_clock_high(pData->stepperIndex, false);
 					pData->stepPhase = STEP_PHASE_CLK_LOW;
 					pData->stepPhaseStartingClock = MMD_current_clock();
 				}
@@ -1797,15 +1828,18 @@ static void mmd_stepper_accelerate(struct MMD_stepper_data * pData)
 		case STEP_PHASE_CLK_HIGH:
 		{
 			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
+				//lower down the clock at the end of high phase
 				MMD_stepper_clock_high(pData->stepperIndex, false);
 				pData->stepPhase = STEP_PHASE_DELAY;
+				pData->stepPhaseStartingClock = MMD_current_clock();
 			}
 		}
 		break;
 
 		case STEP_PHASE_DELAY:
 		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= (pData->stepPhaseHighClocks + pData->accelerationLevel)) {
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->accelerationLevel) 
+			{
 				if(pData->accelerationLevel > pData->accelerationDecrement) {
 					pData->accelerationLevel -= pData->accelerationDecrement;
 				}
@@ -1842,18 +1876,21 @@ static void mmd_stepper_cruise(struct MMD_stepper_data * pData)
 	{
 		case STEP_PHASE_FINISH:
 		{
-			if(pData->currentStepIndex < pData->totalSteps) {
+			if(pData->currentStepIndex < pData->totalSteps) 
+			{
 				if(pData->currentStepIndex >= pData->decelerationStartingIndex) {
-					// no cruise state, change to state of deceleration
+					// change to state of deceleration
 					pData->state = STEPPER_STATE_DECELERATING;
 				}
 				else {
 					//still in cruising state
+					MMD_stepper_clock_high(pData->stepperIndex, false);
 					pData->stepPhase = STEP_PHASE_CLK_LOW;
 					pData->stepPhaseStartingClock = MMD_current_clock();
 				}
 			}
-			else {
+			else 
+			{
 				//change to state of known position.
 				pData->totalSteps = 0;
 				pData->currentStepIndex = 0;
@@ -1915,6 +1952,7 @@ static void mmd_stepper_decelerate(struct MMD_stepper_data * pData)
 		{
 			if(pData->currentStepIndex < pData->totalSteps) {
 				//still in deceleration state
+				MMD_stepper_clock_high(pData->stepperIndex, false);
 				pData->stepPhase = STEP_PHASE_CLK_LOW;
 				pData->stepPhaseStartingClock = MMD_current_clock();
 			}
@@ -1943,15 +1981,16 @@ static void mmd_stepper_decelerate(struct MMD_stepper_data * pData)
 		{
 			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
 				MMD_stepper_clock_high(pData->stepperIndex, false);
-				
 				pData->stepPhase = STEP_PHASE_DELAY;
+				pData->stepPhaseStartingClock = MMD_current_clock();
 			}
 		}
 		break;
 
 		case STEP_PHASE_DELAY:
 		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= (pData->stepPhaseHighClocks + pData->decelerationLevel)) {
+			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->decelerationLevel) 
+			{
 				//increase step index
 				pData->currentStepIndex++;
 				if(pData->forward) {
@@ -2334,6 +2373,7 @@ static void mmd_parse_command(void)
 		case COMMAND_STEPPER_RUN:
 		case COMMAND_STEPPER_CONFIG_HOME:
 		case COMMAND_STEPPER_QUREY:
+		case COMMAND_STEPPER_SET_STATE:
 		case COMMAND_LOCATOR_QUERY:
 		{
 			mmdCommand.command = cmd;
@@ -2641,6 +2681,38 @@ static void mmd_run_command(void)
 				else if(mmdCommand.parameters[0] >= MMD_STEPPERS_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+					clearInputBuffer();
+					mmdCommand.state = AWAITING_COMMAND;
+				}
+				else {
+					mmdCommand.state = EXECUTING_COMMAND;
+				}
+			}
+			break;
+			
+			case COMMAND_STEPPER_SET_STATE:
+			{
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				unsigned char state = mmdCommand.parameters[1];
+				
+				if(mmdCommand.parameterAmount != 3){
+					mmd_write_reply_header();
+					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+					clearInputBuffer();
+					mmdCommand.state = AWAITING_COMMAND;
+				}
+				else if(stepperIndex >= MMD_STEPPERS_AMOUNT) {
+					mmd_write_reply_header();
+					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+					clearInputBuffer();
+					mmdCommand.state = AWAITING_COMMAND;
+				}
+				else if(state > STEPPER_STATE_DECELERATING) {
+					mmd_write_reply_header();
+					writeOutputBufferString(STR_STEPPER_WRONG_STATE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
@@ -3019,9 +3091,6 @@ static void mmd_run_command(void)
 				unsigned short steps = mmdCommand.parameters[1];
 				
 				MMD_stepper_set_steps(stepperIndex,  steps);
-				MMD_stepper_enable(stepperIndex, true);
-				mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_ACCELERATING;
-				mmdCommand.steppersData[stepperIndex].stepPhase = STEP_PHASE_FINISH;
 				mmd_write_succeess_reply();	
 				mmdCommand.state = AWAITING_COMMAND;
 			}
@@ -3055,6 +3124,20 @@ static void mmd_run_command(void)
 				unsigned char stepperIndex = mmdCommand.parameters[0];
 				
 				mmd_stepper_query(stepperIndex);
+				mmdCommand.state = AWAITING_COMMAND;
+			}
+			break;
+			
+			case COMMAND_STEPPER_SET_STATE:
+			{
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				unsigned char state = mmdCommand.parameters[1];
+				
+				mmdCommand.steppersData[stepperIndex].state = state;
+				mmdCommand.steppersData[stepperIndex].homeOffset = 0;
+				mmdCommand.steppersData[stepperIndex].totalSteps = 0;
+				
+				mmd_write_succeess_reply();
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
