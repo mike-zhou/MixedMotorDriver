@@ -76,6 +76,7 @@ static const char * STR_UNKNOWN_COMMAND = "\"error\":\"unknown command\"";
 static const char * STR_WRONG_COMMAND_FORMAT = "\"error\":\"wrong command format\"";
 static const char * STR_INVALID_PARAMETER = "\"error\":\"invalid parameter\"";
 static const char * STR_WRONG_PARAMETER_AMOUNT = "\"error\":\"wrong parameter amount\"";
+static const char * STR_BDC_EXCESSIVE_DELAY = "\"error\":\"delay value exceeds limit\"";
 static const char * STR_BDC_WRONG_PHASE_STATE = "\"error\":\"wrong phase state\"";
 static const char * STR_STEPPER_INDEX_OUT_OF_SCOPE = "\"error\":\"stepper index is out of scope\"";
 static const char * STR_STEPPER_NOT_POSITIONED = "\"error\":\"stepper has not been positioned\"";
@@ -2583,6 +2584,13 @@ static void mmd_run_command(void)
 				if(mmdCommand.parameterAmount != 2){
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+					clearInputBuffer();
+					mmdCommand.state = AWAITING_COMMAND;
+				}
+				else if(mmdCommand.parameters[0] > 0x7FFF) {
+					mmd_write_reply_header();
+					writeOutputBufferString(STR_BDC_EXCESSIVE_DELAY);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
