@@ -15,6 +15,7 @@ enum MMD_command_e
 	COMMAND_QUREY_NAME = 1,				// C 1 cmdId
 	COMMAND_DEVICE_POWER_QUERY,			// C 2 cmdId
 	COMMAND_DEVICE_FUSE_QUERY,			// C 3 cmdId
+	COMMAND_DEVICE_DELAY,				// C 4 clks cmdId
 	COMMAND_OPT_POWER_ON = 10,			// C 10 cmdId
 	COMMAND_OPT_POWER_OFF = 11,			// C 11 cmdId
 	COMMAND_OPT_POWER_QUERY = 12,		// C 12 cmdId
@@ -169,6 +170,12 @@ struct MMD_stepper_data
 	enum MMD_stepper_step_phase stepPhase;
 };
 
+struct MMD_DeviceDelay
+{
+	unsigned short totalClks;
+	unsigned short startingClk;
+};
+
 struct MMD_command
 {
 	enum CommandState state;
@@ -177,6 +184,7 @@ struct MMD_command
 	unsigned short parameters[MMD_MAX_COMMAND_PARAMETERS]; //command parameters
 	
 	struct MMD_stepper_data steppersData[MMD_STEPPERS_AMOUNT];
+	struct MMD_DeviceDelay deviceDelay;
 } mmdCommand;
 
 enum MMD_BDC_STATE
@@ -2359,6 +2367,7 @@ static void mmd_parse_command(void)
 		case COMMAND_QUREY_NAME:
 		case COMMAND_DEVICE_POWER_QUERY:
 		case COMMAND_DEVICE_FUSE_QUERY:
+		case COMMAND_DEVICE_DELAY:
 		case COMMAND_OPT_POWER_ON:
 		case COMMAND_OPT_POWER_OFF:
 		case COMMAND_OPT_POWER_QUERY:
@@ -2440,6 +2449,23 @@ static void mmd_run_command(void)
 				}
 				else {
 					mmdCommand.state = EXECUTING_COMMAND;
+				}
+			}
+			break;
+			
+			case COMMAND_DEVICE_DELAY:
+			{
+				if(mmdCommand.parameterAmount != 2){
+					mmd_write_reply_header();
+					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+					clearInputBuffer();
+					mmdCommand.state = AWAITING_COMMAND;
+				}
+				else {
+					mmdCommand.state = EXECUTING_COMMAND;
+					mmdCommand.deviceDelay.totalClks = mmdCommand.parameters[0];
+					mmdCommand.deviceDelay.startingClk = counter_get();
 				}
 			}
 			break;
@@ -2812,6 +2838,15 @@ static void mmd_run_command(void)
 				}
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
 				mmdCommand.state = AWAITING_COMMAND;
+			}
+			break;
+			
+			case COMMAND_DEVICE_DELAY:
+			{
+				if(MMD_elapsed_clocks(mmdCommand.deviceDelay.startingClk) >= mmdCommand.deviceDelay.totalClks) {
+					mmd_write_succeess_reply();
+					mmdCommand.state = AWAITING_COMMAND;
+				}
 			}
 			break;
 			
