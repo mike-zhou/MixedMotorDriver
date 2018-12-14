@@ -29,8 +29,8 @@ enum MMD_command_e
 	COMMAND_BDCS_POWER_OFF = 41,		// C 41 cmdId
 	COMMAND_BDCS_POWER_QUERY = 42,		// C 42 cmdId
 	COMMAND_BDC_COAST = 43,				// C 43 bdcIndex cmdId
-	COMMAND_BDC_REVERSE = 44,			// C 44 bdcIndex cmdId
-	COMMAND_BDC_FORWARD = 45,			// C 45 bdcIndex cmdId
+	COMMAND_BDC_REVERSE = 44,			// C 44 bdcIndex lowClks highClks cycles cmdId
+	COMMAND_BDC_FORWARD = 45,			// C 45 bdcIndex lowClks highClks cycles cmdId
 	COMMAND_BDC_BREAK = 46,				// C 46 bdcIndex cmdId
 	COMMAND_BDC_QUERY = 47,				// C 47 bdcIndex cmdId
 	COMMAND_STEPPER_STEP_RESOLUTION_QUERY = 50,			// C 50 cmdId
@@ -76,6 +76,7 @@ static const char * STR_UNKNOWN_COMMAND = "\"error\":\"unknown command\"";
 static const char * STR_WRONG_COMMAND_FORMAT = "\"error\":\"wrong command format\"";
 static const char * STR_INVALID_PARAMETER = "\"error\":\"invalid parameter\"";
 static const char * STR_WRONG_PARAMETER_AMOUNT = "\"error\":\"wrong parameter amount\"";
+static const char * STR_BDC_WRONG_PHASE_STATE = "\"error\":\"wrong phase state\"";
 static const char * STR_STEPPER_INDEX_OUT_OF_SCOPE = "\"error\":\"stepper index is out of scope\"";
 static const char * STR_STEPPER_NOT_POSITIONED = "\"error\":\"stepper has not been positioned\"";
 static const char * STR_STEPPER_WRONG_STATE = "\"error\":\"wrong stepper state\"";
@@ -176,6 +177,25 @@ struct MMD_DeviceDelay
 	unsigned short startingClk;
 };
 
+enum MMD_bdc_phase
+{
+	BDC_PHASE_FINISH,
+	BDC_PHASE_LOW,
+	BDC_PHASE_HIGH
+};
+
+struct MMD_bdc_data
+{
+	unsigned char bdcIndex;
+	unsigned short lowClks;
+	unsigned short highClks;
+	unsigned short cycles;
+	
+	enum MMD_bdc_phase phase;
+	unsigned short phaseStartClk;
+	unsigned short cycleIndex;
+};
+
 struct MMD_command
 {
 	enum CommandState state;
@@ -185,6 +205,7 @@ struct MMD_command
 	
 	struct MMD_stepper_data steppersData[MMD_STEPPERS_AMOUNT];
 	struct MMD_DeviceDelay deviceDelay;
+	struct MMD_bdc_data bdcData;
 } mmdCommand;
 
 enum MMD_BDC_STATE
@@ -2246,6 +2267,110 @@ static void mmd_locator_query(unsigned char locatorIndex)
 	writeOutputBufferString(STR_CARRIAGE_RETURN);
 }
 
+static void mmd_bdc_forward()
+{
+	switch(mmdCommand.bdcData.phase)
+	{
+		case BDC_PHASE_FINISH:
+		{
+			if(mmdCommand.bdcData.cycleIndex >= mmdCommand.bdcData.cycles)
+			{
+				MMD_bdc_set_state(mmdCommand.bdcData.bdcIndex, BDC_STATE_FORWARD);
+				mmd_write_succeess_reply();
+				mmdCommand.state = AWAITING_COMMAND;
+			}
+			else
+			{
+				mmdCommand.bdcData.phase = BDC_PHASE_LOW;
+				MMD_bdc_set_state(mmdCommand.bdcData.bdcIndex, BDC_STATE_FORWARD); //activate BDC
+				mmdCommand.bdcData.phaseStartClk = MMD_current_clock();
+			}
+		}
+		break;
+		
+		case BDC_PHASE_LOW:
+		{
+			if(MMD_elapsed_clocks(mmdCommand.bdcData.phaseStartClk) >= mmdCommand.bdcData.lowClks) {
+				mmdCommand.bdcData.phase = BDC_PHASE_HIGH;
+				MMD_bdc_set_state(mmdCommand.bdcData.bdcIndex, BDC_STATE_BREAK); //deactivate BDC
+				mmdCommand.bdcData.phaseStartClk = MMD_current_clock();
+			}
+		}
+		break;
+		
+		case BDC_PHASE_HIGH:
+		{
+			if(MMD_elapsed_clocks(mmdCommand.bdcData.phaseStartClk) >= mmdCommand.bdcData.highClks) {
+				mmdCommand.bdcData.phase = BDC_PHASE_FINISH;
+				mmdCommand.bdcData.cycleIndex++;
+			}
+		}
+		break;
+		
+		default:
+		{
+			//wrong state
+			mmd_write_reply_header();
+			writeOutputBufferString(STR_BDC_WRONG_PHASE_STATE);
+			writeOutputBufferString(STR_CARRIAGE_RETURN);
+			mmdCommand.state = AWAITING_COMMAND;
+		}
+		break;
+	}
+}
+
+static void mmd_bdc_reverse()
+{
+	switch(mmdCommand.bdcData.phase)
+	{
+		case BDC_PHASE_FINISH:
+		{
+			if(mmdCommand.bdcData.cycleIndex >= mmdCommand.bdcData.cycles)
+			{
+				MMD_bdc_set_state(mmdCommand.bdcData.bdcIndex, BDC_STATE_REVERSE);
+				mmd_write_succeess_reply();
+				mmdCommand.state = AWAITING_COMMAND;
+			}
+			else
+			{
+				mmdCommand.bdcData.phase = BDC_PHASE_LOW;
+				MMD_bdc_set_state(mmdCommand.bdcData.bdcIndex, BDC_STATE_REVERSE); //activate BDC
+				mmdCommand.bdcData.phaseStartClk = MMD_current_clock();
+			}
+		}
+		break;
+		
+		case BDC_PHASE_LOW:
+		{
+			if(MMD_elapsed_clocks(mmdCommand.bdcData.phaseStartClk) >= mmdCommand.bdcData.lowClks) {
+				mmdCommand.bdcData.phase = BDC_PHASE_HIGH;
+				MMD_bdc_set_state(mmdCommand.bdcData.bdcIndex, BDC_STATE_BREAK); //deactivate BDC
+				mmdCommand.bdcData.phaseStartClk = MMD_current_clock();
+			}
+		}
+		break;
+		
+		case BDC_PHASE_HIGH:
+		{
+			if(MMD_elapsed_clocks(mmdCommand.bdcData.phaseStartClk) >= mmdCommand.bdcData.highClks) {
+				mmdCommand.bdcData.phase = BDC_PHASE_FINISH;
+				mmdCommand.bdcData.cycleIndex++;
+			}
+		}
+		break;
+		
+		default:
+		{
+			//wrong state
+			mmd_write_reply_header();
+			writeOutputBufferString(STR_BDC_WRONG_PHASE_STATE);
+			writeOutputBufferString(STR_CARRIAGE_RETURN);
+			mmdCommand.state = AWAITING_COMMAND;
+		}
+		break;
+	}
+}
+
 static void mmd_parse_command(void)
 {
 	unsigned char tag;
@@ -2465,7 +2590,7 @@ static void mmd_run_command(void)
 				else {
 					mmdCommand.state = EXECUTING_COMMAND;
 					mmdCommand.deviceDelay.totalClks = mmdCommand.parameters[0];
-					mmdCommand.deviceDelay.startingClk = counter_get();
+					mmdCommand.deviceDelay.startingClk = MMD_current_clock();
 				}
 			}
 			break;
@@ -2512,8 +2637,6 @@ static void mmd_run_command(void)
 			break;
 			
 			case COMMAND_BDC_COAST:
-			case COMMAND_BDC_REVERSE:
-			case COMMAND_BDC_FORWARD:
 			case COMMAND_BDC_BREAK:
 			case COMMAND_BDC_QUERY:
 			{
@@ -2532,6 +2655,36 @@ static void mmd_run_command(void)
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
+					mmdCommand.state = EXECUTING_COMMAND;
+				}
+			}
+			break;
+			
+			case COMMAND_BDC_REVERSE:
+			case COMMAND_BDC_FORWARD:
+			{
+				if(mmdCommand.parameterAmount != 5){
+					mmd_write_reply_header();
+					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+					clearInputBuffer();
+					mmdCommand.state = AWAITING_COMMAND;
+				}
+				else if(mmdCommand.parameters[0] >= MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT) {
+					mmd_write_reply_header();
+					writeOutputBufferString(STR_BDC_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+					clearInputBuffer();
+					mmdCommand.state = AWAITING_COMMAND;
+				}
+				else {
+					mmdCommand.bdcData.bdcIndex = mmdCommand.parameters[0];
+					mmdCommand.bdcData.lowClks = mmdCommand.parameters[1];
+					mmdCommand.bdcData.highClks = mmdCommand.parameters[2];
+					mmdCommand.bdcData.cycles = mmdCommand.parameters[3];
+					mmdCommand.bdcData.cycleIndex = 0;
+					mmdCommand.bdcData.phase = BDC_PHASE_FINISH;
+					
 					mmdCommand.state = EXECUTING_COMMAND;
 				}
 			}
@@ -2986,19 +3139,13 @@ static void mmd_run_command(void)
 			
 			case COMMAND_BDC_REVERSE:
 			{
-				unsigned char index = mmdCommand.parameters[0];
-				MMD_bdc_set_state(index, BDC_STATE_REVERSE);
-				mmd_write_succeess_reply();	
-				mmdCommand.state = AWAITING_COMMAND;
+				mmd_bdc_reverse();
 			}
 			break;
 			
 			case COMMAND_BDC_FORWARD:
 			{
-				unsigned char index = mmdCommand.parameters[0];
-				MMD_bdc_set_state(index, BDC_STATE_FORWARD);
-				mmd_write_succeess_reply();	
-				mmdCommand.state = AWAITING_COMMAND;
+				mmd_bdc_forward();
 			}
 			break;
 			
