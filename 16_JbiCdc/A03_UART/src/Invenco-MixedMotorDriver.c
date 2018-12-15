@@ -2061,9 +2061,6 @@ static void mmd_steppers_run(void)
 {
 	struct MMD_stepper_data * pStepper;
 	
-	//update current clock with system counter.
-	mmdCurrentClock = counter_get();
-
 	for(unsigned char stepperIndex = 0; stepperIndex < MMD_STEPPERS_AMOUNT; stepperIndex++)
 	{
 		pStepper = &(mmdCommand.steppersData[stepperIndex]);
@@ -2551,6 +2548,9 @@ static void mmd_cancel_command(void)
 
 static void mmd_run_command(void)
 {
+	//update current clock with system counter.
+	mmdCurrentClock = counter_get();
+
 	if(mmdCommand.state == STARTING_COMMAND)
 	{
 		//prepare for execution.
@@ -3442,6 +3442,10 @@ static void mmd_check_status(void)
 	}
 	for(index = 0; index < MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT; index++)
 	{
+		if(mmdCommand.state != AWAITING_COMMAND) {
+			break; //report BDC status change only after command finishes to avoid excessive state changes in BDC FORWARD and REVERSE
+		}
+		
 		enum MMD_BDC_STATE state = MMD_bdc_get_state(index);
 		if(mmdStatus.bdcState[index] != state) 
 		{
