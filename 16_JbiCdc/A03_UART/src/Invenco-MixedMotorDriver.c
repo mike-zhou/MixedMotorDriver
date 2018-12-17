@@ -460,7 +460,7 @@ static unsigned char MMD_locator_get(unsigned char locatorIndex)
 					n += 2;
 				if((PORTC_IN & 0x10) != 0)
 					n += 4;
-				return n + 1;
+				return 7 - n + 1;
 			}
 		}
 		
@@ -477,7 +477,7 @@ static unsigned char MMD_locator_get(unsigned char locatorIndex)
 					n += 2;
 				if((PORTC_IN & 0x01) != 0)
 					n += 4;
-				return n + 1;
+				return 7 - n + 1;
 			}
 			
 		}
@@ -494,7 +494,7 @@ static unsigned char MMD_locator_get(unsigned char locatorIndex)
 					n += 2;
 				if((PORTB_IN & 0x10) != 0)
 					n += 4;
-				return n + 1;
+				return 7 - n + 1;
 			}
 		
 		case 4: //LC5
@@ -509,7 +509,7 @@ static unsigned char MMD_locator_get(unsigned char locatorIndex)
 					n += 2;
 				if((PORTB_IN & 0x01) != 0)
 					n += 4;
-				return n + 1;
+				return 7 - n + 1;
 			}
 		
 		case 5: //LC6
@@ -524,7 +524,7 @@ static unsigned char MMD_locator_get(unsigned char locatorIndex)
 					n += 2;
 				if((PORTA_IN & 0x10) != 0)
 					n += 4;
-				return n + 1;
+				return 7 - n + 1;
 			}
 		
 		case 6: //LC7
@@ -539,7 +539,7 @@ static unsigned char MMD_locator_get(unsigned char locatorIndex)
 					n += 2;
 				if((PORTA_IN & 0x01) != 0)
 					n += 4;
-				return n + 1;
+				return 7 - n + 1;
 			}
 		
 		case 7: //LC8
@@ -554,7 +554,7 @@ static unsigned char MMD_locator_get(unsigned char locatorIndex)
 					n += 2;
 				if((PORTQ_IN & 0x04) != 0)
 					n += 4;
-				return n + 1;
+				return 7 - n + 1;
 			}
 		
 		default:
