@@ -16,6 +16,7 @@ enum MMD_command_e
 	COMMAND_DEVICE_POWER_QUERY,			// C 2 cmdId
 	COMMAND_DEVICE_FUSE_QUERY,			// C 3 cmdId
 	COMMAND_DEVICE_DELAY,				// C 4 clks cmdId
+	COMMAND_LOCATOR_INTERVAL,			// C 5 clks cmdId
 	COMMAND_OPT_POWER_ON = 10,			// C 10 cmdId
 	COMMAND_OPT_POWER_OFF = 11,			// C 11 cmdId
 	COMMAND_OPT_POWER_QUERY = 12,		// C 12 cmdId
@@ -76,7 +77,7 @@ static const char * STR_UNKNOWN_COMMAND = "\"error\":\"unknown command\"";
 static const char * STR_WRONG_COMMAND_FORMAT = "\"error\":\"wrong command format\"";
 static const char * STR_INVALID_PARAMETER = "\"error\":\"invalid parameter\"";
 static const char * STR_WRONG_PARAMETER_AMOUNT = "\"error\":\"wrong parameter amount\"";
-static const char * STR_BDC_EXCESSIVE_DELAY = "\"error\":\"delay value exceeds limit\"";
+static const char * STR_EXCESSIVE_DELAY = "\"error\":\"delay value exceeds limit\"";
 static const char * STR_BDC_WRONG_PHASE_STATE = "\"error\":\"wrong phase state\"";
 static const char * STR_STEPPER_INDEX_OUT_OF_SCOPE = "\"error\":\"stepper index is out of scope\"";
 static const char * STR_STEPPER_NOT_POSITIONED = "\"error\":\"stepper has not been positioned\"";
@@ -139,6 +140,8 @@ static const char * EVENT_STEPPER_STATE_WRONG_STATE = "\"event\":\"stepper wrong
 static const char * EVENT_LOCATOR = "\"event\":\"locator\"";
 
 static unsigned short mmdCurrentClock;
+static unsigned short locatorCheckStamp;
+static unsigned short locatorCheckInterval;
 
 struct MMD_stepper_data
 {
@@ -2491,6 +2494,7 @@ static void mmd_parse_command(void)
 		case COMMAND_DEVICE_POWER_QUERY:
 		case COMMAND_DEVICE_FUSE_QUERY:
 		case COMMAND_DEVICE_DELAY:
+		case COMMAND_LOCATOR_INTERVAL:
 		case COMMAND_OPT_POWER_ON:
 		case COMMAND_OPT_POWER_OFF:
 		case COMMAND_OPT_POWER_QUERY:
@@ -2548,9 +2552,6 @@ static void mmd_cancel_command(void)
 
 static void mmd_run_command(void)
 {
-	//update current clock with system counter.
-	mmdCurrentClock = counter_get();
-
 	if(mmdCommand.state == STARTING_COMMAND)
 	{
 		//prepare for execution.
@@ -2580,6 +2581,7 @@ static void mmd_run_command(void)
 			break;
 			
 			case COMMAND_DEVICE_DELAY:
+			case COMMAND_LOCATOR_INTERVAL:
 			{
 				if(mmdCommand.parameterAmount != 2){
 					mmd_write_reply_header();
@@ -2590,7 +2592,7 @@ static void mmd_run_command(void)
 				}
 				else if(mmdCommand.parameters[0] > 0x7FFF) {
 					mmd_write_reply_header();
-					writeOutputBufferString(STR_BDC_EXCESSIVE_DELAY);
+					writeOutputBufferString(STR_EXCESSIVE_DELAY);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
@@ -3008,6 +3010,14 @@ static void mmd_run_command(void)
 					mmd_write_succeess_reply();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
+			}
+			break;
+			
+			case COMMAND_LOCATOR_INTERVAL:
+			{
+				locatorCheckInterval = mmdCommand.deviceDelay.totalClks;
+				mmd_write_succeess_reply();
+				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
 			
@@ -3606,32 +3616,37 @@ static void mmd_check_status(void)
 	}
 	
 	//locator
-	index = MMD_locator_get(0);
-	if(mmdStatus.locatorHubs[0] != index)
+	if(MMD_elapsed_clocks(locatorCheckStamp) >= locatorCheckInterval)
 	{
-		writeOutputBufferString(EVENT_LOCATOR);
-		writeOutputBufferString(",\"index\":\"");
-		writeOutputBufferHex(0);
-		writeOutputBufferString("\",\"input\":\"");
-		writeOutputBufferHex(index);
-		writeOutputBufferChar('"');
-		writeOutputBufferString(STR_CARRIAGE_RETURN);
-		
-		mmdStatus.locatorHubs[0] = index;
-	}
-	for(index = 1; index < MMD_LOCATOR_AMOUNT; index++) 
-	{
-		unsigned char locator = MMD_locator_get(index);
-		if(mmdStatus.locatorHubs[index] != locator) {
+		locatorCheckStamp = MMD_current_clock();
+			
+		index = MMD_locator_get(0);
+		if(mmdStatus.locatorHubs[0] != index)
+		{
 			writeOutputBufferString(EVENT_LOCATOR);
 			writeOutputBufferString(",\"index\":\"");
+			writeOutputBufferHex(0);
+			writeOutputBufferString("\",\"input\":\"");
 			writeOutputBufferHex(index);
-			writeOutputBufferString("\",\"input\":");
-			writeOutputBufferHex(locator);
 			writeOutputBufferChar('"');
 			writeOutputBufferString(STR_CARRIAGE_RETURN);
 		
-			mmdStatus.locatorHubs[index] = locator;
+			mmdStatus.locatorHubs[0] = index;
+		}
+		for(index = 1; index < MMD_LOCATOR_AMOUNT; index++) 
+		{
+			unsigned char locator = MMD_locator_get(index);
+			if(mmdStatus.locatorHubs[index] != locator) {
+				writeOutputBufferString(EVENT_LOCATOR);
+				writeOutputBufferString(",\"index\":\"");
+				writeOutputBufferHex(index);
+				writeOutputBufferString("\",\"input\":");
+				writeOutputBufferHex(locator);
+				writeOutputBufferChar('"');
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
+		
+				mmdStatus.locatorHubs[index] = locator;
+			}
 		}
 	}
 }
@@ -3645,6 +3660,9 @@ void ecd300MixedMotorDrivers(void)
 	PORTD_DIRSET = 0x01;
 	
 	udc_start();
+	
+	locatorCheckInterval = 33; //about 1 millisecond
+	locatorCheckStamp = counter_get();
 	
 	while(1)
 	{
@@ -3693,6 +3711,9 @@ void ecd300MixedMotorDrivers(void)
 				}
 			}
 		}
+
+		//update current clock with system counter.
+		mmdCurrentClock = counter_get();
 
 		mmd_run_command();
 		
