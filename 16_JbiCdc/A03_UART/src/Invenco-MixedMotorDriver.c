@@ -3640,7 +3640,7 @@ static void mmd_check_status(void)
 				writeOutputBufferString(EVENT_LOCATOR);
 				writeOutputBufferString(",\"index\":\"");
 				writeOutputBufferHex(index);
-				writeOutputBufferString("\",\"input\":");
+				writeOutputBufferString("\",\"input\":\"");
 				writeOutputBufferHex(locator);
 				writeOutputBufferChar('"');
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
