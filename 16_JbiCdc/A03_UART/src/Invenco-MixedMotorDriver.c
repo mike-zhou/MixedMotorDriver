@@ -1621,8 +1621,9 @@ static void mmd_stepper_check_scope(struct MMD_stepper_data * pData)
 				
 				mmd_write_reply_header();
 				writeOutputBufferString(STR_STEPPER_UNDER_SCOPE);
-				writeOutputBufferString(",\"index\":");
+				writeOutputBufferString(",\"index\":\"");
 				writeOutputBufferHex(pData->stepperIndex);
+				writeOutputBufferChar('"');
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
 			}
 			else if(pData->locatorLineNumberTerminal == lineNumber) {
@@ -1631,8 +1632,9 @@ static void mmd_stepper_check_scope(struct MMD_stepper_data * pData)
 				
 				mmd_write_reply_header();
 				writeOutputBufferString(STR_STEPPER_OVER_SCOPE);
-				writeOutputBufferString(",\"index\":");
+				writeOutputBufferString(",\"index\":\"");
 				writeOutputBufferHex(pData->stepperIndex);
+				writeOutputBufferChar('"');
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
 			}
 		}
