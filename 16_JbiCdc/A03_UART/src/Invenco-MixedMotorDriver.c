@@ -2099,7 +2099,10 @@ static void mmd_steppers_run(void)
 				if(stepperIndex == mmdCommand.parameters[0]) 
 				{
 					mmd_write_reply_header();
-					writeOutputBufferString("\"position\":\"0\"");
+					writeOutputBufferString("\"position\":\"");
+					writeOutputBufferHex(pStepper->homeOffset >> 8);
+					writeOutputBufferHex(pStepper->homeOffset & 0xff);
+					writeOutputBufferChar('"');
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					
 					mmdCommand.state = AWAITING_COMMAND;
