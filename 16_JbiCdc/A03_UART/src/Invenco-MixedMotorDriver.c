@@ -1545,7 +1545,7 @@ static void mmd_stepper_out_of_scope(struct MMD_stepper_data * pData)
 		return;
 	}
 	
-	MMD_stepper_enable(pData->stepperIndex, false);
+	//MMD_stepper_enable(pData->stepperIndex, false);
 	mmdCommand.state = AWAITING_COMMAND;
 }
 
