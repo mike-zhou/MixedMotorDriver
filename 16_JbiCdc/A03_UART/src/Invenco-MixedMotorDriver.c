@@ -17,6 +17,7 @@ enum MMD_command_e
 	COMMAND_DEVICE_FUSE_QUERY,			// C 3 cmdId
 	COMMAND_DEVICE_DELAY,				// C 4 clks cmdId
 	COMMAND_LOCATOR_INTERVAL,			// C 5 clks cmdId
+	COMMAND_ECHO_COMMAND,				// C 6 1/0 cmdId
 	COMMAND_OPT_POWER_ON = 10,			// C 10 cmdId
 	COMMAND_OPT_POWER_OFF = 11,			// C 11 cmdId
 	COMMAND_OPT_POWER_QUERY = 12,		// C 12 cmdId
@@ -142,6 +143,7 @@ static const char * EVENT_LOCATOR = "\"event\":\"locator\"";
 static unsigned short mmdCurrentClock;
 static unsigned short locatorCheckStamp;
 static unsigned short locatorCheckInterval;
+static bool echoCommand;
 
 struct MMD_stepper_data
 {
@@ -2500,6 +2502,7 @@ static void mmd_parse_command(void)
 		case COMMAND_DEVICE_FUSE_QUERY:
 		case COMMAND_DEVICE_DELAY:
 		case COMMAND_LOCATOR_INTERVAL:
+		case COMMAND_ECHO_COMMAND:
 		case COMMAND_OPT_POWER_ON:
 		case COMMAND_OPT_POWER_OFF:
 		case COMMAND_OPT_POWER_QUERY:
@@ -2587,6 +2590,7 @@ static void mmd_run_command(void)
 			
 			case COMMAND_DEVICE_DELAY:
 			case COMMAND_LOCATOR_INTERVAL:
+			case COMMAND_ECHO_COMMAND:
 			{
 				if(mmdCommand.parameterAmount != 2){
 					mmd_write_reply_header();
@@ -3021,6 +3025,19 @@ static void mmd_run_command(void)
 			case COMMAND_LOCATOR_INTERVAL:
 			{
 				locatorCheckInterval = mmdCommand.deviceDelay.totalClks;
+				mmd_write_succeess_reply();
+				mmdCommand.state = AWAITING_COMMAND;
+			}
+			break;
+			
+			case COMMAND_ECHO_COMMAND:
+			{
+				if(mmdCommand.parameters[0] != 0) {
+					echoCommand = true;
+				}
+				else {
+					echoCommand = false;
+				}
 				mmd_write_succeess_reply();
 				mmdCommand.state = AWAITING_COMMAND;
 			}
@@ -3668,6 +3685,7 @@ void ecd300MixedMotorDrivers(void)
 	
 	locatorCheckInterval = 33; //about 1 millisecond
 	locatorCheckStamp = counter_get();
+	echoCommand = false;
 	
 	while(1)
 	{
@@ -3692,9 +3710,12 @@ void ecd300MixedMotorDrivers(void)
 			
 			
 			writeInputBuffer(key); //append to input buffer
-			writeOutputBufferChar(key); //echo char to host
-			if(key == 0x0D) {
-				writeOutputBufferChar(0x0A); //append a new line.
+			if(echoCommand) 
+			{
+				writeOutputBufferChar(key); //echo char to host
+				if(key == 0x0D) {
+					writeOutputBufferChar(0x0A); //append a new line.
+				}
 			}
 			
 			//toggle PD0 to indicate character reception.
