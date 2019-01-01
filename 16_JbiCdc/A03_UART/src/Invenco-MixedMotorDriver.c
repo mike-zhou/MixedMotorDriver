@@ -1683,16 +1683,6 @@ static void mmd_stepper_approach_home_locator(struct MMD_stepper_data * pData)
 		{
 			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
 				MMD_stepper_clock_high(pData->stepperIndex, false);
-				pData->stepPhase = STEP_PHASE_DELAY;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-
-		case STEP_PHASE_DELAY:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= (pData->accelerationBuffer + pData->decelerationBuffer)) {
-				//stepper moved and stopped.
 				pData->stepPhase = STEP_PHASE_FINISH;
 				pData->stepPhaseStartingClock = MMD_current_clock();
 			}
@@ -1744,15 +1734,6 @@ static void mmd_stepper_leave_home_locator(struct MMD_stepper_data * pData)
 		{
 			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
 				MMD_stepper_clock_high(pData->stepperIndex, false);
-				pData->stepPhase = STEP_PHASE_DELAY;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-
-		case STEP_PHASE_DELAY:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= (pData->accelerationBuffer + pData->decelerationBuffer)) {
 				pData->stepPhase = STEP_PHASE_FINISH;
 				pData->stepPhaseStartingClock = MMD_current_clock();
 			}
@@ -1787,6 +1768,12 @@ static void mmd_stepper_go_home(struct MMD_stepper_data * pData)
 				MMD_stepper_clock_high(pData->stepperIndex, false);
 				pData->stepPhase = STEP_PHASE_CLK_LOW;
 				pData->stepPhaseStartingClock = MMD_current_clock();
+				
+				if(pData->locatorLineNumberStart == MMD_locator_get(pData->locatorIndex))
+				{
+					//locator is triggered again, the switch doesn't switch off completely.
+					pData->currentStepIndex = 0;
+				}
 			}
 		}
 		break;
@@ -1806,16 +1793,7 @@ static void mmd_stepper_go_home(struct MMD_stepper_data * pData)
 		{
 			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
 				MMD_stepper_clock_high(pData->stepperIndex, false);
-				pData->stepPhase = STEP_PHASE_DELAY;
-			}
-		}
-		break;
-
-		case STEP_PHASE_DELAY:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= (pData->accelerationBuffer + pData->decelerationBuffer)) {
 				pData->stepPhase = STEP_PHASE_FINISH;
-				pData->stepPhaseStartingClock = MMD_current_clock();
 				pData->currentStepIndex++;
 			}
 		}
