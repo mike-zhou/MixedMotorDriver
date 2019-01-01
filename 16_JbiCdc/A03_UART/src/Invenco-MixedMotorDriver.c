@@ -6,8 +6,7 @@
 #define MMD_STEPPERS_AMOUNT 5
 #define MMD_DIRECT_CURRENT_MOTORS_AMOUNT 2
 #define MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT 6
-#define MMD_MAX_COMMAND_PARAMETERS 6
-#define MMD_ABSOLUTE_HOME_OFFSET_STEPS 40
+#define MMD_MAX_COMMAND_PARAMETERS 8
 
 enum MMD_command_e
 {
@@ -45,7 +44,7 @@ enum MMD_command_e
 	COMMAND_STEPPER_DIR = 57,			// C 57 stepperIndex 1/0 cmdId
 	COMMAND_STEPPER_STEPS = 58,			// C 58 stepperIndex steps cmdId
 	COMMAND_STEPPER_RUN = 59,			// c 59 stepperIndex cmdId
-	COMMAND_STEPPER_CONFIG_HOME = 60,	// C 60 stepperIndex locatorIndex lineNumberStart lineNumberTerminal cmdId
+	COMMAND_STEPPER_CONFIG_HOME = 60,	// C 60 stepperIndex locatorIndex lineNumberStart lineNumberTerminal backwordSteps forwardSteps cmdId
 	COMMAND_STEPPER_QUREY = 61,			// C 61 stepperIndex cmdId
 	COMMAND_STEPPER_SET_STATE = 62,		// C 62 stepperIndex state cmdId
 	COMMAND_LOCATOR_QUERY = 100			// C 100 locatorHubIndex cmdId
@@ -55,7 +54,7 @@ enum MMD_stepper_state
 {
 	STEPPER_STATE_UNKNOWN_POSITION = 0,
 	STEPPER_STATE_APPROACHING_HOME_LOCATOR,
-	STEPPER_STATE_LEAVING_HOME_LOCATOR,
+	STEPPER_STATE_APPROACHING_BOUNDARY,
 	STEPPER_STATE_GO_HOME,
 	STEPPER_STATE_KNOWN_POSITION,
 	STEPPER_STATE_ACCELERATING,
@@ -89,6 +88,8 @@ static const char * STR_STEPPER_STATE = "\"state\":";
 static const char * STR_STEPPER_LOCATOR_INDEX = "\"locatorIndex\":";
 static const char * STR_STEPPER_LOCATOR_LINE_NUMBER_START = "\"locatorLineNumberStart\":";
 static const char * STR_STEPPER_LOCATOR_LINE_NUMBER_TERMINAL = "\"locatorLineNumberTerminal\":";
+static const char * STR_STEPPER_BACKWARD_STEPS = "\"backwardSteps\":";
+static const char * STR_STEPPER_FORWARD_STEPS = "\"forwardSteps\":";
 static const char * STR_STEPPER_IS_ENABLED = "\"enabled\":";
 static const char * STR_STEPPER_FORWARD = "\"forward\":";
 static const char * STR_STEPPER_HOME_OFFSET = "\"homeOffset\":";
@@ -131,7 +132,7 @@ static const char * EVENT_STEPPER_FORWORD = "\"event\":\"stepper forward\"";
 static const char * EVENT_STEPPER_BACKWORD = "\"event\":\"stepper backward\"";
 static const char * EVENT_STEPPER_STATE_UNKNOWN_POSITION = "\"event\":\"stepper unknown position\"";
 static const char * EVENT_STEPPER_STATE_APPROACH_HOME = "\"event\":\"stepper approach home locator\"";
-static const char * EVENT_STEPPER_STATE_LEAVE_HOME = "\"event\":\"stepper leave home locator\"";
+static const char * EVENT_STEPPER_STATE_APPROACH_BACKWARD_BOUNDARY = "\"event\":\"stepper approach backward boundary\"";
 static const char * EVENT_STEPPER_STATE_GO_HOME = "\"event\":\"stepper go home\"";
 static const char * EVENT_STEPPER_STATE_KNOWN_POSITION = "\"event\":\"stepper known position\"";
 static const char * EVENT_STEPPER_STATE_ACCELERATE = "\"event\":\"stepper accelerate\"";
@@ -153,6 +154,9 @@ struct MMD_stepper_data
 	unsigned char locatorIndex;
 	unsigned char locatorLineNumberStart;
 	unsigned char locatorLineNumberTerminal;
+	
+	unsigned char backwardSteps;
+	unsigned char forwardSteps;
 	
 	bool enabled;
 	bool forward;
@@ -341,6 +345,9 @@ static void MMD_init(void)
 		mmdCommand.steppersData[index].locatorIndex =0;
 		mmdCommand.steppersData[index].locatorLineNumberTerminal = 0xff;
 		mmdCommand.steppersData[index].locatorLineNumberStart = 0xff;
+
+		mmdCommand.steppersData[index].backwardSteps = 0;
+		mmdCommand.steppersData[index].forwardSteps = 0;
 
 		mmdCommand.steppersData[index].enabled = false;
 		mmdCommand.steppersData[index].forward = true;
@@ -1608,7 +1615,7 @@ static void mmd_stepper_check_scope(struct MMD_stepper_data * pData)
 	{
 		case STEPPER_STATE_UNKNOWN_POSITION:
 		case STEPPER_STATE_APPROACHING_HOME_LOCATOR:
-		case STEPPER_STATE_LEAVING_HOME_LOCATOR:
+		case STEPPER_STATE_APPROACHING_BOUNDARY:
 		case STEPPER_STATE_GO_HOME:
 			//no need to check stepper scope
 		break;
@@ -1656,8 +1663,8 @@ static void mmd_stepper_approach_home_locator(struct MMD_stepper_data * pData)
 		{
 			if(pData->locatorLineNumberStart == MMD_locator_get(pData->locatorIndex)) {
 				//home locator is triggered, then switch to the next state
-				MMD_stepper_forward(pData->stepperIndex, true);
-				pData->state = STEPPER_STATE_LEAVING_HOME_LOCATOR;
+				pData->state = STEPPER_STATE_APPROACHING_BOUNDARY;
+				pData->currentStepIndex = 0;
 			}
 			else {
 				//continue moving to home
@@ -1683,16 +1690,6 @@ static void mmd_stepper_approach_home_locator(struct MMD_stepper_data * pData)
 		{
 			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
 				MMD_stepper_clock_high(pData->stepperIndex, false);
-				pData->stepPhase = STEP_PHASE_DELAY;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-
-		case STEP_PHASE_DELAY:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= (pData->accelerationBuffer + pData->decelerationBuffer)) {
-				//stepper moved and stopped.
 				pData->stepPhase = STEP_PHASE_FINISH;
 				pData->stepPhaseStartingClock = MMD_current_clock();
 			}
@@ -1704,7 +1701,7 @@ static void mmd_stepper_approach_home_locator(struct MMD_stepper_data * pData)
 	}
 }
 
-static void mmd_stepper_leave_home_locator(struct MMD_stepper_data * pData)
+static void mmd_stepper_approach_backward_boundary(struct MMD_stepper_data * pData)
 {
 	if(pData == NULL) {
 		return;
@@ -1714,14 +1711,13 @@ static void mmd_stepper_leave_home_locator(struct MMD_stepper_data * pData)
 	{
 		case STEP_PHASE_FINISH:
 		{
-			if(pData->locatorLineNumberStart != MMD_locator_get(pData->locatorIndex)) {
-				//stepper home line just changes to high, then switch to the next state
+			if(pData->currentStepIndex >= pData->backwardSteps) {
 				MMD_stepper_forward(pData->stepperIndex, true);
 				pData->state = STEPPER_STATE_GO_HOME;
 				pData->currentStepIndex = 0;
 			}
 			else {
-				//continue leaving home locator
+				//continue approaching boundary
 				MMD_stepper_clock_high(pData->stepperIndex, false);
 				pData->stepPhase = STEP_PHASE_CLK_LOW;
 				pData->stepPhaseStartingClock = MMD_current_clock();
@@ -1744,17 +1740,9 @@ static void mmd_stepper_leave_home_locator(struct MMD_stepper_data * pData)
 		{
 			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
 				MMD_stepper_clock_high(pData->stepperIndex, false);
-				pData->stepPhase = STEP_PHASE_DELAY;
-				pData->stepPhaseStartingClock = MMD_current_clock();
-			}
-		}
-		break;
-
-		case STEP_PHASE_DELAY:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= (pData->accelerationBuffer + pData->decelerationBuffer)) {
 				pData->stepPhase = STEP_PHASE_FINISH;
 				pData->stepPhaseStartingClock = MMD_current_clock();
+				pData->currentStepIndex++;
 			}
 		}
 		break;
@@ -1774,7 +1762,7 @@ static void mmd_stepper_go_home(struct MMD_stepper_data * pData)
 	{
 		case STEP_PHASE_FINISH:
 		{
-			if(pData->currentStepIndex >= MMD_ABSOLUTE_HOME_OFFSET_STEPS) {
+			if(pData->currentStepIndex >= pData->forwardSteps) {
 				//arrive at home position
 				MMD_stepper_forward(pData->stepperIndex, true);
 				pData->homeOffset = 0;
@@ -1806,16 +1794,7 @@ static void mmd_stepper_go_home(struct MMD_stepper_data * pData)
 		{
 			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= pData->stepPhaseHighClocks) {
 				MMD_stepper_clock_high(pData->stepperIndex, false);
-				pData->stepPhase = STEP_PHASE_DELAY;
-			}
-		}
-		break;
-
-		case STEP_PHASE_DELAY:
-		{
-			if(MMD_elapsed_clocks(pData->stepPhaseStartingClock) >= (pData->accelerationBuffer + pData->decelerationBuffer)) {
 				pData->stepPhase = STEP_PHASE_FINISH;
-				pData->stepPhaseStartingClock = MMD_current_clock();
 				pData->currentStepIndex++;
 			}
 		}
@@ -2085,9 +2064,9 @@ static void mmd_steppers_run(void)
 			}
 			break;
 
-			case STEPPER_STATE_LEAVING_HOME_LOCATOR:
+			case STEPPER_STATE_APPROACHING_BOUNDARY:
 			{
-				mmd_stepper_leave_home_locator(pStepper);
+				mmd_stepper_approach_backward_boundary(pStepper);
 			}
 			break;
 			
@@ -2158,8 +2137,8 @@ static void mmd_stepper_query(unsigned char stepperIndex)
 	case STEPPER_STATE_APPROACHING_HOME_LOCATOR:
 		writeOutputBufferString("approaching home locator");
 		break;
-	case STEPPER_STATE_LEAVING_HOME_LOCATOR:
-		writeOutputBufferString("leaving home locator");
+	case STEPPER_STATE_APPROACHING_BOUNDARY:
+		writeOutputBufferString("approaching backward boundary");
 		break;
 	case STEPPER_STATE_GO_HOME:
 		writeOutputBufferString("going home");
@@ -2210,6 +2189,18 @@ static void mmd_stepper_query(unsigned char stepperIndex)
 	writeOutputBufferString(STR_STEPPER_LOCATOR_LINE_NUMBER_TERMINAL);
 	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->locatorLineNumberTerminal);
+	writeOutputBufferString("\",");
+	
+	//backwardSteps
+	writeOutputBufferString(STR_STEPPER_BACKWARD_STEPS);
+	writeOutputBufferChar('"');
+	writeOutputBufferHex(pData->backwardSteps);
+	writeOutputBufferString("\",");
+	
+	//forwardSteps
+	writeOutputBufferString(STR_STEPPER_FORWARD_STEPS);
+	writeOutputBufferChar('"');
+	writeOutputBufferHex(pData->forwardSteps);
 	writeOutputBufferString("\",");
 	
 	//home offset
@@ -2834,7 +2825,7 @@ static void mmd_run_command(void)
 				unsigned char lineNumberStart = mmdCommand.parameters[2];
 				unsigned char lineNumberTerminal = mmdCommand.parameters[3];
 				
-				if(mmdCommand.parameterAmount != 5){
+				if(mmdCommand.parameterAmount != 7){
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -3346,6 +3337,8 @@ static void mmd_run_command(void)
 				mmdCommand.steppersData[stepperIndex].locatorIndex = mmdCommand.parameters[1];
 				mmdCommand.steppersData[stepperIndex].locatorLineNumberStart = mmdCommand.parameters[2];
 				mmdCommand.steppersData[stepperIndex].locatorLineNumberTerminal = mmdCommand.parameters[3];
+				mmdCommand.steppersData[stepperIndex].backwardSteps = mmdCommand.parameters[4];
+				mmdCommand.steppersData[stepperIndex].forwardSteps = mmdCommand.parameters[5];
 				mmdCommand.steppersData[stepperIndex].state = STEPPER_STATE_APPROACHING_HOME_LOCATOR;
 				mmdCommand.steppersData[stepperIndex].stepPhase = STEP_PHASE_FINISH;
 				//reverse to home
@@ -3586,9 +3579,9 @@ static void mmd_check_status(void)
 				}
 				break;
 
-				case STEPPER_STATE_LEAVING_HOME_LOCATOR:
+				case STEPPER_STATE_APPROACHING_BOUNDARY:
 				{
-					writeOutputBufferString(EVENT_STEPPER_STATE_LEAVE_HOME);
+					writeOutputBufferString(EVENT_STEPPER_STATE_APPROACH_BACKWARD_BOUNDARY);
 				}
 				break;
 
