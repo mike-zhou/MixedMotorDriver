@@ -1548,6 +1548,7 @@ static void mmd_stepper_out_of_scope(struct MMD_stepper_data * pData)
 	}
 	
 	//MMD_stepper_enable(pData->stepperIndex, false);
+	pData->state = STEPPER_STATE_UNKNOWN_POSITION;
 	mmdCommand.state = AWAITING_COMMAND;
 }
 
