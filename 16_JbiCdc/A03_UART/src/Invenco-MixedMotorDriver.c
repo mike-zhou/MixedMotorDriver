@@ -16,7 +16,7 @@ enum MMD_command_e
 	COMMAND_DEVICE_POWER_QUERY,			// C 2 cmdId
 	COMMAND_DEVICE_FUSE_QUERY,			// C 3 cmdId
 	COMMAND_DEVICE_DELAY,				// C 4 clks cmdId
-	COMMAND_LOCATOR_INTERVAL,			// C 5 clks cmdId
+	COMMAND_LOCATOR_MINIMUM_STABLE_PERIOD,			// C 5 clks cmdId
 	COMMAND_ECHO_COMMAND,				// C 6 1/0 cmdId
 	COMMAND_OPT_POWER_ON = 10,			// C 10 cmdId
 	COMMAND_OPT_POWER_OFF = 11,			// C 11 cmdId
@@ -141,8 +141,7 @@ static const char * EVENT_STEPPER_STATE_WRONG_STATE = "\"event\":\"stepper wrong
 static const char * EVENT_LOCATOR = "\"event\":\"locator\"";
 
 static unsigned short mmdCurrentClock;
-static unsigned short locatorCheckStamp;
-static unsigned short locatorCheckInterval;
+static unsigned short locatorMinimumStablePeriod;
 static bool echoCommand;
 
 struct MMD_stepper_data
@@ -236,7 +235,9 @@ struct MMD_status
 	//	0: no input is low
 	//	1-8: the designated input is low 
 	//	other value: invalid
-	unsigned char locatorHubs[MMD_LOCATOR_AMOUNT];
+	unsigned char locatorHubsOld[MMD_LOCATOR_AMOUNT];
+	unsigned char locatorHubsNew[MMD_LOCATOR_AMOUNT];
+	unsigned short locatorHubsUpdateStamp[MMD_LOCATOR_AMOUNT];
 	
 	//steppers
 	bool areSteppersPowered;
@@ -369,7 +370,8 @@ static void MMD_init(void)
 	mmdStatus.isOptPowered = false;
 	mmdStatus.isOptPowered = false;
 	for(index=0; index<MMD_LOCATOR_AMOUNT; index++) {
-		mmdStatus.locatorHubs[index] = 0;
+		mmdStatus.locatorHubsOld[index] = 0;
+		mmdStatus.locatorHubsNew[index] = 0;
 	}
 	mmdStatus.areSteppersPowered = false;
 	for(index=0; index<MMD_STEPPERS_AMOUNT; index++) {
@@ -2480,7 +2482,7 @@ static void mmd_parse_command(void)
 		case COMMAND_DEVICE_POWER_QUERY:
 		case COMMAND_DEVICE_FUSE_QUERY:
 		case COMMAND_DEVICE_DELAY:
-		case COMMAND_LOCATOR_INTERVAL:
+		case COMMAND_LOCATOR_MINIMUM_STABLE_PERIOD:
 		case COMMAND_ECHO_COMMAND:
 		case COMMAND_OPT_POWER_ON:
 		case COMMAND_OPT_POWER_OFF:
@@ -2568,7 +2570,7 @@ static void mmd_run_command(void)
 			break;
 			
 			case COMMAND_DEVICE_DELAY:
-			case COMMAND_LOCATOR_INTERVAL:
+			case COMMAND_LOCATOR_MINIMUM_STABLE_PERIOD:
 			case COMMAND_ECHO_COMMAND:
 			{
 				if(mmdCommand.parameterAmount != 2){
@@ -3001,9 +3003,9 @@ static void mmd_run_command(void)
 			}
 			break;
 			
-			case COMMAND_LOCATOR_INTERVAL:
+			case COMMAND_LOCATOR_MINIMUM_STABLE_PERIOD:
 			{
-				locatorCheckInterval = mmdCommand.deviceDelay.totalClks;
+				locatorMinimumStablePeriod = mmdCommand.deviceDelay.totalClks; //value is passed in totalClks.
 				mmd_write_succeess_reply();
 				mmdCommand.state = AWAITING_COMMAND;
 			}
@@ -3617,37 +3619,39 @@ static void mmd_check_status(void)
 	}
 	
 	//locator
-	if(MMD_elapsed_clocks(locatorCheckStamp) >= locatorCheckInterval)
+	for(index = 0; index < MMD_LOCATOR_AMOUNT; index++) 
 	{
-		locatorCheckStamp = MMD_current_clock();
+		//if there is a new locator value and this new value holds long enough,
+		//then report this new value.
+		unsigned char currentValue = MMD_locator_get(index);
 			
-		index = MMD_locator_get(0);
-		if(mmdStatus.locatorHubs[0] != index)
-		{
-			writeOutputBufferString(EVENT_LOCATOR);
-			writeOutputBufferString(",\"index\":\"");
-			writeOutputBufferHex(0);
-			writeOutputBufferString("\",\"input\":\"");
-			writeOutputBufferHex(index);
-			writeOutputBufferChar('"');
-			writeOutputBufferString(STR_CARRIAGE_RETURN);
-		
-			mmdStatus.locatorHubs[0] = index;
-		}
-		for(index = 1; index < MMD_LOCATOR_AMOUNT; index++) 
-		{
-			unsigned char locator = MMD_locator_get(index);
-			if(mmdStatus.locatorHubs[index] != locator) {
-				writeOutputBufferString(EVENT_LOCATOR);
-				writeOutputBufferString(",\"index\":\"");
-				writeOutputBufferHex(index);
-				writeOutputBufferString("\",\"input\":\"");
-				writeOutputBufferHex(locator);
-				writeOutputBufferChar('"');
-				writeOutputBufferString(STR_CARRIAGE_RETURN);
-		
-				mmdStatus.locatorHubs[index] = locator;
+		if(currentValue == mmdStatus.locatorHubsNew[index]) {
+			if(currentValue == mmdStatus.locatorHubsOld[index]) {
+				continue; //no update, check the next locator
 			}
+			else 
+			{
+				//locator update has happened.
+				if(MMD_elapsed_clocks(mmdStatus.locatorHubsUpdateStamp[index]) < locatorMinimumStablePeriod) {
+					//current locator state hasn't hold long enough.
+					continue;
+				}
+				else {
+					//new value has holden long enough
+					mmdStatus.locatorHubsOld[index] = currentValue;
+					writeOutputBufferString(EVENT_LOCATOR);
+					writeOutputBufferString(",\"index\":\"");
+					writeOutputBufferHex(index);
+					writeOutputBufferString("\",\"input\":\"");
+					writeOutputBufferHex(currentValue);
+					writeOutputBufferChar('"');
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+				}
+			}
+		}
+		else {
+			mmdStatus.locatorHubsNew[index] = currentValue;
+			mmdStatus.locatorHubsUpdateStamp[index] = MMD_current_clock(); //renew time stamp
 		}
 	}
 }
@@ -3662,8 +3666,7 @@ void ecd300MixedMotorDrivers(void)
 	
 	udc_start();
 	
-	locatorCheckInterval = 33; //about 1 millisecond
-	locatorCheckStamp = counter_get();
+	locatorMinimumStablePeriod = 33; //about 1 millisecond
 	echoCommand = false;
 	
 	while(1)
