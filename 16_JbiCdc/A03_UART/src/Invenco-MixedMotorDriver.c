@@ -2117,7 +2117,9 @@ static void mmd_steppers_run(void)
 			break;
 		}
 		
-		mmd_stepper_check_scope(pStepper);
+		if(stepperIndex == mmdCommand.parameters[0]) {
+			mmd_stepper_check_scope(pStepper);
+		}
 	}
 }
 
