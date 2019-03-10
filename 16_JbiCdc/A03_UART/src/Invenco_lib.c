@@ -11,10 +11,6 @@
 //// public functions
 //////////////////////////////////////////////////
 
-void printString(char * pString);
-void printHex(unsigned char hex);
-unsigned char getChar(void);
-
 void printString(char * pString)
 {
 	ecd300PutString(ECD300_UART_2, pString);
@@ -38,7 +34,7 @@ unsigned char getChar(void)
 	return c;
 }
 
-static bool _pollHexChar(unsigned char * p)
+bool pollChar(unsigned char * p)
 {
 	char rc;
 
@@ -55,6 +51,17 @@ static bool _pollHexChar(unsigned char * p)
 		return false;
 }
 
+bool putChar(unsigned char c)
+{
+	char rc;
+	
+	rc = ecd300PutChar(ECD300_UART_2, c);
+	
+	if(rc == 0)
+		return true;
+	else 
+		return false;
+}
 
 /**
  * \brief EBI chip select configuration

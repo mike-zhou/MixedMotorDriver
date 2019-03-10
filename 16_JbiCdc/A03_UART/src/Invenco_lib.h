@@ -17,7 +17,24 @@
 // RS232 related
 void printString(char * pString);
 void printHex(unsigned char hex);
+/**
+ * read back a character from UART. This function blocks until a character is available
+ */
 unsigned char getChar(void);
+/**
+ * Read back a character from UART. This function won't block.
+ * Return value:
+ *	true: a valid character is put to address pointed by p
+ *	false: no valid character in UART.
+ */
+bool pollChar(unsigned char * p);
+/**
+ * Output a character to UART. This function won't block.
+ * Return value:
+ *	true: the character is output to UART
+ *	false: the character is not output to UART.
+ */
+bool putChar(unsigned char c);
 
 // USB related
 void clearInputBuffer(void);
