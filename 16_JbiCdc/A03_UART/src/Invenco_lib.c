@@ -292,10 +292,13 @@ void writeOutputBufferHex(unsigned char n)
 
 void sendOutputBufferToHost(void)
 {
+	unsigned char c;
+	
 	for(;outputConsumerIndex != outputProducerIndex;)
 	{
-		if(udi_cdc_is_tx_ready()) {
-			udi_cdc_putc(outputBuffer[outputConsumerIndex]);
+		c = outputBuffer[outputConsumerIndex];
+		
+		if(putChar(c)) {
 			outputConsumerIndex = (outputConsumerIndex + 1) % BUFFER_LENGTH;
 		}
 		else {

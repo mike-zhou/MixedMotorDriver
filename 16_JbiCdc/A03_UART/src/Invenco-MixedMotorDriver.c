@@ -3666,8 +3666,6 @@ void ecd300MixedMotorDrivers(void)
 	//PD0 works as indicator of host output
 	PORTD_DIRSET = 0x01;
 	
-	udc_start();
-	
 	locatorMinimumStablePeriod = 33; //about 1 millisecond
 	echoCommand = false;
 	
@@ -3675,24 +3673,8 @@ void ecd300MixedMotorDrivers(void)
 	{
 		unsigned char key;
 		
-		if (udi_cdc_is_rx_ready())
+		if (pollChar(&key))
 		{
-			//read a char from USB buffer.
-			key = (unsigned char)udi_cdc_getc();
-			
-			//echo to serial port for debug
-			{
-				unsigned char serialBuf[4];
-				
-				printHex(key);printString(":");
-				serialBuf[0] = key;
-				serialBuf[1] = '\r';
-				serialBuf[2] = '\n';
-				serialBuf[3] = 0;
-				printString(serialBuf);
-			}
-			
-			
 			writeInputBuffer(key); //append to input buffer
 			if(echoCommand) 
 			{
