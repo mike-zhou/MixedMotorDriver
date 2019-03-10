@@ -226,7 +226,7 @@
     <GenerateMapFile>True</GenerateMapFile>
     <GenerateListFile>True</GenerateListFile>
     <GenerateEepFile>True</GenerateEepFile>
-    <OutputFileName>MixedMotorDrivers</OutputFileName>
+    <OutputFileName>MixedMotorDrivers-RS232</OutputFileName>
     <OutputFileExtension>.elf</OutputFileExtension>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
