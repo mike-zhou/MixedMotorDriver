@@ -181,7 +181,6 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 }
 
 
-//bufferLength must not exceed 255.
 #define BUFFER_LENGTH 0x1FF
 static	unsigned char inputBuffer[BUFFER_LENGTH];
 static	unsigned char outputBuffer[BUFFER_LENGTH];
@@ -189,6 +188,7 @@ static	unsigned short inputProducerIndex=0;
 static	unsigned short inputConsumerIndex=0;
 static	unsigned short outputProducerIndex=0;
 static	unsigned short outputConsumerIndex=0;
+static  bool outputOverflow = false;
 
 void clearInputBuffer(void)
 {
@@ -239,11 +239,14 @@ bool writeOutputBufferChar(unsigned char c)
 	
 	nextProducerIndex = (outputProducerIndex + 1) % BUFFER_LENGTH;
 	if(nextProducerIndex == outputConsumerIndex) {
-		//outputBuffer is full, change the last character to * to indicate character loss
-		outputBuffer[outputProducerIndex] = '*';
+		if(outputOverflow == false) {
+			outputOverflow = true;
+			printString("*");
+		}
 		return false;
 	}
 	else {
+		outputOverflow = false;
 		outputBuffer[outputProducerIndex] = c;
 		outputProducerIndex = nextProducerIndex;
 		return true;

@@ -3682,13 +3682,10 @@ void ecd300MixedMotorDrivers(void)
 			
 			//echo to serial port for debug
 			{
-				unsigned char serialBuf[4];
+				char serialBuf[2];
 				
-				printHex(key);printString(":");
 				serialBuf[0] = key;
-				serialBuf[1] = '\r';
-				serialBuf[2] = '\n';
-				serialBuf[3] = 0;
+				serialBuf[1] = 0;
 				printString(serialBuf);
 			}
 			
