@@ -56,6 +56,9 @@
 #include <ccp.h>
 #include <xmega_reset_cause.h>
 
+// From module: Cyclic Redundancy Check module driver
+#include <crc.h>
+
 // From module: EBI - External Bus Interface
 #include <ebi.h>
 #include <ebi_port.h>
