@@ -38,6 +38,8 @@ void counter_init(void);
 void counter_wait(unsigned char time);
 //return current counter value
 unsigned short counter_get(void);
+//return difference between current counter and parameter
+unsigned short counter_diff(unsigned short prevCounter);
 //return length of a clock in microsecond
 unsigned short counter_clock_length(void);
 
@@ -50,5 +52,48 @@ enum CommandState
 
 void Invenco_init(void);
 
+#define SCS_PACKET_LENGTH 64
+#define SCS_DATA_PACKET_TAG 0xDD
+/************************************************************************/
+/* 
+Data packet structure:
+	0xDD		// 1 byte
+	id			// 1 byte, 0 to 254
+	dataLength	// 1 byte
+	data bytes	// bytes of dataLength
+	padding		// bytes of (SCS_PACKET_LENGTH - 5 - dataLength)
+	crcLow		// 1 byte
+	crcHigh		// 1 byte                                                                    
+*/
+/************************************************************************/
+#define SCS_ACK_PACKET_TAG 0xAA
+/************************************************************************/
+/*          
+Acknowledge packet structure:
+	0xAA		// 1 byte
+	id			// 1 byte, 0 to 254
+	padding		// bytes of SCS_PACKET_LENGTH
+	crcLow      // 1 byte
+	crcHigh		// 1 byte                                           
+*/
+/************************************************************************/
+#define SCS_DATA_INPUT_TIMEOUT 20 //milliseconds
+#define SCS_INVALID_PACKET_ID 0xFF
+enum SCS_Input_Packet_State
+{
+	SCS_INPUT_IDLE = 0,
+	SCS_INPUT_RECEIVING,
+	SCS_INPUT_ACKNOWLEDGING
+};
+struct SCS_Input_Stage
+{
+	unsigned char buffer[SCS_PACKET_LENGTH];
+	enum SCS_Input_Packet_State state;
+	unsigned char dataAmount;
+	unsigned short timeStamp;
+	unsigned char previousId;
+};
+
+void pollScsDataExchange();
 
 #endif /* ECD300_TEST_H_ */

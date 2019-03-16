@@ -3689,7 +3689,6 @@ void ecd300MixedMotorDrivers(void)
 				printString(serialBuf);
 			}
 			
-			
 			writeInputBuffer(key); //append to input buffer
 			if(echoCommand) 
 			{

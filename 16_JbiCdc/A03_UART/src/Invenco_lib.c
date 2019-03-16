@@ -6,6 +6,7 @@
  */ 
 
 #include "Invenco_lib.h"
+#include "crc.h"
 
 //////////////////////////////////////////////////
 //// public functions
@@ -345,9 +346,193 @@ unsigned short counter_get(void)
 	return tc_read_count(&TCC0);
 }
 
+unsigned short counter_diff(unsigned short prevCounter)
+{
+	unsigned short curCounter = counter_get();
+	
+	if(curCounter > prevCounter) {
+		return (curCounter - prevCounter);
+	}
+	else {
+		return (0xFFFF - prevCounter + curCounter);
+	}
+}
+
 unsigned short counter_clock_length(void)
 {
 	return 1000000/tc_get_resolution(&TCC0);
+}
+
+
+
+static struct SCS_Input_Stage _scsInputStage;
+static unsigned short _scsInputTimeOut;
+
+static bool _calculateCrc16(unsigned char * pData, unsigned char length, unsigned char * pCrcLow, unsigned char * pCrcHigh)
+{
+	uint32_t crc;
+	
+	if((pData == NULL) || (pCrcLow == NULL) || (pCrcHigh == NULL)) {
+		printString("ERR: NULL in _calculateCrc16\r\n");
+		return false;
+	}
+	
+	crc_set_initial_value(0xffffffff);
+	crc = crc_io_checksum(pData, length, CRC_16BIT);
+	
+	*pCrcLow = crc&0xff;
+	*pCrcHigh = (crc>>8)&0xff;
+	
+	return true;
+}
+
+static inline void _resetScsInputStage(void)
+{
+	_scsInputStage.state = SCS_INPUT_IDLE;
+	_scsInputStage.dataAmount = 0;
+	//keep previousId unchanged.
+}
+
+//Send acknowledge of input data packet
+// return true if acknowledge is put to output stage
+// return false if acknowledge cannot be put to output stage
+static bool _acknowledgeScsInputPacket(unsigned char packetId)
+{
+	
+}
+
+static void _acknowledgeScsOutputPacket(unsigned char packetId)
+{
+	
+}
+
+static void _scsInputStateIdle(void)
+{
+	for(;;)
+	{
+		if(udi_cdc_is_rx_ready())
+		{
+			_scsInputStage.buffer[_scsInputStage.dataAmount] = udi_cdc_getc();
+			_scsInputStage.dataAmount++;
+			if(_scsInputStage.dataAmount == SCS_PACKET_LENGTH)
+			{
+				//enough bytes for a packet, check CRC
+				unsigned char crcLow, crcHigh;
+				unsigned char * pPacket =_scsInputStage.buffer;
+							
+				_calculateCrc16(pPacket, SCS_PACKET_LENGTH, &crcLow, &crcHigh);
+				if((crcLow == pPacket[SCS_PACKET_LENGTH -2]) && (crcHigh == pPacket[SCS_PACKET_LENGTH -1]))
+				{
+					//a valid packet
+					if(pPacket[0] == SCS_DATA_PACKET_TAG)
+					{
+						if(pPacket[1] != _scsInputStage.previousId) 
+						{
+							//new packet, the host has received the acknowledge for previous packet.
+							_scsInputStage.previousId = pPacket[1];
+							
+							//send data to application
+							for(unsigned char i=0; i<pPacket[2]; i++) 
+							{
+								if(writeInputBuffer(pPacket[3 + i]) == false)
+								{
+									printString("input overflow\r\n");
+									break;									
+								}
+							}
+							_resetScsInputStage();
+						}
+						
+						if(_acknowledgeScsInputPacket(_scsInputStage.previousId)) {
+							_resetScsInputStage();
+						}
+						else {
+							_scsInputStage.state = SCS_INPUT_ACKNOWLEDGING;
+						}
+					}
+					else if(pPacket[0] == SCS_ACK_PACKET_TAG)
+					{
+						_acknowledgeScsOutputPacket(pPacket[1]);
+						_resetScsInputStage();
+					}
+					else
+					{
+						printString("unknown packet type ");
+						printHex(pPacket[0]);
+						printString("\r\n");
+						_resetScsInputStage();
+					}
+				}
+				else
+				{
+					//invalid packet
+					printString("crc mismatch\r\n");
+					_resetScsInputStage();
+				}
+			}
+		}
+		else
+		{
+			if(_scsInputStage.dataAmount > 0)
+			{
+				_scsInputStage.state = SCS_INPUT_RECEIVING; //partial packet, change state
+				_scsInputStage.timeStamp = counter_get();
+			}
+			
+			return;
+		}
+	}
+}
+
+static void _scsInputStateReceiving(void)
+{
+	if(counter_diff(_scsInputStage.timeStamp) >= _scsInputTimeOut) {
+		_resetScsInputStage();
+	}
+	else 
+	{
+		if(udi_cdc_is_rx_ready()) {
+			_scsInputStateIdle();
+		}
+	}
+}
+
+static void _scsInputStateAcknowledging(void)
+{
+	if(_acknowledgeScsInputPacket(_scsInputStage.previousId)) {
+		_resetScsInputStage();
+	}
+}
+
+void pollScsDataExchange(void)
+{
+	switch(_scsInputStage.state)
+	{
+		case SCS_INPUT_IDLE:
+			_scsInputStateIdle();
+			break;
+			
+		case SCS_INPUT_RECEIVING:
+			_scsInputStateReceiving();
+			break;
+			
+		case SCS_INPUT_ACKNOWLEDGING:
+			_scsInputStateAcknowledging();
+			break;
+			
+		default:
+		break;
+	}
+		
+	
+}
+
+void initScsDataExchange(void)
+{
+	_scsInputTimeOut = ((uint32_t)SCS_DATA_INPUT_TIMEOUT * 1000)/counter_clock_length();
+	
+	_resetScsInputStage();
+	_scsInputStage.previousId = SCS_INVALID_PACKET_ID;
 }
 
 void Invenco_init(void)
@@ -377,5 +562,5 @@ void Invenco_init(void)
 	uartOption.paritytype=USART_PMODE_DISABLED_gc;
 	uartOption.stopbits=false;
 	ecd300InitUart(ECD300_UART_2, &uartOption);
-	printString("Serial Port in Power Allocator was initialized\r\n");
+	printString("UART is initialized successfully\r\n");
 }
