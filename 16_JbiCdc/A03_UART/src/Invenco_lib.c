@@ -289,16 +289,16 @@ void writeOutputBufferHex(unsigned char n)
 
 void sendOutputBufferToHost(void)
 {
-	for(;outputConsumerIndex != outputProducerIndex;)
-	{
-		if(udi_cdc_is_tx_ready()) {
-			udi_cdc_putc(outputBuffer[outputConsumerIndex]);
-			outputConsumerIndex = (outputConsumerIndex + 1) % BUFFER_LENGTH;
-		}
-		else {
-			break;
-		}
-	}
+	//for(;outputConsumerIndex != outputProducerIndex;)
+	//{
+		//if(udi_cdc_is_tx_ready()) {
+			//udi_cdc_putc(outputBuffer[outputConsumerIndex]);
+			//outputConsumerIndex = (outputConsumerIndex + 1) % BUFFER_LENGTH;
+		//}
+		//else {
+			//break;
+		//}
+	//}
 }
 
 void counter_init(void)
@@ -498,7 +498,7 @@ static void _scsInputStateIdle(void)
 					{
 						if(pPacket[1] != _scsInputStage.previousId) 
 						{
-							//new packet, the host has received the acknowledge for previous packet.
+							//new packet, the host has received the acknowledgment for previous packet.
 							_scsInputStage.previousId = pPacket[1];
 							
 							//send data to application
@@ -589,20 +589,18 @@ static void _processScsOutputStage(void)
 					if(_scsOutputStage.packetBuffer[0] == SCS_ACK_PACKET_TAG) {
 						_scsOutputStage.sendingIndex = 0;
 						_scsOutputStage.state = SCS_OUTPUT_IDLE; //no acknowledgment is needed
-						break;
 					}
 					else if(_scsOutputStage.packetBuffer[0] == SCS_DATA_PACKET_TAG) {
 						_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //wait for the acknowledgment
 						_scsOutputStage.timeStamp = counter_get();
-						break;
 					}
 					else {
 						//unknown packet type
 						printString("unknown packet type\r\n");
 						_scsOutputStage.sendingIndex = 0;
 						_scsOutputStage.state = SCS_OUTPUT_IDLE;
-						break;
 					}
+					break;
 				}
 			}
 			else {
@@ -613,7 +611,7 @@ static void _processScsOutputStage(void)
 	else if(_scsOutputStage.state == SCS_OUTPUT_WAITING_ACK) 
 	{
 		if(counter_diff(_scsOutputStage.timeStamp) >= _scsDataAckTimeout) {
-			//resend this data packet
+			//re-send this data packet
 			_scsOutputStage.state = SCS_OUTPUT_SENDING;
 			_scsOutputStage.sendingIndex = 0;
 		}
@@ -656,7 +654,7 @@ static void _fillScsOutputStage(void)
 	pPacket[SCS_PACKET_LENGTH - 2] = crcLow;
 	pPacket[SCS_PACKET_LENGTH - 1] = crcHigh;
 	
-	//update packet id
+	//increase packet id
 	_scsOutputStage.packetId++;
 	if(_scsOutputStage.packetId == SCS_INVALID_PACKET_ID) {
 		_scsOutputStage.packetId++; //jump over the invalid packet id
