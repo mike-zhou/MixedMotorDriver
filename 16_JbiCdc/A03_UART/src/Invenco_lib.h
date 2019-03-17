@@ -78,7 +78,10 @@ Acknowledge packet structure:
 */
 /************************************************************************/
 #define SCS_DATA_INPUT_TIMEOUT 20 //milliseconds
+#define SCS_DATA_ACK_TIMEOUT 50 //milliseconds
+#define SCS_INITIAL_PACKET_ID 0 //this id is used only once at the launch of application
 #define SCS_INVALID_PACKET_ID 0xFF
+#define SCS_INPUT_STAGE_DATA_BUFFER_LENGTH 0x7f
 enum SCS_Input_Packet_State
 {
 	SCS_INPUT_IDLE = 0,
@@ -87,13 +90,36 @@ enum SCS_Input_Packet_State
 };
 struct SCS_Input_Stage
 {
-	unsigned char buffer[SCS_PACKET_LENGTH];
+	unsigned char packetBuffer[SCS_PACKET_LENGTH];
 	enum SCS_Input_Packet_State state;
-	unsigned char dataAmount;
+	unsigned char packetByteAmount;
 	unsigned short timeStamp;
 	unsigned char previousId;
+	
+	unsigned char dataBuffer[SCS_INPUT_STAGE_DATA_BUFFER_LENGTH];
+	bool dataBufferOverflow;
+	unsigned char dataBufferReadIndex;
+	unsigned char dataBufferWriteIndex;
+};
+
+enum SCS_Output_Packet_State
+{
+	SCS_OUTPUT_IDLE = 0,
+	SCS_OUTPUT_SENDING,
+	SCS_OUTPUT_WAITING_ACK
+};
+
+struct SCS_Output_Stage
+{
+	unsigned char packetBuffer[SCS_PACKET_LENGTH];
+	enum SCS_Output_Packet_State state;
+	unsigned char sendingIndex;
+	unsigned short timeStamp;
+	unsigned char packetId;
 };
 
 void pollScsDataExchange();
+//read a received byte
+bool getScsInputData(unsigned char * pData);
 
 #endif /* ECD300_TEST_H_ */

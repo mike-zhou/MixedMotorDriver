@@ -367,6 +367,8 @@ unsigned short counter_clock_length(void)
 
 static struct SCS_Input_Stage _scsInputStage;
 static unsigned short _scsInputTimeOut;
+static struct SCS_Output_Stage _scsOutputStage;
+static unsigned short _scsDataAckTimeout;
 
 static bool _calculateCrc16(unsigned char * pData, unsigned char length, unsigned char * pCrcLow, unsigned char * pCrcHigh)
 {
@@ -389,7 +391,7 @@ static bool _calculateCrc16(unsigned char * pData, unsigned char length, unsigne
 static inline void _resetScsInputStage(void)
 {
 	_scsInputStage.state = SCS_INPUT_IDLE;
-	_scsInputStage.dataAmount = 0;
+	_scsInputStage.packetByteAmount = 0;
 	//keep previousId unchanged.
 }
 
@@ -398,12 +400,80 @@ static inline void _resetScsInputStage(void)
 // return false if acknowledge cannot be put to output stage
 static bool _acknowledgeScsInputPacket(unsigned char packetId)
 {
-	
+	if(_scsOutputStage.state == SCS_OUTPUT_IDLE)
+	{
+		unsigned char * pPacket = _scsOutputStage.packetBuffer;
+		unsigned char crcLow, crcHigh;
+		
+		pPacket[0] = SCS_ACK_PACKET_TAG;
+		pPacket[1] = packetId;
+		for(unsigned char i=2; i<(SCS_PACKET_LENGTH -2); i++) {
+			pPacket[i] = 0;
+		}
+		_calculateCrc16(pPacket, SCS_PACKET_LENGTH - 2, &crcLow, &crcHigh);
+		pPacket[SCS_PACKET_LENGTH - 2] = crcLow;
+		pPacket[SCS_PACKET_LENGTH - 1] = crcHigh;
+		
+		_scsOutputStage.state = SCS_OUTPUT_SENDING;
+		_scsOutputStage.sendingIndex = 0;
+		
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 static void _acknowledgeScsOutputPacket(unsigned char packetId)
 {
+	if(_scsOutputStage.state == SCS_OUTPUT_WAITING_ACK) 
+	{
+		if(_scsOutputStage.packetBuffer[0] == SCS_DATA_PACKET_TAG) 
+		{
+			if(_scsOutputStage.packetBuffer[1] == packetId) {
+				_scsOutputStage.state = SCS_OUTPUT_IDLE; //ready for the next block of data
+				_scsOutputStage.sendingIndex = 0;
+			}
+		}
+	}
+}
+
+static bool _saveInputData(unsigned char data)
+{
+	if((_scsInputStage.dataBufferWriteIndex + 1) == _scsInputStage.dataBufferReadIndex)
+	{
+		if(_scsInputStage.dataBufferOverflow == false)
+		{
+			printString("input overflow\r\n");
+			_scsInputStage.dataBufferOverflow = true;
+		}
+		return false;
+	}
+	else
+	{
+		_scsInputStage.dataBufferOverflow = false;
+		_scsInputStage.dataBuffer[_scsInputStage.dataBufferWriteIndex] = data;
+		_scsInputStage.dataBufferWriteIndex = (_scsInputStage.dataBufferWriteIndex + 1) & SCS_INPUT_STAGE_DATA_BUFFER_LENGTH;
+		return true;
+	}
+}
+
+bool getScsInputData(unsigned char * pData)
+{
+	if(pData == NULL) {
+		return false;
+	}
 	
+	if(_scsInputStage.dataBufferReadIndex == _scsInputStage.dataBufferWriteIndex) {
+		return false;
+	}
+	else
+	{
+		*pData = _scsInputStage.dataBuffer[_scsInputStage.dataBufferReadIndex];
+		_scsInputStage.dataBufferReadIndex = (_scsInputStage.dataBufferReadIndex + 1) & SCS_INPUT_STAGE_DATA_BUFFER_LENGTH;
+		return true;
+	}
 }
 
 static void _scsInputStateIdle(void)
@@ -412,15 +482,15 @@ static void _scsInputStateIdle(void)
 	{
 		if(udi_cdc_is_rx_ready())
 		{
-			_scsInputStage.buffer[_scsInputStage.dataAmount] = udi_cdc_getc();
-			_scsInputStage.dataAmount++;
-			if(_scsInputStage.dataAmount == SCS_PACKET_LENGTH)
+			_scsInputStage.packetBuffer[_scsInputStage.packetByteAmount] = udi_cdc_getc();
+			_scsInputStage.packetByteAmount++;
+			if(_scsInputStage.packetByteAmount == SCS_PACKET_LENGTH)
 			{
 				//enough bytes for a packet, check CRC
 				unsigned char crcLow, crcHigh;
-				unsigned char * pPacket =_scsInputStage.buffer;
+				unsigned char * pPacket =_scsInputStage.packetBuffer;
 							
-				_calculateCrc16(pPacket, SCS_PACKET_LENGTH, &crcLow, &crcHigh);
+				_calculateCrc16(pPacket, SCS_PACKET_LENGTH - 2, &crcLow, &crcHigh);
 				if((crcLow == pPacket[SCS_PACKET_LENGTH -2]) && (crcHigh == pPacket[SCS_PACKET_LENGTH -1]))
 				{
 					//a valid packet
@@ -434,9 +504,7 @@ static void _scsInputStateIdle(void)
 							//send data to application
 							for(unsigned char i=0; i<pPacket[2]; i++) 
 							{
-								if(writeInputBuffer(pPacket[3 + i]) == false)
-								{
-									printString("input overflow\r\n");
+								if(_saveInputData(pPacket[3 + i]) == false) {
 									break;									
 								}
 							}
@@ -473,7 +541,7 @@ static void _scsInputStateIdle(void)
 		}
 		else
 		{
-			if(_scsInputStage.dataAmount > 0)
+			if(_scsInputStage.packetByteAmount > 0)
 			{
 				_scsInputStage.state = SCS_INPUT_RECEIVING; //partial packet, change state
 				_scsInputStage.timeStamp = counter_get();
@@ -504,8 +572,108 @@ static void _scsInputStateAcknowledging(void)
 	}
 }
 
+//send out data in output stage as much as possible
+static void _processScsOutputStage(void)
+{
+	if(_scsOutputStage.state == SCS_OUTPUT_SENDING) 
+	{
+		for(;;) 
+		{
+			if(udi_cdc_is_tx_ready())
+			{
+				udi_cdc_putc(_scsOutputStage.packetBuffer[_scsOutputStage.sendingIndex]);
+				_scsOutputStage.sendingIndex++;
+				if(_scsOutputStage.sendingIndex == SCS_PACKET_LENGTH) 
+				{
+					//a packet has been sent out
+					if(_scsOutputStage.packetBuffer[0] == SCS_ACK_PACKET_TAG) {
+						_scsOutputStage.sendingIndex = 0;
+						_scsOutputStage.state = SCS_OUTPUT_IDLE; //no acknowledgment is needed
+						break;
+					}
+					else if(_scsOutputStage.packetBuffer[0] == SCS_DATA_PACKET_TAG) {
+						_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //wait for the acknowledgment
+						_scsOutputStage.timeStamp = counter_get();
+						break;
+					}
+					else {
+						//unknown packet type
+						printString("unknown packet type\r\n");
+						_scsOutputStage.sendingIndex = 0;
+						_scsOutputStage.state = SCS_OUTPUT_IDLE;
+						break;
+					}
+				}
+			}
+			else {
+				break;//no free space in USB end point
+			}
+		}
+	}
+	else if(_scsOutputStage.state == SCS_OUTPUT_WAITING_ACK) 
+	{
+		if(counter_diff(_scsOutputStage.timeStamp) >= _scsDataAckTimeout) {
+			//resend this data packet
+			_scsOutputStage.state = SCS_OUTPUT_SENDING;
+			_scsOutputStage.sendingIndex = 0;
+		}
+	}
+}
+
+static void _fillScsOutputStage(void)
+{
+	unsigned char * pPacket;
+	unsigned char dataAmount;
+	unsigned char crcLow, crcHigh;
+	
+	if(_scsOutputStage.state != SCS_OUTPUT_IDLE) {
+		return;
+	}
+	
+	if(outputConsumerIndex == outputProducerIndex) {
+		return; //no application data
+	}
+	
+	//get a block of data from outputBuffer 
+	pPacket = _scsOutputStage.packetBuffer;
+	pPacket[0] = SCS_DATA_PACKET_TAG;
+	pPacket[1] = _scsOutputStage.packetId;
+	for(dataAmount = 0; outputConsumerIndex != outputProducerIndex; )
+	{
+		pPacket[3 + dataAmount] = outputBuffer[outputConsumerIndex];
+		dataAmount++;
+		outputConsumerIndex = (outputConsumerIndex + 1) % BUFFER_LENGTH;
+		if(dataAmount == (SCS_PACKET_LENGTH - 5)) {
+			break; //packet is full
+		}
+	}
+	pPacket[2] = dataAmount;
+	for(; dataAmount < (SCS_PACKET_LENGTH - 5); dataAmount++) {
+		pPacket[3 + dataAmount] = 0; //padding
+	}
+	//calculate CRC
+	_calculateCrc16(pPacket, SCS_PACKET_LENGTH - 2, &crcLow, &crcHigh);
+	pPacket[SCS_PACKET_LENGTH - 2] = crcLow;
+	pPacket[SCS_PACKET_LENGTH - 1] = crcHigh;
+	
+	//update packet id
+	_scsOutputStage.packetId++;
+	if(_scsOutputStage.packetId == SCS_INVALID_PACKET_ID) {
+		_scsOutputStage.packetId++; //jump over the invalid packet id
+	}
+	if(_scsOutputStage.packetId == SCS_INITIAL_PACKET_ID) {
+		_scsOutputStage.packetId++; //jump over the initial packet id
+	}
+	
+	//get ready for being sent.
+	_scsOutputStage.state = SCS_OUTPUT_SENDING;
+	_scsOutputStage.sendingIndex = 0;
+}
+
 void pollScsDataExchange(void)
 {
+	_processScsOutputStage();
+	
 	switch(_scsInputStage.state)
 	{
 		case SCS_INPUT_IDLE:
@@ -524,7 +692,7 @@ void pollScsDataExchange(void)
 		break;
 	}
 		
-	
+	_fillScsOutputStage();
 }
 
 void initScsDataExchange(void)
@@ -533,6 +701,14 @@ void initScsDataExchange(void)
 	
 	_resetScsInputStage();
 	_scsInputStage.previousId = SCS_INVALID_PACKET_ID;
+	_scsInputStage.dataBufferOverflow = false;
+	_scsInputStage.dataBufferReadIndex = 0;
+	_scsInputStage.dataBufferWriteIndex = 0;
+	
+	_scsDataAckTimeout = ((uint32_t)SCS_DATA_ACK_TIMEOUT * 1000)/counter_clock_length();
+	_scsOutputStage.sendingIndex = 0;
+	_scsOutputStage.state = SCS_OUTPUT_IDLE;
+	_scsOutputStage.packetId = SCS_INITIAL_PACKET_ID;
 }
 
 void Invenco_init(void)
@@ -555,12 +731,18 @@ void Invenco_init(void)
 	irq_initialize_vectors(); //enable LOW, MED and HIGH level interrupt in PMIC.
 	cpu_irq_enable();
 	
+	//counter
 	counter_init();
 
+	//uart
 	uartOption.baudrate=115200;
 	uartOption.charlength=USART_CHSIZE_8BIT_gc;
 	uartOption.paritytype=USART_PMODE_DISABLED_gc;
 	uartOption.stopbits=false;
 	ecd300InitUart(ECD300_UART_2, &uartOption);
 	printString("UART is initialized successfully\r\n");
+	
+	//data exchange
+	udc_start();
+	initScsDataExchange();
 }
