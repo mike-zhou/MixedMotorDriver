@@ -84,8 +84,7 @@ Acknowledge packet structure:
 #define SCS_INPUT_STAGE_DATA_BUFFER_LENGTH 0x7f
 enum SCS_Input_Packet_State
 {
-	SCS_INPUT_IDLE = 0,
-	SCS_INPUT_RECEIVING,
+	SCS_INPUT_RECEIVING = 0,
 	SCS_INPUT_ACKNOWLEDGING
 };
 struct SCS_Input_Stage
@@ -106,19 +105,22 @@ enum SCS_Output_Packet_State
 {
 	SCS_OUTPUT_IDLE = 0,
 	SCS_OUTPUT_SENDING,
-	SCS_OUTPUT_WAITING_ACK
+	SCS_OUTPUT_WAITING_ACK,
+	SCS_OUTPUT_WAITING_ACK_AND_SENDING //only ACK packet can be sent in this state
 };
 
 struct SCS_Output_Stage
 {
 	unsigned char packetBuffer[SCS_PACKET_LENGTH];
+	unsigned char deliveryBuffer[SCS_PACKET_LENGTH];
 	enum SCS_Output_Packet_State state;
-	unsigned char sendingIndex;
+	unsigned char deliveryIndex;
 	unsigned short timeStamp;
 	unsigned char packetId;
 };
 
-void pollScsDataExchange();
+void initScsDataExchange(void);
+void pollScsDataExchange(void);
 //read a received byte
 bool getScsInputData(unsigned char * pData);
 

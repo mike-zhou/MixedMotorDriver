@@ -388,52 +388,56 @@ static bool _calculateCrc16(unsigned char * pData, unsigned char length, unsigne
 	return true;
 }
 
-static inline void _resetScsInputStage(void)
-{
-	_scsInputStage.state = SCS_INPUT_IDLE;
-	_scsInputStage.packetByteAmount = 0;
-	//keep previousId unchanged.
-}
-
 //Send acknowledge of input data packet
 // return true if acknowledge is put to output stage
 // return false if acknowledge cannot be put to output stage
-static bool _acknowledgeScsInputPacket(unsigned char packetId)
+static bool _sendInputAcknowledgment(unsigned char packetId)
 {
-	if(_scsOutputStage.state == SCS_OUTPUT_IDLE)
-	{
-		unsigned char * pPacket = _scsOutputStage.packetBuffer;
-		unsigned char crcLow, crcHigh;
-		
-		pPacket[0] = SCS_ACK_PACKET_TAG;
-		pPacket[1] = packetId;
-		for(unsigned char i=2; i<(SCS_PACKET_LENGTH -2); i++) {
-			pPacket[i] = 0;
-		}
-		_calculateCrc16(pPacket, SCS_PACKET_LENGTH - 2, &crcLow, &crcHigh);
-		pPacket[SCS_PACKET_LENGTH - 2] = crcLow;
-		pPacket[SCS_PACKET_LENGTH - 1] = crcHigh;
-		
-		_scsOutputStage.state = SCS_OUTPUT_SENDING;
-		_scsOutputStage.sendingIndex = 0;
-		
-		return true;
-	}
-	else
-	{
+	if((_scsOutputStage.state != SCS_OUTPUT_IDLE) && (_scsOutputStage.state != SCS_OUTPUT_WAITING_ACK)) {
 		return false;
 	}
+	
+	unsigned char * pPacket = _scsOutputStage.deliveryBuffer;
+	unsigned char crcLow, crcHigh;
+	
+	//construct the ACK packet.	
+	pPacket[0] = SCS_ACK_PACKET_TAG;
+	pPacket[1] = packetId;
+	for(unsigned char i=2; i<(SCS_PACKET_LENGTH -2); i++) {
+		pPacket[i] = 0;
+	}
+	_calculateCrc16(pPacket, SCS_PACKET_LENGTH - 2, &crcLow, &crcHigh);
+	pPacket[SCS_PACKET_LENGTH - 2] = crcLow;
+	pPacket[SCS_PACKET_LENGTH - 1] = crcHigh;
+	
+	//change state
+	if(_scsOutputStage.state == SCS_OUTPUT_IDLE) {
+		_scsOutputStage.state = SCS_OUTPUT_SENDING;
+	}
+	else { // in SCS_OUTPUT_WAITING_ACK
+		_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK_AND_SENDING;
+	}
+	_scsOutputStage.deliveryIndex = 0;
+		
+	return true;
 }
 
 static void _acknowledgeScsOutputPacket(unsigned char packetId)
 {
-	if(_scsOutputStage.state == SCS_OUTPUT_WAITING_ACK) 
+	if((_scsOutputStage.state != SCS_OUTPUT_WAITING_ACK) && (_scsOutputStage.state != SCS_OUTPUT_WAITING_ACK_AND_SENDING)) {
+		return; //do not expect an ACK.
+	}
+	
+	if(_scsOutputStage.packetBuffer[0] == SCS_DATA_PACKET_TAG) 
 	{
-		if(_scsOutputStage.packetBuffer[0] == SCS_DATA_PACKET_TAG) 
+		if(_scsOutputStage.packetBuffer[1] == packetId) 
 		{
-			if(_scsOutputStage.packetBuffer[1] == packetId) {
+			if(_scsOutputStage.state == SCS_OUTPUT_WAITING_ACK) {
 				_scsOutputStage.state = SCS_OUTPUT_IDLE; //ready for the next block of data
-				_scsOutputStage.sendingIndex = 0;
+				_scsOutputStage.deliveryIndex = 0;
+			}
+			else {
+				_scsOutputStage.state = SCS_OUTPUT_SENDING;
 			}
 		}
 	}
@@ -476,99 +480,82 @@ bool getScsInputData(unsigned char * pData)
 	}
 }
 
-static void _scsInputStateIdle(void)
+static void _processScsInputStage(void)
 {
+	if(_scsInputStage.packetByteAmount > 0)
+	{
+		//partial packet 
+		if(counter_diff(_scsInputStage.timeStamp) >= _scsInputTimeOut) {
+			_scsInputStage.packetByteAmount = 0; //discard packet data
+		}
+	}
+	
 	for(;;)
 	{
 		if(udi_cdc_is_rx_ready())
 		{
 			_scsInputStage.packetBuffer[_scsInputStage.packetByteAmount] = udi_cdc_getc();
 			_scsInputStage.packetByteAmount++;
-			if(_scsInputStage.packetByteAmount == SCS_PACKET_LENGTH)
-			{
-				//enough bytes for a packet, check CRC
-				unsigned char crcLow, crcHigh;
-				unsigned char * pPacket =_scsInputStage.packetBuffer;
-							
-				_calculateCrc16(pPacket, SCS_PACKET_LENGTH - 2, &crcLow, &crcHigh);
-				if((crcLow == pPacket[SCS_PACKET_LENGTH -2]) && (crcHigh == pPacket[SCS_PACKET_LENGTH -1]))
-				{
-					//a valid packet
-					if(pPacket[0] == SCS_DATA_PACKET_TAG)
-					{
-						if(pPacket[1] != _scsInputStage.previousId) 
-						{
-							//new packet, the host has received the acknowledgment for previous packet.
-							_scsInputStage.previousId = pPacket[1];
-							
-							//send data to application
-							for(unsigned char i=0; i<pPacket[2]; i++) 
-							{
-								if(_saveInputData(pPacket[3 + i]) == false) {
-									break;									
-								}
-							}
-							_resetScsInputStage();
-						}
-						
-						if(_acknowledgeScsInputPacket(_scsInputStage.previousId)) {
-							_resetScsInputStage();
-						}
-						else {
-							_scsInputStage.state = SCS_INPUT_ACKNOWLEDGING;
-						}
-					}
-					else if(pPacket[0] == SCS_ACK_PACKET_TAG)
-					{
-						_acknowledgeScsOutputPacket(pPacket[1]);
-						_resetScsInputStage();
-					}
-					else
-					{
-						printString("unknown packet type ");
-						printHex(pPacket[0]);
-						printString("\r\n");
-						_resetScsInputStage();
-					}
-				}
-				else
-				{
-					//invalid packet
-					printString("crc mismatch\r\n");
-					_resetScsInputStage();
-				}
+			
+			if(_scsInputStage.packetByteAmount < SCS_PACKET_LENGTH) {
+				continue; //incomplete packet, continue receiving
 			}
+			
+			//enough bytes for a packet, check CRC
+			unsigned char crcLow, crcHigh;
+			unsigned char * pPacket =_scsInputStage.packetBuffer;
+							
+			_calculateCrc16(pPacket, SCS_PACKET_LENGTH - 2, &crcLow, &crcHigh);
+			if((crcLow != pPacket[SCS_PACKET_LENGTH -2]) || (crcHigh != pPacket[SCS_PACKET_LENGTH -1])) 
+			{
+				//invalid packet
+				printString("ERROR: crc mismatch\r\n");
+				_scsInputStage.packetByteAmount = 0; //discard packet
+				break;
+			}
+			
+			//a valid packet
+			if(pPacket[0] == SCS_DATA_PACKET_TAG)
+			{
+				if(pPacket[1] != _scsInputStage.previousId) 
+				{
+					//new packet, the host has received the acknowledgment for previous packet.
+					_scsInputStage.previousId = pPacket[1];
+							
+					//send data to application
+					for(unsigned char i=0; i<pPacket[2]; i++) 
+					{
+						if(_saveInputData(pPacket[3 + i]) == false) {
+							break;									
+						}
+					}
+				}
+				_scsInputStage.state = SCS_INPUT_ACKNOWLEDGING;
+				printString("> D "); printHex(pPacket[1]); printString("\r\n");
+			}
+			else if(pPacket[0] == SCS_ACK_PACKET_TAG)
+			{
+				_acknowledgeScsOutputPacket(pPacket[1]);
+				printString("> A "); printHex(pPacket[1]); printString("\r\n");
+			}
+			else
+			{
+				printString("ERROR: unknown packet type ");
+				printHex(pPacket[0]);
+				printString("\r\n");
+			}
+			
+			_scsInputStage.packetByteAmount = 0;	
+			break; //finished a packet, process further input in next round to keep state correct
 		}
 		else
 		{
-			if(_scsInputStage.packetByteAmount > 0)
-			{
-				_scsInputStage.state = SCS_INPUT_RECEIVING; //partial packet, change state
-				_scsInputStage.timeStamp = counter_get();
+			if(_scsInputStage.packetByteAmount > 0) {
+				_scsInputStage.timeStamp = counter_get(); //partial packet
 			}
 			
-			return;
+			break;
 		}
-	}
-}
-
-static void _scsInputStateReceiving(void)
-{
-	if(counter_diff(_scsInputStage.timeStamp) >= _scsInputTimeOut) {
-		_resetScsInputStage();
-	}
-	else 
-	{
-		if(udi_cdc_is_rx_ready()) {
-			_scsInputStateIdle();
-		}
-	}
-}
-
-static void _scsInputStateAcknowledging(void)
-{
-	if(_acknowledgeScsInputPacket(_scsInputStage.previousId)) {
-		_resetScsInputStage();
 	}
 }
 
@@ -581,39 +568,95 @@ static void _processScsOutputStage(void)
 		{
 			if(udi_cdc_is_tx_ready())
 			{
-				udi_cdc_putc(_scsOutputStage.packetBuffer[_scsOutputStage.sendingIndex]);
-				_scsOutputStage.sendingIndex++;
-				if(_scsOutputStage.sendingIndex == SCS_PACKET_LENGTH) 
-				{
-					//a packet has been sent out
-					if(_scsOutputStage.packetBuffer[0] == SCS_ACK_PACKET_TAG) {
-						_scsOutputStage.sendingIndex = 0;
-						_scsOutputStage.state = SCS_OUTPUT_IDLE; //no acknowledgment is needed
-					}
-					else if(_scsOutputStage.packetBuffer[0] == SCS_DATA_PACKET_TAG) {
-						_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //wait for the acknowledgment
-						_scsOutputStage.timeStamp = counter_get();
-					}
-					else {
-						//unknown packet type
-						printString("unknown packet type\r\n");
-						_scsOutputStage.sendingIndex = 0;
-						_scsOutputStage.state = SCS_OUTPUT_IDLE;
-					}
-					break;
+				udi_cdc_putc(_scsOutputStage.deliveryBuffer[_scsOutputStage.deliveryIndex]);
+				_scsOutputStage.deliveryIndex++;
+				if(_scsOutputStage.deliveryIndex < SCS_PACKET_LENGTH) {
+					continue;
 				}
+				
+				//a packet has been sent out
+				if(_scsOutputStage.deliveryBuffer[0] == SCS_ACK_PACKET_TAG) 
+				{
+					_scsOutputStage.deliveryIndex = 0;
+					_scsOutputStage.state = SCS_OUTPUT_IDLE; //no acknowledgment is needed
+					printString("< A ");printHex(_scsOutputStage.deliveryBuffer[1]);printString("\r\n");
+				}
+				else if(_scsOutputStage.deliveryBuffer[0] == SCS_DATA_PACKET_TAG) 
+				{
+					_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //wait for the acknowledgment
+					_scsOutputStage.timeStamp = counter_get();
+					printString("< D ");printHex(_scsOutputStage.deliveryBuffer[1]);printString("\r\n");
+				}
+				else 
+				{
+					//unknown packet type
+					printString("ERROR: unknown packet was sent\r\n");
+					_scsOutputStage.deliveryIndex = 0;
+					_scsOutputStage.state = SCS_OUTPUT_IDLE;
+				}
+				break;
 			}
 			else {
 				break;//no free space in USB end point
 			}
 		}
 	}
-	else if(_scsOutputStage.state == SCS_OUTPUT_WAITING_ACK) 
+	else if(_scsOutputStage.state == SCS_OUTPUT_WAITING_ACK_AND_SENDING) 
 	{
-		if(counter_diff(_scsOutputStage.timeStamp) >= _scsDataAckTimeout) {
+		for(;;)
+		{
+			if(udi_cdc_is_tx_ready())
+			{
+				udi_cdc_putc(_scsOutputStage.deliveryBuffer[_scsOutputStage.deliveryIndex]);
+				_scsOutputStage.deliveryIndex++;
+				if(_scsOutputStage.deliveryIndex < SCS_PACKET_LENGTH) {
+					continue;
+				}
+				
+				//a packet has been sent out
+				if(_scsOutputStage.deliveryBuffer[0] == SCS_ACK_PACKET_TAG) 
+				{
+					_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //no acknowledgment is needed
+					printString("< A ");printHex(_scsOutputStage.deliveryBuffer[1]);printString("\r\n");
+				}
+				else if(_scsOutputStage.deliveryBuffer[0] == SCS_DATA_PACKET_TAG) 
+				{
+					//no data packet should be sent when a data packet is waiting for ACK.
+					printString("ERROR: wrong data packet was sent\r\n");
+					_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //wait for the acknowledgment
+				}
+				else 
+				{
+					//unknown packet type
+					printString("ERROR: unknown packet was sent\r\n");
+					_scsOutputStage.deliveryIndex = 0;
+					_scsOutputStage.state = SCS_OUTPUT_IDLE;
+				}
+				break;
+			}
+			else {
+				break;//no free space in USB end point
+			}
+		}
+	}
+	
+	if(_scsOutputStage.state == SCS_OUTPUT_WAITING_ACK) 
+	{
+		if(counter_diff(_scsOutputStage.timeStamp) >= _scsDataAckTimeout) 
+		{
 			//re-send this data packet
+			for(unsigned char i=0; i<SCS_PACKET_LENGTH; i++) {
+				_scsOutputStage.deliveryBuffer[i] = _scsOutputStage.packetBuffer[i];
+			}
 			_scsOutputStage.state = SCS_OUTPUT_SENDING;
-			_scsOutputStage.sendingIndex = 0;
+			_scsOutputStage.deliveryIndex = 0;
+		}
+	}
+	
+	if(_scsInputStage.state == SCS_INPUT_ACKNOWLEDGING)
+	{
+		if(_sendInputAcknowledgment(_scsInputStage.previousId)) {
+			_scsInputStage.state = SCS_INPUT_RECEIVING; 
 		}
 	}
 }
@@ -654,6 +697,11 @@ static void _fillScsOutputStage(void)
 	pPacket[SCS_PACKET_LENGTH - 2] = crcLow;
 	pPacket[SCS_PACKET_LENGTH - 1] = crcHigh;
 	
+	//copy packet content
+	for(unsigned char i=0; i<SCS_PACKET_LENGTH; i++) {
+		_scsOutputStage.deliveryBuffer[i] = _scsOutputStage.packetBuffer[i];
+	}
+	
 	//increase packet id
 	_scsOutputStage.packetId++;
 	if(_scsOutputStage.packetId == SCS_INVALID_PACKET_ID) {
@@ -665,31 +713,13 @@ static void _fillScsOutputStage(void)
 	
 	//get ready for being sent.
 	_scsOutputStage.state = SCS_OUTPUT_SENDING;
-	_scsOutputStage.sendingIndex = 0;
+	_scsOutputStage.deliveryIndex = 0;
 }
 
 void pollScsDataExchange(void)
 {
 	_processScsOutputStage();
-	
-	switch(_scsInputStage.state)
-	{
-		case SCS_INPUT_IDLE:
-			_scsInputStateIdle();
-			break;
-			
-		case SCS_INPUT_RECEIVING:
-			_scsInputStateReceiving();
-			break;
-			
-		case SCS_INPUT_ACKNOWLEDGING:
-			_scsInputStateAcknowledging();
-			break;
-			
-		default:
-		break;
-	}
-		
+	_processScsInputStage();
 	_fillScsOutputStage();
 }
 
@@ -697,14 +727,15 @@ void initScsDataExchange(void)
 {
 	_scsInputTimeOut = ((uint32_t)SCS_DATA_INPUT_TIMEOUT * 1000)/counter_clock_length();
 	
-	_resetScsInputStage();
+	_scsInputStage.state = SCS_INPUT_RECEIVING;
+	_scsInputStage.packetByteAmount = 0;
 	_scsInputStage.previousId = SCS_INVALID_PACKET_ID;
 	_scsInputStage.dataBufferOverflow = false;
 	_scsInputStage.dataBufferReadIndex = 0;
 	_scsInputStage.dataBufferWriteIndex = 0;
 	
 	_scsDataAckTimeout = ((uint32_t)SCS_DATA_ACK_TIMEOUT * 1000)/counter_clock_length();
-	_scsOutputStage.sendingIndex = 0;
+	_scsOutputStage.deliveryIndex = 0;
 	_scsOutputStage.state = SCS_OUTPUT_IDLE;
 	_scsOutputStage.packetId = SCS_INITIAL_PACKET_ID;
 }
