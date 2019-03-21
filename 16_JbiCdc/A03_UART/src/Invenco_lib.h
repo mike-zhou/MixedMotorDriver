@@ -13,13 +13,16 @@
 #include "usb_protocol_cdc.h"
 #include "tc.h"
 
+//Only 2 communication channels are available, USB and UART.
+//If the following is defined, ScsDataExchange interacts with host through USB, 
+//otherwise with UART.
+#define DATA_EXCHANGE_THROUGH_USB
 
-// RS232 related
+// functions to send information to the monitor in host
 void printString(char * pString);
 void printHex(unsigned char hex);
-unsigned char getChar(void);
 
-// USB related
+// functions app uses to exchange data with host
 void clearInputBuffer(void);
 bool writeInputBuffer(unsigned char c);
 unsigned char readInputBuffer(void);

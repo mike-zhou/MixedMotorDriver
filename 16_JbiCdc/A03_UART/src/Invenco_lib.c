@@ -11,51 +11,22 @@
 //////////////////////////////////////////////////
 //// public functions
 //////////////////////////////////////////////////
-
-void printString(char * pString);
-void printHex(unsigned char hex);
-unsigned char getChar(void);
-
 void printString(char * pString)
 {
-	ecd300PutString(ECD300_UART_2, pString);
+#ifdef DATA_EXCHANGE_THROUGH_USB
+	ecd300PutString(ECD300_UART_2, pString); //send info to UART
+#else
+#endif
 }
 
 void printHex(unsigned char hex)
 {
-	ecd300PutHexChar(ECD300_UART_2, hex);
+#ifdef DATA_EXCHANGE_THROUGH_USB
+	ecd300PutHexChar(ECD300_UART_2, hex); //send info to UART
+#else
+
+#endif
 }
-
-unsigned char getChar(void)
-{
-	unsigned char c;
-	char rc;
-
-	for(rc=0;rc!=1;)
-	{
-		rc=ecd300PollChar(ECD300_UART_2, &c);
-	}
-
-	return c;
-}
-
-static bool _pollHexChar(unsigned char * p)
-{
-	char rc;
-
-	if(NULL==p)
-	{
-		return false;
-	}
-	
-	rc=ecd300PollChar(ECD300_UART_2, p);
-
-	if(rc==1)
-		return true;
-	else
-		return false;
-}
-
 
 /**
  * \brief EBI chip select configuration
@@ -139,34 +110,34 @@ static void _ecd300ConfigEbi(void)
 
 bool main_cdc_enable(uint8_t port)
 {
-	printString("Port: ");
-	printHex(port);
-	printString(" is enabled\r\n");
+	//printString("Port: ");
+	//printHex(port);
+	//printString(" is enabled\r\n");
 	
 	return true;
 }
 
 void main_cdc_disable(uint8_t port)
 {
-	printString("Port: ");
-	printHex(port);
-	printString(" is disabled\r\n");
+	//printString("Port: ");
+	//printHex(port);
+	//printString(" is disabled\r\n");
 }
 
 void main_cdc_set_dtr(uint8_t port, bool b_enable)
 {
-	if (b_enable) 
-	{
-		printString("Host opened serial port:");
-		printHex(port);
-		printString("\r\n");
-	}
-	else
-	{
-		printString("Host closed serial port:");
-		printHex(port);
-		printString("\r\n");
-	}
+	//if (b_enable) 
+	//{
+		//printString("Host opened serial port:");
+		//printHex(port);
+		//printString("\r\n");
+	//}
+	//else
+	//{
+		//printString("Host closed serial port:");
+		//printHex(port);
+		//printString("\r\n");
+	//}
 }
 
 void main_uart_rx_notify(uint8_t port)
@@ -176,9 +147,9 @@ void main_uart_rx_notify(uint8_t port)
 
 void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 {
-	printString("Host is configuring serial port: ");
-	printHex(port);
-	printString("\r\n");
+	//printString("Host is configuring serial port: ");
+	//printHex(port);
+	//printString("\r\n");
 }
 
 
@@ -370,6 +341,48 @@ static unsigned short _scsInputTimeOut;
 static struct SCS_Output_Stage _scsOutputStage;
 static unsigned short _scsDataAckTimeout;
 
+static bool _getChar(unsigned char * p)
+{
+#ifdef DATA_EXCHANGE_THROUGH_USB
+	if(udi_cdc_is_rx_ready()) {
+		*p = udi_cdc_getc();
+		return true;
+	}
+	else {
+		return false;
+	}
+#else
+	char rc = ecd300PollChar(ECD300_UART_2, p);
+	if(rc==1) {
+		return true;
+	}
+	else {
+		return false;
+	}
+#endif
+}
+
+static bool _putChar(unsigned char c)
+{
+#ifdef DATA_EXCHANGE_THROUGH_USB
+	if(udi_cdc_is_tx_ready()) {
+		udi_cdc_putc(c);
+		return true;		
+	}	
+	else {
+		return false;
+	}
+#else
+	int rc = ecd300PutChar(ECD300_UART_2, c);
+	if(rc == 0) {
+		return true;
+	}
+	else {
+		return false;
+	}
+#endif
+}
+
 static bool _calculateCrc16(unsigned char * pData, unsigned char length, unsigned char * pCrcLow, unsigned char * pCrcHigh)
 {
 	uint32_t crc;
@@ -492,9 +505,8 @@ static void _processScsInputStage(void)
 	
 	for(;;)
 	{
-		if(udi_cdc_is_rx_ready())
+		if(_getChar(_scsInputStage.packetBuffer + _scsInputStage.packetByteAmount))
 		{
-			_scsInputStage.packetBuffer[_scsInputStage.packetByteAmount] = udi_cdc_getc();
 			_scsInputStage.packetByteAmount++;
 			
 			if(_scsInputStage.packetByteAmount < SCS_PACKET_LENGTH) {
@@ -566,9 +578,8 @@ static void _processScsOutputStage(void)
 	{
 		for(;;) 
 		{
-			if(udi_cdc_is_tx_ready())
+			if(_putChar(_scsOutputStage.deliveryBuffer[_scsOutputStage.deliveryIndex]))
 			{
-				udi_cdc_putc(_scsOutputStage.deliveryBuffer[_scsOutputStage.deliveryIndex]);
 				_scsOutputStage.deliveryIndex++;
 				if(_scsOutputStage.deliveryIndex < SCS_PACKET_LENGTH) {
 					continue;
@@ -605,9 +616,8 @@ static void _processScsOutputStage(void)
 	{
 		for(;;)
 		{
-			if(udi_cdc_is_tx_ready())
+			if(_putChar(_scsOutputStage.deliveryBuffer[_scsOutputStage.deliveryIndex]))
 			{
-				udi_cdc_putc(_scsOutputStage.deliveryBuffer[_scsOutputStage.deliveryIndex]);
 				_scsOutputStage.deliveryIndex++;
 				if(_scsOutputStage.deliveryIndex < SCS_PACKET_LENGTH) {
 					continue;

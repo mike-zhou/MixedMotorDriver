@@ -3678,13 +3678,6 @@ void ecd300MixedMotorDrivers(void)
 		if(getScsInputData(&key))
 		{
 			writeInputBuffer(key); //append to input buffer
-			//if(echoCommand) 
-			//{
-				//writeOutputBufferChar(key); //echo char to host
-				//if(key == 0x0D) {
-					//writeOutputBufferChar(0x0A); //append a new line.
-				//}
-			//}
 			
 			//toggle PD0 to indicate character reception.
 			if(PORTD_IN&0x01) {
