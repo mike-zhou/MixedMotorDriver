@@ -66,9 +66,6 @@ static struct ebi_cs_config     _csConfig;
 
 static void _ecd300ConfigEbi(void)
 {
-	unsigned long i;
-	unsigned short j;
-	
 	/*
 	 * Configure the EBI port with 17 address lines, enable both address
 	 * latches, no low pin count mode, and set it in SRAM mode with 3-port
@@ -522,6 +519,8 @@ bool getScsInputData(unsigned char * pData)
 
 static void _processScsInputStage(void)
 {
+	bool dataReceived = false;
+	
 	if(_scsInputStage.packetByteAmount > 0)
 	{
 		//partial packet 
@@ -534,6 +533,7 @@ static void _processScsInputStage(void)
 	{
 		if(_getChar(_scsInputStage.packetBuffer + _scsInputStage.packetByteAmount))
 		{
+			dataReceived = true;
 			_scsInputStage.packetByteAmount++;
 			
 			if(_scsInputStage.packetByteAmount < SCS_PACKET_LENGTH) {
@@ -570,12 +570,22 @@ static void _processScsInputStage(void)
 					}
 				}
 				_scsInputStage.state = SCS_INPUT_ACKNOWLEDGING;
-				printString("> D "); printHex(pPacket[1]); printString("\r\n");
+				printString("> D "); 
+				printHex(pPacket[1]); 
+				unsigned short timeStamp = counter_get();
+				printHex(timeStamp >> 8);
+				printHex(timeStamp & 0xff);
+				printString("\r\n");
 			}
 			else if(pPacket[0] == SCS_ACK_PACKET_TAG)
 			{
 				_acknowledgeScsOutputPacket(pPacket[1]);
-				printString("> A "); printHex(pPacket[1]); printString("\r\n");
+				printString("> A "); 
+				printHex(pPacket[1]); 
+				unsigned short timeStamp = counter_get();
+				printHex(timeStamp >> 8);
+				printHex(timeStamp & 0xff);
+				printString("\r\n");
 			}
 			else
 			{
@@ -589,7 +599,7 @@ static void _processScsInputStage(void)
 		}
 		else
 		{
-			if(_scsInputStage.packetByteAmount > 0) {
+			if(dataReceived) {
 				_scsInputStage.timeStamp = counter_get(); //partial packet
 			}
 			
@@ -617,13 +627,23 @@ static void _processScsOutputStage(void)
 				{
 					_scsOutputStage.deliveryIndex = 0;
 					_scsOutputStage.state = SCS_OUTPUT_IDLE; //no acknowledgment is needed
-					printString("< A ");printHex(_scsOutputStage.deliveryBuffer[1]);printString("\r\n");
+					printString("< A ");
+					printHex(_scsOutputStage.deliveryBuffer[1]);
+					unsigned short timeStamp = counter_get();
+					printHex(timeStamp >> 8);
+					printHex(timeStamp & 0xff);
+					printString("\r\n");
 				}
 				else if(_scsOutputStage.deliveryBuffer[0] == SCS_DATA_PACKET_TAG) 
 				{
 					_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //wait for the acknowledgment
 					_scsOutputStage.timeStamp = counter_get();
-					printString("< D ");printHex(_scsOutputStage.deliveryBuffer[1]);printString("\r\n");
+					printString("< D ");
+					printHex(_scsOutputStage.deliveryBuffer[1]);
+					unsigned short timeStamp = counter_get();
+					printHex(timeStamp >> 8);
+					printHex(timeStamp & 0xff);
+					printString("\r\n");
 				}
 				else 
 				{
@@ -654,7 +674,12 @@ static void _processScsOutputStage(void)
 				if(_scsOutputStage.deliveryBuffer[0] == SCS_ACK_PACKET_TAG) 
 				{
 					_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //no acknowledgment is needed
-					printString("< A ");printHex(_scsOutputStage.deliveryBuffer[1]);printString("\r\n");
+					printString("< A ");
+					printHex(_scsOutputStage.deliveryBuffer[1]);
+					unsigned short timeStamp = counter_get();
+					printHex(timeStamp >> 8);
+					printHex(timeStamp & 0xff);
+					printString("\r\n");
 				}
 				else if(_scsOutputStage.deliveryBuffer[0] == SCS_DATA_PACKET_TAG) 
 				{

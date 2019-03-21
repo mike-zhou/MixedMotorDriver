@@ -80,8 +80,8 @@ Acknowledge packet structure:
 	crcHigh		// 1 byte                                           
 */
 /************************************************************************/
-#define SCS_DATA_INPUT_TIMEOUT 20 //milliseconds
-#define SCS_DATA_ACK_TIMEOUT 50 //milliseconds
+#define SCS_DATA_INPUT_TIMEOUT 50 //milliseconds
+#define SCS_DATA_ACK_TIMEOUT 500 //milliseconds
 #define SCS_INITIAL_PACKET_ID 0 //this id is used only once at the launch of application
 #define SCS_INVALID_PACKET_ID 0xFF
 #define SCS_INPUT_STAGE_DATA_BUFFER_LENGTH 0x7f
