@@ -14,7 +14,22 @@
 void printString(char * pString)
 {
 #ifdef DATA_EXCHANGE_THROUGH_USB
-	ecd300PutString(ECD300_UART_2, pString); //send info to UART
+	unsigned char c;
+	char rc;
+	
+	//send info to UART as much as possible
+	for(;;)
+	{
+		c = *pString;
+		if(c == '\0') {
+			break;
+		}
+		rc = ecd300PutChar(ECD300_UART_2, c);
+		if(rc != 0) {
+			break;
+		}
+		pString++;
+	}
 #else
 	for(; *pString != '\0'; )
 	{
@@ -32,7 +47,28 @@ void printString(char * pString)
 void printHex(unsigned char hex)
 {
 #ifdef DATA_EXCHANGE_THROUGH_USB
-	ecd300PutHexChar(ECD300_UART_2, hex); //send info to UART
+	unsigned char c;
+	unsigned char rc;
+	
+	c = (hex >> 4) & 0xf;
+	if(c <= 9) {
+		rc = ecd300PutChar(ECD300_UART_2, c + '0');
+	}
+	else {
+		rc = ecd300PutChar(ECD300_UART_2, c - 0xA + 'A');
+	}
+	
+	if(rc == 0) 
+	{
+		c = hex & 0xf;
+		if(c <= 9) {
+			rc = ecd300PutChar(ECD300_UART_2, c + '0');
+		}
+		else {
+			rc = ecd300PutChar(ECD300_UART_2, c - 0xA + 'A');
+		}
+	}
+
 #else
 	if(udi_cdc_is_tx_ready()) {
 		//high 4 bits
