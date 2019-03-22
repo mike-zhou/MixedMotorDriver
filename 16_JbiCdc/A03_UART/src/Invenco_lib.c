@@ -177,9 +177,10 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 }
 
 
-#define BUFFER_LENGTH 0x1FF
-static	unsigned char inputBuffer[BUFFER_LENGTH];
-static	unsigned char outputBuffer[BUFFER_LENGTH];
+#define APP_INPUT_BUFFER_LENGTH 0xFF
+#define APP_OUTPUT_BUFFER_LENGTH 0x3FF
+static	unsigned char inputBuffer[APP_INPUT_BUFFER_LENGTH];
+static	unsigned char outputBuffer[APP_OUTPUT_BUFFER_LENGTH];
 static	unsigned short inputProducerIndex=0;
 static	unsigned short inputConsumerIndex=0;
 static	unsigned short outputProducerIndex=0;
@@ -197,7 +198,7 @@ void clearInputBuffer(void)
 //return false if input buffer overflows.
 bool writeInputBuffer(unsigned char c)
 {
-	unsigned short nextProducerIndex = (inputProducerIndex + 1) % BUFFER_LENGTH;
+	unsigned short nextProducerIndex = (inputProducerIndex + 1) % APP_INPUT_BUFFER_LENGTH;
 	
 	if(nextProducerIndex != inputConsumerIndex) {
 		inputBuffer[inputProducerIndex] = c;
@@ -218,7 +219,7 @@ unsigned char readInputBuffer(void)
 {
 	if(inputConsumerIndex != inputProducerIndex) {
 		unsigned char c = inputBuffer[inputConsumerIndex];
-		inputConsumerIndex = (inputConsumerIndex + 1) % BUFFER_LENGTH;
+		inputConsumerIndex = (inputConsumerIndex + 1) % APP_INPUT_BUFFER_LENGTH;
 		return c;
 	}
 	else {
@@ -233,7 +234,7 @@ bool writeOutputBufferChar(unsigned char c)
 {
 	unsigned short nextProducerIndex;
 	
-	nextProducerIndex = (outputProducerIndex + 1) % BUFFER_LENGTH;
+	nextProducerIndex = (outputProducerIndex + 1) % APP_OUTPUT_BUFFER_LENGTH;
 	if(nextProducerIndex == outputConsumerIndex) {
 		if(outputOverflow == false) {
 			outputOverflow = true;
@@ -745,7 +746,7 @@ static void _fillScsOutputStage(void)
 	{
 		pPacket[3 + dataAmount] = outputBuffer[outputConsumerIndex];
 		dataAmount++;
-		outputConsumerIndex = (outputConsumerIndex + 1) % BUFFER_LENGTH;
+		outputConsumerIndex = (outputConsumerIndex + 1) % APP_OUTPUT_BUFFER_LENGTH;
 		if(dataAmount == (SCS_PACKET_LENGTH - 5)) {
 			break; //packet is full
 		}
