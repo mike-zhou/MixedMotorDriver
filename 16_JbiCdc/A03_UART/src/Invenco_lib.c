@@ -612,20 +612,20 @@ static void _processScsInputStage(void)
 				_scsInputStage.state = SCS_INPUT_ACKNOWLEDGING;
 				printString("> D "); 
 				printHex(pPacket[1]); 
-				printString("\r\n");
+				printString(" ");
 			}
 			else if(pPacket[0] == SCS_ACK_PACKET_TAG)
 			{
 				_acknowledgeScsOutputPacket(pPacket[1]);
 				printString("> A "); 
 				printHex(pPacket[1]); 
-				printString("\r\n");
+				printString(" ");
 			}
 			else
 			{
 				printString("ERROR: unknown packet type ");
 				printHex(pPacket[0]);
-				printString("\r\n");
+				printString(" ");
 			}
 			
 			_scsInputStage.packetByteAmount = 0;	
