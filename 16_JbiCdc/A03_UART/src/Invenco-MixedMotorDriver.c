@@ -3704,7 +3704,7 @@ void ecd300MixedMotorDrivers(void)
 
 		mmd_run_command();
 		
-		mmd_check_status();
+		//mmd_check_status();
 
 		sendOutputBufferToHost();
 	}

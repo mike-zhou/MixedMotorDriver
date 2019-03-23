@@ -563,6 +563,9 @@ static void _processScsInputStage(void)
 		//partial packet 
 		if(counter_diff(_scsInputStage.timeStamp) >= _scsInputTimeOut) {
 			_scsInputStage.packetByteAmount = 0; //discard packet data
+			printString("ERROR: - ");
+			printHex(_scsInputStage.packetByteAmount);
+			printString("\r\n");
 		}
 	}
 	
@@ -609,9 +612,6 @@ static void _processScsInputStage(void)
 				_scsInputStage.state = SCS_INPUT_ACKNOWLEDGING;
 				printString("> D "); 
 				printHex(pPacket[1]); 
-				unsigned short timeStamp = counter_get();
-				printHex(timeStamp >> 8);
-				printHex(timeStamp & 0xff);
 				printString("\r\n");
 			}
 			else if(pPacket[0] == SCS_ACK_PACKET_TAG)
@@ -619,9 +619,6 @@ static void _processScsInputStage(void)
 				_acknowledgeScsOutputPacket(pPacket[1]);
 				printString("> A "); 
 				printHex(pPacket[1]); 
-				unsigned short timeStamp = counter_get();
-				printHex(timeStamp >> 8);
-				printHex(timeStamp & 0xff);
 				printString("\r\n");
 			}
 			else
@@ -662,14 +659,10 @@ static void _processScsOutputStage(void)
 				//a packet has been sent out
 				if(_scsOutputStage.deliveryBuffer[0] == SCS_ACK_PACKET_TAG) 
 				{
-					_scsOutputStage.deliveryIndex = 0;
 					_scsOutputStage.state = SCS_OUTPUT_IDLE; //no acknowledgment is needed
 					printString("< A ");
 					printHex(_scsOutputStage.deliveryBuffer[1]);
-					unsigned short timeStamp = counter_get();
-					printHex(timeStamp >> 8);
-					printHex(timeStamp & 0xff);
-					printString("\r\n");
+					printString(" ");
 				}
 				else if(_scsOutputStage.deliveryBuffer[0] == SCS_DATA_PACKET_TAG) 
 				{
@@ -677,16 +670,12 @@ static void _processScsOutputStage(void)
 					_scsOutputStage.timeStamp = counter_get();
 					printString("< D ");
 					printHex(_scsOutputStage.deliveryBuffer[1]);
-					unsigned short timeStamp = counter_get();
-					printHex(timeStamp >> 8);
-					printHex(timeStamp & 0xff);
-					printString("\r\n");
+					printString(" ");
 				}
 				else 
 				{
 					//unknown packet type
 					printString("ERROR: unknown packet was sent\r\n");
-					_scsOutputStage.deliveryIndex = 0;
 					_scsOutputStage.state = SCS_OUTPUT_IDLE;
 				}
 				break;
@@ -710,27 +699,22 @@ static void _processScsOutputStage(void)
 				//a packet has been sent out
 				if(_scsOutputStage.deliveryBuffer[0] == SCS_ACK_PACKET_TAG) 
 				{
-					_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //no acknowledgment is needed
 					printString("< A ");
 					printHex(_scsOutputStage.deliveryBuffer[1]);
-					unsigned short timeStamp = counter_get();
-					printHex(timeStamp >> 8);
-					printHex(timeStamp & 0xff);
-					printString("\r\n");
+					printString(" ");
 				}
 				else if(_scsOutputStage.deliveryBuffer[0] == SCS_DATA_PACKET_TAG) 
 				{
 					//no data packet should be sent when a data packet is waiting for ACK.
 					printString("ERROR: wrong data packet was sent\r\n");
-					_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //wait for the acknowledgment
 				}
 				else 
 				{
 					//unknown packet type
 					printString("ERROR: unknown packet was sent\r\n");
-					_scsOutputStage.deliveryIndex = 0;
-					_scsOutputStage.state = SCS_OUTPUT_IDLE;
 				}
+				
+				_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //wait for the acknowledgment
 				break;
 			}
 			else {
