@@ -382,7 +382,7 @@ unsigned short counter_diff(unsigned short prevCounter)
 {
 	unsigned short curCounter = counter_get();
 	
-	if(curCounter > prevCounter) {
+	if(curCounter >= prevCounter) {
 		return (curCounter - prevCounter);
 	}
 	else {
