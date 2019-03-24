@@ -263,9 +263,6 @@ unsigned char readInputBuffer(void)
 		c = 0;
 	}
 	
-	printString("+");
-	printHex(c);
-	
 	return c;
 }
 
@@ -568,7 +565,8 @@ static void _processScsInputStage(void)
 	if(_scsInputStage.packetByteAmount > 0)
 	{
 		//partial packet 
-		if(counter_diff(_scsInputStage.timeStamp) >= _scsInputTimeOut) {
+		if(counter_diff(_scsInputStage.timeStamp) >= _scsInputTimeOut) 
+		{
 			_scsInputStage.packetByteAmount = 0; //discard packet data
 			printString("ERROR: - ");
 			printHex(_scsInputStage.packetByteAmount);
@@ -609,27 +607,11 @@ static void _processScsInputStage(void)
 					_scsInputStage.previousId = pPacket[1];
 							
 					//send data to application
-					unsigned char producerIndex;
-					unsigned char consumerIndex;
-					
-					producerIndex = _scsInputStage.dataBufferWriteIndex;
-					consumerIndex = _scsInputStage.dataBufferReadIndex;
-					
-					printString("APP:");
 					for(unsigned char i=0; i<pPacket[2]; i++) 
 					{
-						printHex(pPacket[3 + i]);
 						if(_saveInputData(pPacket[3 + i]) == false) {
 							break;									
 						}
-					}
-					
-					printString(":");
-					printHex(producerIndex);
-					printHex(consumerIndex);
-					for(unsigned char i=0; i<pPacket[2]; i++) 
-					{
-						printHex(_scsInputStage.dataBuffer[(producerIndex + i) & SCS_INPUT_STAGE_DATA_BUFFER_INDEX_MASK]);
 					}
 				}
 				_scsInputStage.state = SCS_INPUT_ACKNOWLEDGING;
