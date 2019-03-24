@@ -213,10 +213,10 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 }
 
 //data buffer for upper layer software
-#define APP_INPUT_BUFFER_LENGTH 0xFF
-#define APP_OUTPUT_BUFFER_LENGTH 0x3FF
-static	unsigned char inputBuffer[APP_INPUT_BUFFER_LENGTH]; 
-static	unsigned char outputBuffer[APP_OUTPUT_BUFFER_LENGTH];
+#define APP_INPUT_BUFFER_INDEX_MASK 0xFF
+#define APP_OUTPUT_BUFFER_INDEX_MASK 0x3FF
+static	unsigned char inputBuffer[APP_INPUT_BUFFER_INDEX_MASK + 1]; 
+static	unsigned char outputBuffer[APP_OUTPUT_BUFFER_INDEX_MASK + 1];
 static	unsigned short inputProducerIndex=0;
 static	unsigned short inputConsumerIndex=0;
 static	unsigned short outputProducerIndex=0;
@@ -234,7 +234,7 @@ void clearInputBuffer(void)
 //return false if input buffer overflows.
 bool writeInputBuffer(unsigned char c)
 {
-	unsigned short nextProducerIndex = (inputProducerIndex + 1) & APP_INPUT_BUFFER_LENGTH;
+	unsigned short nextProducerIndex = (inputProducerIndex + 1) & APP_INPUT_BUFFER_INDEX_MASK;
 	
 	if(nextProducerIndex != inputConsumerIndex) {
 		inputBuffer[inputProducerIndex] = c;
@@ -253,14 +253,20 @@ bool writeInputBuffer(unsigned char c)
 // return 0 if there is nothing in the input buffer.
 unsigned char readInputBuffer(void)
 {
+	unsigned char c;
+	
 	if(inputConsumerIndex != inputProducerIndex) {
-		unsigned char c = inputBuffer[inputConsumerIndex];
-		inputConsumerIndex = (inputConsumerIndex + 1) & APP_INPUT_BUFFER_LENGTH;
-		return c;
+		c = inputBuffer[inputConsumerIndex];
+		inputConsumerIndex = (inputConsumerIndex + 1) & APP_INPUT_BUFFER_INDEX_MASK;
 	}
 	else {
-		return 0;
+		c = 0;
 	}
+	
+	printString("+");
+	printHex(c);
+	
+	return c;
 }
 
 //write a character to output buffer
@@ -270,7 +276,7 @@ bool writeOutputBufferChar(unsigned char c)
 {
 	unsigned short nextProducerIndex;
 	
-	nextProducerIndex = (outputProducerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH;
+	nextProducerIndex = (outputProducerIndex + 1) & APP_OUTPUT_BUFFER_INDEX_MASK;
 	if(nextProducerIndex == outputConsumerIndex) {
 		if(outputOverflow == false) {
 			outputOverflow = true;
@@ -532,7 +538,8 @@ static bool _saveInputData(unsigned char data)
 	{
 		_scsInputStage.dataBufferOverflow = false;
 		_scsInputStage.dataBuffer[_scsInputStage.dataBufferWriteIndex] = data;
-		_scsInputStage.dataBufferWriteIndex = (_scsInputStage.dataBufferWriteIndex + 1) & SCS_INPUT_STAGE_DATA_BUFFER_LENGTH;
+		_scsInputStage.dataBufferWriteIndex = (_scsInputStage.dataBufferWriteIndex + 1) & SCS_INPUT_STAGE_DATA_BUFFER_INDEX_MASK;
+		
 		return true;
 	}
 }
@@ -549,7 +556,7 @@ bool getScsInputData(unsigned char * pData)
 	else
 	{
 		*pData = _scsInputStage.dataBuffer[_scsInputStage.dataBufferReadIndex];
-		_scsInputStage.dataBufferReadIndex = (_scsInputStage.dataBufferReadIndex + 1) & SCS_INPUT_STAGE_DATA_BUFFER_LENGTH;
+		_scsInputStage.dataBufferReadIndex = (_scsInputStage.dataBufferReadIndex + 1) & SCS_INPUT_STAGE_DATA_BUFFER_INDEX_MASK;
 		return true;
 	}
 }
@@ -602,11 +609,27 @@ static void _processScsInputStage(void)
 					_scsInputStage.previousId = pPacket[1];
 							
 					//send data to application
+					unsigned char producerIndex;
+					unsigned char consumerIndex;
+					
+					producerIndex = _scsInputStage.dataBufferWriteIndex;
+					consumerIndex = _scsInputStage.dataBufferReadIndex;
+					
+					printString("APP:");
 					for(unsigned char i=0; i<pPacket[2]; i++) 
 					{
+						printHex(pPacket[3 + i]);
 						if(_saveInputData(pPacket[3 + i]) == false) {
 							break;									
 						}
+					}
+					
+					printString(":");
+					printHex(producerIndex);
+					printHex(consumerIndex);
+					for(unsigned char i=0; i<pPacket[2]; i++) 
+					{
+						printHex(_scsInputStage.dataBuffer[(producerIndex + i) & SCS_INPUT_STAGE_DATA_BUFFER_INDEX_MASK]);
 					}
 				}
 				_scsInputStage.state = SCS_INPUT_ACKNOWLEDGING;
@@ -766,7 +789,7 @@ static void _fillScsOutputStage(void)
 	{
 		pPacket[3 + dataAmount] = outputBuffer[outputConsumerIndex];
 		dataAmount++;
-		outputConsumerIndex = (outputConsumerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH;
+		outputConsumerIndex = (outputConsumerIndex + 1) & APP_OUTPUT_BUFFER_INDEX_MASK;
 		if(dataAmount == (SCS_PACKET_LENGTH - 5)) {
 			break; //packet is full
 		}

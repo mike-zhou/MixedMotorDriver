@@ -84,7 +84,7 @@ Acknowledge packet structure:
 #define SCS_DATA_ACK_TIMEOUT 50 //milliseconds
 #define SCS_INITIAL_PACKET_ID 0 //this id is used only once at the launch of application
 #define SCS_INVALID_PACKET_ID 0xFF
-#define SCS_INPUT_STAGE_DATA_BUFFER_LENGTH 0x7f
+#define SCS_INPUT_STAGE_DATA_BUFFER_INDEX_MASK 0x7f //shouldn't exceed 0xff, constrained by width of buffer access index.
 enum SCS_Input_Packet_State
 {
 	SCS_INPUT_RECEIVING = 0,
@@ -98,7 +98,7 @@ struct SCS_Input_Stage
 	unsigned short timeStamp;
 	unsigned char previousId;
 	
-	unsigned char dataBuffer[SCS_INPUT_STAGE_DATA_BUFFER_LENGTH];
+	unsigned char dataBuffer[SCS_INPUT_STAGE_DATA_BUFFER_INDEX_MASK + 1];
 	bool dataBufferOverflow;
 	unsigned char dataBufferReadIndex;
 	unsigned char dataBufferWriteIndex;
