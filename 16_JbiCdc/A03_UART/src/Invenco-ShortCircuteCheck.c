@@ -1,7 +1,7 @@
 #include "Invenco_lib.h"
 
 //enable pull down resistors in all ports.
-static void shortcircute_pull_down_ports()
+static void shortcircute_pull_down_ports(void)
 {
 	PORTA.PIN0CTRL=(PORTA.PIN0CTRL&0xC7)|PORT_OPC_PULLDOWN_gc;
 	PORTA.PIN1CTRL=(PORTA.PIN1CTRL&0xC7)|PORT_OPC_PULLDOWN_gc;
@@ -89,9 +89,9 @@ static void shortcircute_pull_down_ports()
 	PORTR.PIN1CTRL=(PORTR.PIN1CTRL&0xC7)|PORT_OPC_PULLDOWN_gc;
 }
 
-// return true if short circute
-// return false if no short circute
-static bool shortcircute_check_pins()
+// return true if short circuit
+// return false if no short circuit
+static bool shortcircute_check_pins(void)
 {
 	if((PORTA_DIR & PORTA_OUT) != (PORTA_IN & PORTA_OUT)) {
 		printString("PORTA: ");printHex(PORTA_DIR & PORTA_OUT); printString(":");printHex(PORTA_IN & PORTA_OUT);printString("\r\n");
@@ -141,10 +141,10 @@ static bool shortcircute_check_pins()
 	return false;
 }
 
-// check if there short circute between pins.
+// check if there short circuit between pins.
 // return true if all ports are ok
-// return false if short circute in any ports.
-bool shortcircute_test()
+// return false if short circuit in any ports.
+bool shortcircute_test(void)
 {
 	shortcircute_pull_down_ports();
 	
@@ -270,7 +270,7 @@ bool shortcircute_test()
 	return true;
 }
 
-void ecd300CheckShortCircute()
+void ecd300CheckShortCircute(void)
 {
 	usart_rs232_options_t uartOption;
 	unsigned char c;

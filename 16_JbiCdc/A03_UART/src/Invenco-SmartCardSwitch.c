@@ -42,24 +42,24 @@ static struct SmartCardSwitch_MachineStatus
 } smartCardSwitch_status;
 
 
-static void SmartCardSwitch_activate_status()
+static void SmartCardSwitch_activate_status(void)
 {
 	PORTF_DIRSET = 0x01;
 	PORTF_OUTSET = 0x01;
 }
 
-static void SmartCardSwitch_deactivate_status()
+static void SmartCardSwitch_deactivate_status(void)
 {
 	PORTF_DIRCLR = 0x01;
 	PORTF_OUTCLR = 0x01;
 }
 
-static void SmartCardSwitch_solenoid_deactivate_all(){
+static void SmartCardSwitch_solenoid_deactivate_all(void){
 	PORTC_DIR=0x00;
 	PORTC_OUT=0x00;
 }
 
-static void SmartCardSwitch_smartcard_disconnect_all()
+static void SmartCardSwitch_smartcard_disconnect_all(void)
 {
 	PORTA_DIR=0x00;
 	PORTK_DIR=0x00;
@@ -225,7 +225,7 @@ static bool SmartCardSwitch_smartCard_activate(unsigned char index)
 	return true;
 }
 
-static unsigned char SmartCardSwitch_smartCard_get_activated()
+static unsigned char SmartCardSwitch_smartCard_get_activated(void)
 {
 	if(PORTA_DIR & 0x80)
 	return 1;
@@ -624,7 +624,7 @@ static bool test_smart_card_connection_slow(void)
 }
 
 // is power available
-bool SmartCardSwitch_is_power_ok()
+bool SmartCardSwitch_is_power_ok(void)
 {
 	//PD5
 	if(PORTD_IN	& 0x20) {
@@ -635,7 +635,7 @@ bool SmartCardSwitch_is_power_ok()
 	}
 }
 
-bool SmartCardSwitch_is_power_fuse_ok()
+bool SmartCardSwitch_is_power_fuse_ok(void)
 {
 	//PD4
 	if(PORTD_IN & 0x10)
@@ -644,7 +644,7 @@ bool SmartCardSwitch_is_power_fuse_ok()
 	return false;
 }
 
-static void SmartCardSwitch_init_status()
+static void SmartCardSwitch_init_status(void)
 {
 	unsigned char solenoidIndex;
 
@@ -659,7 +659,7 @@ static void SmartCardSwitch_init_status()
 	smartCardSwitch_status.powerFuseBroken = false;
 }
 
-static void SmartCardSwitch_check_status()
+static void SmartCardSwitch_check_status(void)
 {
 	unsigned char activatedSmartCard;
 	bool powerAvailable;
@@ -738,7 +738,7 @@ static void SmartCardSwitch_check_status()
 	}
 }
 
-static void SmartCardSwitch_write_status()
+static void SmartCardSwitch_write_status(void)
 {
 	//Power
 	if(smartCardSwitch_status.powerAvailable) {
@@ -787,7 +787,7 @@ static void SmartCardSwitch_write_status()
 	}
 }
 
-void SmartCardSwitch_run_command()
+void SmartCardSwitch_run_command(void)
 {
 	if(smartCardSwitch_CommandState.state == STARTING_COMMAND)
 	{

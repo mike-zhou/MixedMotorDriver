@@ -1555,7 +1555,7 @@ static void mmd_stepper_out_of_scope(struct MMD_stepper_data * pData)
 }
 
 //write command and parameters to output buffer.
-static void mmd_write_succeess_reply() 
+static void mmd_write_succeess_reply(void) 
 {
 	writeOutputBufferString("\"command\":\"");
 	writeOutputBufferHex(mmdCommand.command);
@@ -1577,7 +1577,7 @@ static void mmd_write_succeess_reply()
 	writeOutputBufferString(STR_CARRIAGE_RETURN);
 }
 
-static void mmd_write_reply_header()
+static void mmd_write_reply_header(void)
 {
 	writeOutputBufferString("\"command\":\"");
 	writeOutputBufferHex(mmdCommand.command);
@@ -2258,7 +2258,7 @@ static void mmd_locator_query(unsigned char locatorIndex)
 	writeOutputBufferString(STR_CARRIAGE_RETURN);
 }
 
-static void mmd_bdc_forward()
+static void mmd_bdc_forward(void)
 {
 	switch(mmdCommand.bdcData.phase)
 	{
@@ -2310,7 +2310,7 @@ static void mmd_bdc_forward()
 	}
 }
 
-static void mmd_bdc_reverse()
+static void mmd_bdc_reverse(void)
 {
 	switch(mmdCommand.bdcData.phase)
 	{
