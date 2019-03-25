@@ -91,6 +91,17 @@ void printHex(unsigned char hex)
 #endif
 }
 
+void inline printChar(unsigned char c)
+{
+#ifdef DATA_EXCHANGE_THROUGH_USB	
+	ecd300PutChar(ECD300_UART_2, c);
+#else
+	if(udi_cdc_is_tx_ready()) {
+		udi_cdc_putc(c);
+	}
+#endif
+}
+
 /**
  * \brief EBI chip select configuration
  *
@@ -660,11 +671,10 @@ static void _processScsInputStage(void)
 			printHex(_scsInputStage.packetByteAmount);
 			printString(":");
 			for(unsigned char i=0; i<_scsInputStage.packetByteAmount; i++) {
-				printHex(_scsInputStage.packetBuffer[i]);
+				printChar(_scsInputStage.packetBuffer[i]);
 			}
 			printString("\r\n");
 			_scsInputStage.packetByteAmount = 0; //discard packet data
-			printString("ERROR: discard data\r\n");
 		}
 	}
 	
@@ -710,7 +720,7 @@ static void _processScsInputStage(void)
 				//invalid packet
 				printString("ERROR: crc mismatch:");
 				for(unsigned char i=0; i<SCS_PACKET_LENGTH; i++) {
-					printHex(_scsInputStage.packetBuffer[i]);
+					printChar(_scsInputStage.packetBuffer[i]);
 				}
 				printString("\r\n");
 				
@@ -741,14 +751,14 @@ static void _processScsInputStage(void)
 				}
 				printString("> D "); 
 				printHex(curPacketId); 
-				printString("\r\n");
+				printChar(' ');
 				_scsInputStage.state = SCS_INPUT_ACKNOWLEDGING;
 			}
 			else if(tag == SCS_ACK_PACKET_TAG)
 			{
 				printString("> A "); 
 				printHex(curPacketId); 
-				printString("\r\n");
+				printChar(' ');
 				_acknowledgeScsOutputPacket(curPacketId);
 			}
 			else
@@ -795,7 +805,7 @@ static void _processScsOutputStage(void)
 					_scsOutputStage.state = SCS_OUTPUT_IDLE; //no acknowledgment is needed
 					printString("< A ");
 					printHex(curPacketId);
-					printString("\r\n");
+					printChar(' ');
 				}
 				else if(tag == SCS_DATA_PACKET_TAG) 
 				{
@@ -803,7 +813,7 @@ static void _processScsOutputStage(void)
 					_scsOutputStage.timeStamp = counter_get();
 					printString("< D ");
 					printHex(curPacketId);
-					printString("\r\n");
+					printChar(' ');
 				}
 				else 
 				{
@@ -837,7 +847,7 @@ static void _processScsOutputStage(void)
 				{
 					printString("< A ");
 					printHex(curPacketId);
-					printString("\r\n");
+					printChar(' ');
 				}
 				else if(tag == SCS_DATA_PACKET_TAG) 
 				{
@@ -912,7 +922,7 @@ static void _fillScsOutputStage(void)
 		pPacket[6 + dataAmount] = highHex;
 		pPacket[6 + dataAmount + 1] = lowHex;
 		
-		outputConsumerIndex = (outputConsumerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH;
+		outputConsumerIndex = (outputConsumerIndex + 1) & APP_OUTPUT_BUFFER_INDEX_MASK;
 		dataAmount += 2;
 		if(dataAmount == (SCS_PACKET_LENGTH - 10)) {
 			break; //packet is full
