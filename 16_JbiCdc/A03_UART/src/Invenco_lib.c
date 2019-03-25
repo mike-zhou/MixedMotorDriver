@@ -567,10 +567,10 @@ static void _processScsInputStage(void)
 		//partial packet 
 		if(counter_diff(_scsInputStage.timeStamp) >= _scsInputTimeOut) 
 		{
-			_scsInputStage.packetByteAmount = 0; //discard packet data
 			printString("ERROR: - ");
 			printHex(_scsInputStage.packetByteAmount);
 			printString("\r\n");
+			_scsInputStage.packetByteAmount = 0; //discard packet data
 		}
 	}
 	
