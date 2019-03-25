@@ -223,6 +223,7 @@ static	unsigned short outputProducerIndex=0;
 static	unsigned short outputConsumerIndex=0;
 static  bool outputBufferEnabled = false;
 static  bool outputOverflow = false;
+static  bool inputOverflow = false;
 
 void clearInputBuffer(void)
 {
@@ -240,10 +241,15 @@ bool writeInputBuffer(unsigned char c)
 	if(nextProducerIndex != inputConsumerIndex) {
 		inputBuffer[inputProducerIndex] = c;
 		inputProducerIndex = nextProducerIndex;
+		inputOverflow = false;
 		return true;
 	}
 	else {
 		//overflow.
+		if(!inputOverflow) {
+			inputOverflow = true;
+			printChar('!');
+		}
 		clearInputBuffer();
 		return false;
 	}
