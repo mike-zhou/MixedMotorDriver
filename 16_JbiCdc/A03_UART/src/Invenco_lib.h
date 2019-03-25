@@ -30,6 +30,7 @@ bool writeOutputBufferChar(unsigned char c);
 void writeOutputBufferString(const char * pString);
 void writeOutputBufferHex(unsigned char n);
 void sendOutputBufferToHost(void);
+void enableOutputBuffer(void);
 
 //////////////////////////////////
 // counter related

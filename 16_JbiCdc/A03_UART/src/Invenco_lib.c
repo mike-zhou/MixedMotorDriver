@@ -221,6 +221,7 @@ static	unsigned short inputProducerIndex=0;
 static	unsigned short inputConsumerIndex=0;
 static	unsigned short outputProducerIndex=0;
 static	unsigned short outputConsumerIndex=0;
+static  bool outputBufferEnabled = false;
 static  bool outputOverflow = false;
 
 void clearInputBuffer(void)
@@ -271,6 +272,10 @@ unsigned char readInputBuffer(void)
 //return false if output buffer overflows
 bool writeOutputBufferChar(unsigned char c)
 {
+	if(!outputBufferEnabled) {
+		return false;
+	}
+	
 	unsigned short nextProducerIndex;
 	
 	nextProducerIndex = (outputProducerIndex + 1) & APP_OUTPUT_BUFFER_INDEX_MASK;
@@ -292,6 +297,10 @@ bool writeOutputBufferChar(unsigned char c)
 //write a string to output buffer
 void writeOutputBufferString(const char * pString)
 {
+	if(!outputBufferEnabled) {
+		return;
+	}
+	
 	unsigned char c;
 	
 	for(; ;) {
@@ -307,6 +316,10 @@ void writeOutputBufferString(const char * pString)
 
 void writeOutputBufferHex(unsigned char n)
 {
+	if(!outputBufferEnabled) {
+		return;
+	}
+	
 	if((n >> 4) <= 9) {
 		writeOutputBufferChar((n >> 4) + '0');
 	}
@@ -334,6 +347,11 @@ void sendOutputBufferToHost(void)
 			//break;
 		//}
 	//}
+}
+
+void enableOutputBuffer(void)
+{
+	outputBufferEnabled = true;
 }
 
 void counter_init(void)
