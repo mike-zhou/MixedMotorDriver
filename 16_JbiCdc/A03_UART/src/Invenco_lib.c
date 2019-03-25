@@ -91,6 +91,17 @@ void printHex(unsigned char hex)
 #endif
 }
 
+void inline printChar(unsigned char c)
+{
+#ifdef DATA_EXCHANGE_THROUGH_USB
+	ecd300PutChar(ECD300_UART_2, c);
+#else
+	if(udi_cdc_is_tx_ready()) {
+		udi_cdc_putc(c);
+	}
+#endif
+}
+
 /**
  * \brief EBI chip select configuration
  *

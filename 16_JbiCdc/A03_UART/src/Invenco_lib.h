@@ -21,6 +21,7 @@
 // functions to send information to the monitor in host
 void printString(char * pString);
 void printHex(unsigned char hex);
+void inline printChar(unsigned char c);
 
 // functions app uses to exchange data with host
 void clearInputBuffer(void);
