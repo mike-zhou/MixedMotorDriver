@@ -587,6 +587,10 @@ static void _processScsInputStage(void)
 		{
 			printString("ERROR: - ");
 			printHex(_scsInputStage.packetByteAmount);
+			printString(":");
+			for(unsigned char i=0; i<_scsInputStage.packetByteAmount; i++) {
+				printHex(_scsInputStage.packetBuffer[i]);
+			}
 			printString("\r\n");
 			_scsInputStage.packetByteAmount = 0; //discard packet data
 		}
@@ -611,7 +615,12 @@ static void _processScsInputStage(void)
 			if((crcLow != pPacket[SCS_PACKET_LENGTH -2]) || (crcHigh != pPacket[SCS_PACKET_LENGTH -1])) 
 			{
 				//invalid packet
-				printString("ERROR: crc mismatch\r\n");
+				printString("ERROR: crc mismatch:");
+				for(unsigned char i=0; i<SCS_PACKET_LENGTH; i++) {
+					printHex(_scsInputStage.packetBuffer[i]);
+				}
+				printString("\r\n");
+				
 				_scsInputStage.packetByteAmount = 0; //discard packet
 				break;
 			}
