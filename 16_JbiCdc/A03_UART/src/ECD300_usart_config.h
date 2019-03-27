@@ -38,7 +38,7 @@
 #define ECD300_UART2_ENABLED_INT
 #ifdef ECD300_UART2_ENABLED_INT
 //select the length of buffers, should be one of 0xff, 0x7f, 0x3f, 0x1f, 0xf, 0x7, 0x3.
-#define ECD300_UART2_INT_RECEIVE_BUFFER_LENGTH 		0xf
+#define ECD300_UART2_INT_RECEIVE_BUFFER_LENGTH 		0xff
 #define ECD300_UART2_INT_TRANSMIT_BUFFER_LENGTH 	0xff
 //the level can be 0x1(low), 0x2(medium), 0x3(high)
 #define ECD300_UART2_INT_LEVEL_RECEIVE 	0x1
