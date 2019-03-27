@@ -439,6 +439,7 @@ static struct SCS_Input_Stage _scsInputStage;
 static unsigned short _scsInputTimeOut;
 static struct SCS_Output_Stage _scsOutputStage;
 static unsigned short _scsDataAckTimeout;
+static unsigned short _scsOutputTimeout;
 
 static inline void _uCharToHex(unsigned char c, unsigned char * pLow4Bits, unsigned char * pHigh4Bits) 
 {
@@ -537,7 +538,7 @@ static bool _calculateCrc16(unsigned char * pData, unsigned char length, unsigne
 	uint32_t crc;
 	
 	if((pData == NULL) || (pCrcLow == NULL) || (pCrcHigh == NULL)) {
-		printString("ERR: NULL in _calculateCrc16\r\n");
+		printString("ERROR: NULL in _calculateCrc16\r\n");
 		return false;
 	}
 	
@@ -593,6 +594,7 @@ static bool _sendInputAcknowledgment(unsigned char packetId)
 		_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK_AND_SENDING;
 	}
 	_scsOutputStage.deliveryIndex = 0;
+	_scsOutputStage.outputTimeStamp = counter_get();
 		
 	return true;
 }
@@ -785,12 +787,15 @@ static void _processScsInputStage(void)
 //send out data in output stage as much as possible
 static void _processScsOutputStage(void)
 {
+	bool dataSent = false;
+	
 	if(_scsOutputStage.state == SCS_OUTPUT_SENDING) 
 	{
 		for(;;) 
 		{
 			if(_putChar(_scsOutputStage.deliveryBuffer[_scsOutputStage.deliveryIndex]))
 			{
+				dataSent = true;
 				_scsOutputStage.deliveryIndex++;
 				if(_scsOutputStage.deliveryIndex < SCS_PACKET_LENGTH) {
 					continue;
@@ -810,7 +815,7 @@ static void _processScsOutputStage(void)
 				else if(tag == SCS_DATA_PACKET_TAG) 
 				{
 					_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //wait for the acknowledgment
-					_scsOutputStage.timeStamp = counter_get();
+					_scsOutputStage.ackTimeStamp = counter_get();
 					printString("< D ");
 					printHex(curPacketId);
 					printChar(' ');
@@ -823,7 +828,34 @@ static void _processScsOutputStage(void)
 				}
 				break;
 			}
-			else {
+			else 
+			{
+				if(dataSent) {
+					_scsOutputStage.outputTimeStamp = counter_get();
+				}
+				else 
+				{
+					if(counter_diff(_scsOutputStage.outputTimeStamp) > _scsOutputTimeout)
+					{
+						unsigned char tag = _uCharFromHex(_scsOutputStage.deliveryBuffer[1], _scsOutputStage.deliveryBuffer[0]);
+						unsigned char curPacketId = _uCharFromHex(_scsOutputStage.deliveryBuffer[3], _scsOutputStage.deliveryBuffer[2]);
+						
+						_scsOutputStage.outputTimeStamp = counter_get();
+						printString("ERROR: | ");
+						if(tag == SCS_ACK_PACKET_TAG) {
+							printString("A ");
+						}
+						else if(tag == SCS_DATA_PACKET_TAG) {
+							printString("D ");
+						}
+						else {
+							printString("! ");
+						}
+						printHex(curPacketId);
+						printChar(' ');
+						printHex(_scsOutputStage.deliveryIndex);
+					}
+				}
 				break;//no free space in USB end point
 			}
 		}
@@ -834,6 +866,7 @@ static void _processScsOutputStage(void)
 		{
 			if(_putChar(_scsOutputStage.deliveryBuffer[_scsOutputStage.deliveryIndex]))
 			{
+				dataSent = true;
 				_scsOutputStage.deliveryIndex++;
 				if(_scsOutputStage.deliveryIndex < SCS_PACKET_LENGTH) {
 					continue;
@@ -863,7 +896,34 @@ static void _processScsOutputStage(void)
 				_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //wait for the acknowledgment
 				break;
 			}
-			else {
+			else 
+			{
+				if(dataSent) {
+					_scsOutputStage.outputTimeStamp = counter_get();
+				}
+				else
+				{
+					if(counter_diff(_scsOutputStage.outputTimeStamp) > _scsOutputTimeout)
+					{
+						unsigned char tag = _uCharFromHex(_scsOutputStage.deliveryBuffer[1], _scsOutputStage.deliveryBuffer[0]);
+						unsigned char curPacketId = _uCharFromHex(_scsOutputStage.deliveryBuffer[3], _scsOutputStage.deliveryBuffer[2]);
+						
+						_scsOutputStage.outputTimeStamp = counter_get();
+						printString("ERROR: | ");
+						if(tag == SCS_ACK_PACKET_TAG) {
+							printString("A ");
+						}
+						else if(tag == SCS_DATA_PACKET_TAG) {
+							printString("D ");
+						}
+						else {
+							printString("! ");
+						}
+						printHex(curPacketId);
+						printChar(' ');
+						printHex(_scsOutputStage.deliveryIndex);
+					}
+				}
 				break;//no free space in USB end point
 			}
 		}
@@ -871,7 +931,7 @@ static void _processScsOutputStage(void)
 	
 	if(_scsOutputStage.state == SCS_OUTPUT_WAITING_ACK) 
 	{
-		if(counter_diff(_scsOutputStage.timeStamp) >= _scsDataAckTimeout) 
+		if(counter_diff(_scsOutputStage.ackTimeStamp) >= _scsDataAckTimeout) 
 		{
 			//re-send this data packet
 			for(unsigned char i=0; i<SCS_PACKET_LENGTH; i++) {
@@ -879,6 +939,8 @@ static void _processScsOutputStage(void)
 			}
 			_scsOutputStage.state = SCS_OUTPUT_SENDING;
 			_scsOutputStage.deliveryIndex = 0;
+			_scsOutputStage.outputTimeStamp = counter_get();
+			printString("ERROR: ACK Timeout ");
 		}
 	}
 	
@@ -953,6 +1015,7 @@ static void _fillScsOutputStage(void)
 	//get ready for being sent.
 	_scsOutputStage.state = SCS_OUTPUT_SENDING;
 	_scsOutputStage.deliveryIndex = 0;
+	_scsOutputStage.outputTimeStamp = counter_get();
 	
 	//increase packet id
 	_scsOutputStage.packetId++;
@@ -983,6 +1046,7 @@ void initScsDataExchange(void)
 	_scsInputStage.dataBufferWriteIndex = 0;
 	
 	_scsDataAckTimeout = ((uint32_t)SCS_DATA_ACK_TIMEOUT * 1000)/counter_clock_length();
+	_scsOutputTimeout = ((uint32_t)SCS_DATA_OUTPUT_TIMEOUT * 1000)/counter_clock_length();
 	_scsOutputStage.deliveryIndex = 0;
 	_scsOutputStage.state = SCS_OUTPUT_IDLE;
 	_scsOutputStage.packetId = SCS_INITIAL_PACKET_ID;

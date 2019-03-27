@@ -84,6 +84,7 @@ Acknowledge packet structure:
 /************************************************************************/
 #define SCS_DATA_INPUT_TIMEOUT 50 //milliseconds
 #define SCS_DATA_ACK_TIMEOUT 200 //milliseconds
+#define SCS_DATA_OUTPUT_TIMEOUT 200 //milliseconds
 #define SCS_INITIAL_PACKET_ID 0 //this id is used only once at the launch of application
 #define SCS_INVALID_PACKET_ID 0xFF
 #define SCS_INPUT_STAGE_DATA_BUFFER_INDEX_MASK 0x7f //shouldn't exceed 0xff, constrained by width of buffer access index.
@@ -120,7 +121,8 @@ struct SCS_Output_Stage
 	unsigned char deliveryBuffer[SCS_PACKET_LENGTH];
 	enum SCS_Output_Packet_State state;
 	unsigned char deliveryIndex;
-	unsigned short timeStamp;
+	unsigned short ackTimeStamp;
+	unsigned short outputTimeStamp;
 	unsigned char packetId;
 };
 
