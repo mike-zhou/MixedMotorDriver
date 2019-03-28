@@ -753,7 +753,7 @@ static void _processScsOutputStage(void)
 						else if(tag == SCS_DATA_PACKET_TAG) {
 							printString("D ");
 						}
-			else {
+						else {
 							printString("! ");
 						}
 						printHex(curPacketId);
@@ -818,7 +818,7 @@ static void _processScsOutputStage(void)
 						else if(tag == SCS_DATA_PACKET_TAG) {
 							printString("D ");
 						}
-			else {
+						else {
 							printString("! ");
 						}
 						printHex(curPacketId);
