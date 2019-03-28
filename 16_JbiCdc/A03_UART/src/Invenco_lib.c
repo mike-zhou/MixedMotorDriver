@@ -742,8 +742,8 @@ static void _processScsOutputStage(void)
 				{
 					if(counter_diff(_scsOutputStage.outputTimeStamp) > _scsOutputTimeout)
 					{
-						unsigned char tag = _uCharFromHex(_scsOutputStage.deliveryBuffer[1], _scsOutputStage.deliveryBuffer[0]);
-						unsigned char curPacketId = _uCharFromHex(_scsOutputStage.deliveryBuffer[3], _scsOutputStage.deliveryBuffer[2]);
+						unsigned char tag = _scsOutputStage.deliveryBuffer[0];
+						unsigned char curPacketId = _scsOutputStage.deliveryBuffer[1];
 						
 						_scsOutputStage.outputTimeStamp = counter_get();
 						printString("ERROR: | ");
@@ -807,8 +807,8 @@ static void _processScsOutputStage(void)
 				{
 					if(counter_diff(_scsOutputStage.outputTimeStamp) > _scsOutputTimeout)
 					{
-						unsigned char tag = _uCharFromHex(_scsOutputStage.deliveryBuffer[1], _scsOutputStage.deliveryBuffer[0]);
-						unsigned char curPacketId = _uCharFromHex(_scsOutputStage.deliveryBuffer[3], _scsOutputStage.deliveryBuffer[2]);
+						unsigned char tag = _scsOutputStage.deliveryBuffer[0];
+						unsigned char curPacketId = _scsOutputStage.deliveryBuffer[1];
 						
 						_scsOutputStage.outputTimeStamp = counter_get();
 						printString("ERROR: | ");
