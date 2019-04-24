@@ -1339,40 +1339,15 @@ void ecd300SolenoidDriver(void)
 	//PD0 works as indicator of host output
 	PORTD_DIRSET = 0x01;
 	
-	udc_start();
-	
-	echoCommand = false;
-	
 	while(1)
 	{
 		unsigned char key;
 		
-		if (udi_cdc_is_rx_ready())
+		pollScsDataExchange();
+		
+		if (getScsInputData(&key))
 		{
-			//read a char from USB buffer.
-			key = (unsigned char)udi_cdc_getc();
-			
-			//echo to serial port for debug
-			{
-				unsigned char serialBuf[4];
-				
-				printHex(key);printString(":");
-				serialBuf[0] = key;
-				serialBuf[1] = '\r';
-				serialBuf[2] = '\n';
-				serialBuf[3] = 0;
-				printString(serialBuf);
-			}
-			
-			
 			writeInputBuffer(key); //append to input buffer
-			if(echoCommand) 
-			{
-				writeOutputBufferChar(key); //echo char to host
-				if(key == 0x0D) {
-					writeOutputBufferChar(0x0A); //append a new line.
-				}
-			}
 			
 			//toggle PD0 to indicate character reception.
 			if(PORTD_IN&0x01) {
