@@ -61,6 +61,7 @@ extern void ecd300CheckShortCircute(void);
 
 extern void ecd300MixedMotorDrivers(void);
 
+extern void ecd300SolenoidDriver(void);
 
 int main (void)
 {
@@ -79,6 +80,7 @@ int main (void)
 	//ecd300TestJbi();
 	//ecd300CheckShortCircute();
 	//ecd300SmartCardSwitch();
-	ecd300MixedMotorDrivers();
+	//ecd300MixedMotorDrivers();
+	ecd300SolenoidDriver();	
 }
 
