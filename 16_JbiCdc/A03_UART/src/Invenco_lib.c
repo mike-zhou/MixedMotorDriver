@@ -91,7 +91,7 @@ void printHex(unsigned char hex)
 #endif
 }
 
-void inline printChar(unsigned char c)
+void printChar(unsigned char c)
 {
 #ifdef DATA_EXCHANGE_THROUGH_USB
 	ecd300PutChar(ECD300_UART_2, c);

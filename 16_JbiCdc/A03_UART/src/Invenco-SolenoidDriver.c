@@ -1244,6 +1244,7 @@ static void mmd_run_command(void)
 		{
 			case COMMAND_QUREY_NAME:
 			{
+				enableOutputBuffer();
 				mmd_write_reply_header();
 				writeOutputBufferString("\"name\":\""); writeOutputBufferString(SD_PRODUCT_NAME); writeOutputBufferString("\"");
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
