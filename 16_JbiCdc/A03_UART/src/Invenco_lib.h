@@ -16,7 +16,7 @@
 //Only 2 communication channels are available, USB and UART.
 //If the following is defined, ScsDataExchange interacts with host through USB, 
 //otherwise with UART.
-//#define DATA_EXCHANGE_THROUGH_USB
+#define DATA_EXCHANGE_THROUGH_USB
 
 // functions to send information to the monitor in host
 void printString(char * pString);
