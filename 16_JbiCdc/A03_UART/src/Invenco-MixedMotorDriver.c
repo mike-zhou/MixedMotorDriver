@@ -48,6 +48,7 @@ enum MMD_command_e
 	COMMAND_STEPPER_CONFIG_HOME = 60,	// C 60 stepperIndex locatorIndex lineNumberStart lineNumberTerminal cmdId
 	COMMAND_STEPPER_QUREY = 61,			// C 61 stepperIndex cmdId
 	COMMAND_STEPPER_SET_STATE = 62,		// C 62 stepperIndex state cmdId
+	COMMAND_STEPPER_FORWARD_CLOCKWISE = 63,				// C 63 stepperIndex 1/0 cmdId
 	COMMAND_LOCATOR_QUERY = 100			// C 100 locatorHubIndex cmdId
 };
 
@@ -91,6 +92,7 @@ static const char * STR_STEPPER_LOCATOR_LINE_NUMBER_START = "\"locatorLineNumber
 static const char * STR_STEPPER_LOCATOR_LINE_NUMBER_TERMINAL = "\"locatorLineNumberTerminal\":";
 static const char * STR_STEPPER_IS_ENABLED = "\"enabled\":";
 static const char * STR_STEPPER_FORWARD = "\"forward\":";
+static const char * STR_STEPPER_FORWARD_CLOCKWISE = "\"forwardClockwise\":";
 static const char * STR_STEPPER_HOME_OFFSET = "\"homeOffset\":";
 static const char * STR_STEPPER_TOTAL_STEPS = "\"totalSteps\":";
 static const char * STR_STEPPER_CURRENT_STEP_INDEX = "\"currentStepIndex\":";
@@ -155,6 +157,7 @@ struct MMD_stepper_data
 	
 	bool enabled;
 	bool forward;
+	bool forwardClockwise;
 	unsigned short homeOffset;
 	unsigned short totalSteps;
 	unsigned short currentStepIndex;
@@ -345,6 +348,7 @@ static void MMD_init(void)
 
 		mmdCommand.steppersData[index].enabled = false;
 		mmdCommand.steppersData[index].forward = true;
+		mmdCommand.steppersData[index].forwardClockwise = true;
 
 		mmdCommand.steppersData[index].totalSteps = 0;
 		mmdCommand.steppersData[index].currentStepIndex = 0;
@@ -708,12 +712,33 @@ static bool MMD_are_steppers_powered_on(void)
 // stepper backwards if it approaches home
 static void MMD_stepper_forward(unsigned char stepperIndex, bool forward)
 {
+	bool clockwise;
+	
+	if(forward) 
+	{
+		if(mmdCommand.steppersData[stepperIndex].forwardClockwise) {
+			clockwise = true;
+		}
+		else {
+			clockwise = false;
+		}
+	}
+	else 
+	{
+		if(mmdCommand.steppersData[stepperIndex].forwardClockwise) {
+			clockwise = false;
+		}
+		else {
+			clockwise = true;
+		}
+	}
+	
 	switch(stepperIndex)
 	{
 		case 0: // stepper 1
 		{
 			//Q6: PK7
-			if(forward) {
+			if(clockwise) {
 				PORTK_OUTCLR = 0x80;
 			}
 			else {
@@ -727,7 +752,7 @@ static void MMD_stepper_forward(unsigned char stepperIndex, bool forward)
 		case 1: // stepper 2
 		{
 			//Q9: PK4
-			if(forward) {
+			if(clockwise) {
 				PORTK_OUTCLR = 0x10;
 			}
 			else {
@@ -741,7 +766,7 @@ static void MMD_stepper_forward(unsigned char stepperIndex, bool forward)
 		case 2: // stepper 3
 		{
 			//Q12, PK1
-			if(forward) {
+			if(clockwise) {
 				PORTK_OUTCLR = 0x02;
 			}
 			else {
@@ -755,7 +780,7 @@ static void MMD_stepper_forward(unsigned char stepperIndex, bool forward)
 		case 3: //stepper 4
 		{
 			//Q15, PJ6
-			if(forward) {
+			if(clockwise) {
 				PORTJ_OUTCLR = 0x40;
 			}
 			else {
@@ -769,7 +794,7 @@ static void MMD_stepper_forward(unsigned char stepperIndex, bool forward)
 		case 4: //stepper 5
 		{
 			//Q32, PJ3
-			if(forward) {
+			if(clockwise) {
 				PORTJ_OUTCLR = 0x08;
 			}
 			else {
@@ -2176,6 +2201,12 @@ static void mmd_stepper_query(unsigned char stepperIndex)
 	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->forward);
 	writeOutputBufferString("\",");
+
+	//forward
+	writeOutputBufferString(STR_STEPPER_FORWARD_CLOCKWISE);
+	writeOutputBufferChar('"');
+	writeOutputBufferHex(pData->forwardClockwise);
+	writeOutputBufferString("\",");
 	
 	//locator
 	writeOutputBufferString(STR_STEPPER_LOCATOR_INDEX);
@@ -2516,6 +2547,7 @@ static void mmd_parse_command(void)
 		case COMMAND_STEPPER_CONFIG_HOME:
 		case COMMAND_STEPPER_QUREY:
 		case COMMAND_STEPPER_SET_STATE:
+		case COMMAND_STEPPER_FORWARD_CLOCKWISE:
 		case COMMAND_LOCATOR_QUERY:
 		{
 			mmdCommand.command = cmd;
@@ -2909,6 +2941,38 @@ static void mmd_run_command(void)
 				else if(state > STEPPER_STATE_DECELERATING) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_WRONG_STATE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+					clearInputBuffer();
+					mmdCommand.state = AWAITING_COMMAND;
+				}
+				else {
+					mmdCommand.state = EXECUTING_COMMAND;
+				}
+			}
+			break;
+			
+			case COMMAND_STEPPER_FORWARD_CLOCKWISE:
+			{
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				unsigned char clockWise = mmdCommand.parameters[1];
+				
+				if(mmdCommand.parameterAmount != 3){
+					mmd_write_reply_header();
+					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+					clearInputBuffer();
+					mmdCommand.state = AWAITING_COMMAND;
+				}
+				else if(stepperIndex >= MMD_STEPPERS_AMOUNT) {
+					mmd_write_reply_header();
+					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+					clearInputBuffer();
+					mmdCommand.state = AWAITING_COMMAND;
+				}
+				else if((clockWise != 0) && (clockWise != 1)) {
+					mmd_write_reply_header();
+					writeOutputBufferString(STR_INVALID_PARAMETER);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
 					clearInputBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
@@ -3358,6 +3422,17 @@ static void mmd_run_command(void)
 				mmdCommand.steppersData[stepperIndex].homeOffset = 0;
 				mmdCommand.steppersData[stepperIndex].totalSteps = 0;
 				
+				mmd_write_succeess_reply();
+				mmdCommand.state = AWAITING_COMMAND;
+			}
+			break;
+			
+			case COMMAND_STEPPER_FORWARD_CLOCKWISE:
+			{
+				unsigned char stepperIndex = mmdCommand.parameters[0];
+				bool clockwise = (mmdCommand.parameters[1] != 0);
+
+				mmdCommand.steppersData[stepperIndex].forwardClockwise = clockwise;
 				mmd_write_succeess_reply();
 				mmdCommand.state = AWAITING_COMMAND;
 			}
