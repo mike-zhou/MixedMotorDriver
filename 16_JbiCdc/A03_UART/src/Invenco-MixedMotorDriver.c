@@ -2202,7 +2202,7 @@ static void mmd_stepper_query(unsigned char stepperIndex)
 	writeOutputBufferHex(pData->forward);
 	writeOutputBufferString("\",");
 
-	//forward
+	//forwardClockwise
 	writeOutputBufferString(STR_STEPPER_FORWARD_CLOCKWISE);
 	writeOutputBufferChar('"');
 	writeOutputBufferHex(pData->forwardClockwise);
