@@ -1149,6 +1149,7 @@ static void mmd_parse_command(void)
 
 static void mmd_cancel_command(void)
 {
+	SD_deactivate_all_solenoids();	
 	clearInputBuffer();
 	sdCommand.state = AWAITING_COMMAND;
 }
