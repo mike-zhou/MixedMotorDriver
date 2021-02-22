@@ -13,7 +13,7 @@
 //////////////////////////////////////////////////
 void printString(char * pString)
 {
-#ifdef DATA_EXCHANGE_THROUGH_USB
+#if DATA_EXCHANGE_THROUGH_USB
 	unsigned char c;
 	char rc;
 	
@@ -46,7 +46,7 @@ void printString(char * pString)
 
 void printHex(unsigned char hex)
 {
-#ifdef DATA_EXCHANGE_THROUGH_USB
+#if DATA_EXCHANGE_THROUGH_USB
 	unsigned char c;
 	unsigned char rc;
 	
@@ -93,7 +93,7 @@ void printHex(unsigned char hex)
 
 void inline printChar(unsigned char c)
 {
-#ifdef DATA_EXCHANGE_THROUGH_USB
+#if DATA_EXCHANGE_THROUGH_USB
 	ecd300PutChar(ECD300_UART_2, c);
 #else
 	if(udi_cdc_is_tx_ready()) {
@@ -225,45 +225,55 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 
 //data buffer for upper layer software
 #define APP_INPUT_BUFFER_INDEX_MASK 0xFF
-#define APP_OUTPUT_BUFFER_INDEX_MASK 0x3FF
+#define APP_OUTPUT_BUFFER_INDEX_MASK 0xFF
 static	unsigned char inputBuffer[APP_INPUT_BUFFER_INDEX_MASK + 1]; 
 static	unsigned char outputBuffer[APP_OUTPUT_BUFFER_INDEX_MASK + 1];
+// the way to check whether buffer is full:
+//	if ((producer + 1) & mask) == consumer, then buffer is full
 static	unsigned short inputProducerIndex=0;
 static	unsigned short inputConsumerIndex=0;
 static	unsigned short outputProducerIndex=0;
 static	unsigned short outputConsumerIndex=0;
 static  bool outputBufferEnabled = false;
 static  bool outputOverflow = false;
-static  bool inputOverflow = false;
+
+// return free space in APP's input buffer
+static inline unsigned short _getAppInputBufferAvailable()
+{
+	if(inputProducerIndex >= inputConsumerIndex) {
+		return APP_INPUT_BUFFER_INDEX_MASK - (inputProducerIndex - inputConsumerIndex);
+	}
+	else {
+		return inputConsumerIndex - inputProducerIndex - 1;
+	}
+}
+
+// write to APP's input buffer
+// return amount of byte written to APP's input buffer. 
+static inline unsigned short _writeAppInputBuffer(unsigned char * pBuffer, unsigned short length)
+{
+	unsigned short i;
+	unsigned short nextWritingIndex;
+	
+	for(i=0; i<length; i++) 
+	{
+		nextWritingIndex = (inputProducerIndex + 1) & APP_INPUT_BUFFER_INDEX_MASK;
+		if(nextWritingIndex == inputConsumerIndex) {
+			//input buffer is full
+			break;
+		}
+		
+		inputBuffer[inputProducerIndex] = pBuffer[i];
+		inputProducerIndex = nextWritingIndex;
+	}
+	
+	return i;
+}
 
 void clearInputBuffer(void)
 {
 	inputProducerIndex = 0;
 	inputConsumerIndex = 0;
-}
-
-//write a character to input buffer.
-//return true if parameter is saved successfully.
-//return false if input buffer overflows.
-bool writeInputBuffer(unsigned char c)
-{
-	unsigned short nextProducerIndex = (inputProducerIndex + 1) & APP_INPUT_BUFFER_INDEX_MASK;
-	
-	if(nextProducerIndex != inputConsumerIndex) {
-		inputBuffer[inputProducerIndex] = c;
-		inputProducerIndex = nextProducerIndex;
-		inputOverflow = false;
-		return true;
-	}
-	else {
-		//overflow.
-		if(!inputOverflow) {
-			inputOverflow = true;
-			printChar('!');
-		}
-		clearInputBuffer();
-		return false;
-	}
 }
 
 // read a character from input buffer.
@@ -284,6 +294,36 @@ unsigned char readInputBuffer(void)
 	return c;
 }
 
+//return amount of bytes in output buffer
+unsigned short _getOutputBufferUsed()
+{
+	if(outputProducerIndex >= outputConsumerIndex) {
+		return outputProducerIndex - outputConsumerIndex;
+	}
+	else {
+		return outputProducerIndex + APP_OUTPUT_BUFFER_INDEX_MASK + 1 - outputConsumerIndex;
+	}
+}
+
+//read size of bytes from output buffer to pBuffer
+// return actual size of bytes written to pBuffer.
+unsigned short _readOutputBuffer(unsigned char * pBuffer, unsigned short size)
+{
+	unsigned short counter;
+	
+	for(counter=0; counter<size; counter++) 
+	{
+		if(outputConsumerIndex == outputProducerIndex) {
+			break;
+		}
+		*pBuffer = outputBuffer[outputConsumerIndex];
+		pBuffer++;
+		outputConsumerIndex = (outputConsumerIndex + 1) & APP_OUTPUT_BUFFER_INDEX_MASK;
+	}
+	
+	return counter;
+}
+
 //write a character to output buffer
 //return true if parameter is saved successfully
 //return false if output buffer overflows
@@ -293,9 +333,8 @@ bool writeOutputBufferChar(unsigned char c)
 		return false;
 	}
 	
-	unsigned short nextProducerIndex;
+	unsigned short nextProducerIndex = (outputProducerIndex + 1) & APP_OUTPUT_BUFFER_INDEX_MASK;
 	
-	nextProducerIndex = (outputProducerIndex + 1) & APP_OUTPUT_BUFFER_INDEX_MASK;
 	if(nextProducerIndex == outputConsumerIndex) {
 		if(outputOverflow == false) {
 			outputOverflow = true;
@@ -352,25 +391,15 @@ void writeOutputBufferHex(unsigned char n)
 	}
 }
 
-void sendOutputBufferToHost(void)
-{
-	//for(;outputConsumerIndex != outputProducerIndex;)
-	//{
-		//if(udi_cdc_is_tx_ready()) {
-			//udi_cdc_putc(outputBuffer[outputConsumerIndex]);
-			//outputConsumerIndex = (outputConsumerIndex + 1) & BUFFER_LENGTH;
-		//}
-		//else {
-			//break;
-		//}
-	//}
-}
-
 void enableOutputBuffer(void)
 {
 	outputBufferEnabled = true;
 }
 
+
+/*******************************************************
+* Counter
+*******************************************************/
 void counter_init(void)
 {
 	//set counter. The resolution should be 31MHz/1024.
@@ -434,73 +463,124 @@ unsigned short counter_clock_length(void)
 }
 
 
+/*********************************************************
+* Data exchange stages
+**********************************************************/
+#define SCS_PACKET_MAX_LENGTH 64
+#define SCS_DATA_PACKET_TAG 0xDD
+/************************************************************************/
+/* 
+Data packet structure:
+	0xDD		// 1 byte
+	id			// 1 byte: 0, 1 to 0xFE
+	dataLength	// 1 byte
+	data bytes	// bytes of dataLength
+	crcLow		// 1 byte
+	crcHigh		// 1 byte                                                                    
+*/
+/************************************************************************/
+#define SCS_ACK_PACKET_TAG 0xAA
+/************************************************************************/
+/*          
+Acknowledge packet structure:
+	0xAA		// 1 byte
+	id			// 1 byte: 0, 1 to 0xFE
+	crcLow      // 1 byte
+	crcHigh		// 1 byte                                           
+*/
+/************************************************************************/
+#define SCS_DATA_PACKET_STAFF_LENGTH 5 //tag, id, dataLength, crcLow, crcHigh
+#define SCS_DATA_MAX_LENGTH (SCS_PACKET_MAX_LENGTH - SCS_DATA_PACKET_STAFF_LENGTH)
+#define SCS_ACK_PACKET_LENGTH 4
+#define SCS_DATA_INPUT_TIMEOUT 50 //milliseconds
+#define SCS_DATA_OUTPUT_TIMEOUT 200 //milliseconds
+#define SCS_INITIAL_PACKET_ID 0 //this id is used only once at the launch of application
+#define SCS_INVALID_PACKET_ID 0xFF
+enum SCS_Input_Stage_State
+{
+	SCS_INPUT_IDLE = 0,
+	SCS_INPUT_RECEIVING
+};
+struct SCS_Input_Stage
+{
+	enum SCS_Input_Stage_State state;
+	unsigned char packetBuffer[SCS_PACKET_MAX_LENGTH];
+	unsigned char byteAmount;
+	unsigned short timeStamp;
+	unsigned char prevDataPktId;
+};
+
+enum SCS_Output_Packet_State
+{
+	SCS_OUTPUT_IDLE = 0,
+	SCS_OUTPUT_SENDING_DATA,
+	SCS_OUTPUT_SENDING_ACK,
+	SCS_OUTPUT_SENDING_DATA_PENDING_ACK,
+	SCS_OUTPUT_WAIT_ACK,
+	SCS_OUTPUT_SENDING_ACK_WAIT_ACK
+};
+
+struct SCS_Output_Stage
+{
+	enum SCS_Output_Packet_State state;
+	//data packet
+	unsigned char dataPktBuffer[SCS_PACKET_MAX_LENGTH];
+	unsigned char dataPktSendingIndex; //index of byte to be sent
+	unsigned char currentDataPktId;
+	unsigned char ackedDataPktId;
+	unsigned short dataPktTimeStamp;
+	//acknowledge packet
+	unsigned char ackPktBuffer[SCS_ACK_PACKET_LENGTH];
+	unsigned char ackPktSendingIndex; //index of byte to be sent
+};
 
 static struct SCS_Input_Stage _scsInputStage;
 static unsigned short _scsInputTimeOut;
 static struct SCS_Output_Stage _scsOutputStage;
-static unsigned short _scsDataAckTimeout;
 static unsigned short _scsOutputTimeout;
 
-static inline void _uCharToHex(unsigned char c, unsigned char * pLow4Bits, unsigned char * pHigh4Bits) 
-{
-	unsigned char low, high;
-	
-	low = c & 0xf;
-	if(low <= 9) {
-		*pLow4Bits = low + '0';
-	}
-	else {
-		*pLow4Bits = low - 0xA + 'A';
-	}
-	
-	high = (c >> 4) & 0xf;
-	if(high <= 9) {
-		*pHigh4Bits = high + '0';
-	}
-	else {
-		*pHigh4Bits = high - 0xA + 'A';
-	}
-}
+#if DATA_EXCHANGE_THROUGH_USB
 
-static inline unsigned char _uCharFromHex(unsigned char low4Bits, unsigned char high4Bits)
-{
-	unsigned char c;
-	
-	if((high4Bits >= '0') && (high4Bits <= '9')) {
-		c = high4Bits - '0';
-	}
-	else if((high4Bits >= 'A') && (high4Bits <= 'F')) {
-		c = high4Bits - 'A' + 0xA;
-	}
-	else { //take for granted that the high4Bits is between 'a' and 'f'
-		c = high4Bits - 'a' + 0xA;
+	#define USB_INPUT_BUFFER_SIZE 64
+	static unsigned char _usbInputBuffer[USB_INPUT_BUFFER_SIZE];
+	static unsigned char _usbInputBufferConsumerIndex;
+	static unsigned char _usbInputBufferUsed;
+	static void _initUsbInputBuffer()
+	{
+		_usbInputBufferConsumerIndex = 0;
+		_usbInputBufferUsed = 0;
 	}
 	
-	c = (c << 4) & 0xF0;
+#endif
 
-	if((low4Bits >= '0') && (low4Bits <= '9')) {
-		c += low4Bits - '0';
-	}
-	else if((low4Bits >= 'A') && (low4Bits <= 'F')) {
-		c += low4Bits - 'A' + 0xA;
-	}
-	else { //take for granted that the low4Bits is between 'a' and 'f'
-		c += low4Bits - 'a' + 0xA;
-	}
-	
-	return c;
-}
-
+//receive a character from host.
+// return true if a character is received.
 static bool _getChar(unsigned char * p)
 {
-#ifdef DATA_EXCHANGE_THROUGH_USB
-	if(udi_cdc_is_rx_ready()) {
-		*p = udi_cdc_getc();
-		return true;
+#if DATA_EXCHANGE_THROUGH_USB
+	if(_usbInputBufferConsumerIndex == _usbInputBufferUsed) 
+	{
+		//read data from USB device
+		iram_size_t available = udi_cdc_get_nb_received_data();
+		iram_size_t remaining;
+		
+		if(available != 0) 
+		{
+			if(available > USB_INPUT_BUFFER_SIZE) {
+				available = USB_INPUT_BUFFER_SIZE;
+			}	
+			remaining = udi_cdc_read_buf(_usbInputBuffer, available);
+			_usbInputBufferConsumerIndex = 0;
+			_usbInputBufferUsed = available - remaining;
+		}
 	}
-	else {
-		return false;
+	if(_usbInputBufferConsumerIndex == _usbInputBufferUsed) {
+		return false; //no data to read
 	}
+	
+	*p = _usbInputBuffer[_usbInputBufferConsumerIndex];
+	_usbInputBufferConsumerIndex++;
+	return true;
 #else
 	char rc = ecd300PollChar(ECD300_UART_2, p);
 	if(rc==1) {
@@ -512,9 +592,10 @@ static bool _getChar(unsigned char * p)
 #endif
 }
 
+//send a character to host
 static bool _putChar(unsigned char c)
 {
-#ifdef DATA_EXCHANGE_THROUGH_USB
+#if DATA_EXCHANGE_THROUGH_USB
 	if(udi_cdc_is_tx_ready()) {
 		udi_cdc_putc(c);
 		return true;		
@@ -523,13 +604,49 @@ static bool _putChar(unsigned char c)
 		return false;
 	}
 #else
-	int rc = ecd300PutChar(ECD300_UART_2, c);
+	char rc = ecd300PutChar(ECD300_UART_2, c);
 	if(rc == 0) {
 		return true;
 	}
 	else {
 		return false;
 	}
+#endif
+}
+
+//send a buffer to host
+// return amount of bytes sent out to host
+static unsigned char _putChars(unsigned char * pBuffer, unsigned char size)
+{
+#if DATA_EXCHANGE_THROUGH_USB
+
+	iram_size_t freeSpace = udi_cdc_get_free_tx_buffer();
+	iram_size_t remaining = 0;
+	
+	if(freeSpace > size) {
+		freeSpace = size;
+	}
+	if(freeSpace > 0) {
+		remaining = udi_cdc_write_buf(pBuffer, freeSpace);
+	}
+	
+	return freeSpace - remaining;
+	
+#else
+
+	unsigned char counter;
+	char rc;
+	
+	for(counter = 0; counter < size; counter++)
+	{
+		rc = ecd300PutChar(ECD300_UART_2, pBuffer[counter]);
+		if(rc != 0) {
+			break;
+		}
+	}
+	
+	return counter;
+	
 #endif
 }
 
@@ -551,505 +668,445 @@ static bool _calculateCrc16(unsigned char * pData, unsigned char length, unsigne
 	return true;
 }
 
-//Send acknowledge of input data packet
-// return true if acknowledge is put to output stage
-// return false if acknowledge cannot be put to output stage
-static bool _sendInputAcknowledgment(unsigned char packetId)
+static inline void _initOutputStageAckPacket(unsigned char packetId)
 {
-	if((_scsOutputStage.state != SCS_OUTPUT_IDLE) && (_scsOutputStage.state != SCS_OUTPUT_WAITING_ACK)) {
-		return false;
-	}
-	
-	unsigned char * pPacket = _scsOutputStage.deliveryBuffer;
 	unsigned char crcLow, crcHigh;
-	unsigned char lowHex, highHex;
+	unsigned char * pBuffer = _scsOutputStage.ackPktBuffer;
 	
-	//construct the ACK packet.	
-	//tag
-	_uCharToHex(SCS_ACK_PACKET_TAG, &lowHex, &highHex);
-	pPacket[0] = highHex;
-	pPacket[1] = lowHex;
-	//packetId
-	_uCharToHex(packetId, &lowHex, &highHex);
-	pPacket[2] = highHex;
-	pPacket[3] = lowHex;
-	//paddings
-	for(unsigned char i=4; i<(SCS_PACKET_LENGTH -4); i++) {
-		pPacket[i] = '0';
-	}
-	//crc
-	_calculateCrc16(pPacket, SCS_PACKET_LENGTH - 4, &crcLow, &crcHigh);
-	_uCharToHex(crcLow, &lowHex, &highHex);
-	pPacket[SCS_PACKET_LENGTH - 4] = highHex;
-	pPacket[SCS_PACKET_LENGTH - 3] = lowHex;
-	_uCharToHex(crcHigh, &lowHex, &highHex);
-	pPacket[SCS_PACKET_LENGTH - 2] = highHex;
-	pPacket[SCS_PACKET_LENGTH - 1] = lowHex;
-	
-	//change state
-	if(_scsOutputStage.state == SCS_OUTPUT_IDLE) {
-		_scsOutputStage.state = SCS_OUTPUT_SENDING;
-	}
-	else { // in SCS_OUTPUT_WAITING_ACK
-		_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK_AND_SENDING;
-	}
-	_scsOutputStage.deliveryIndex = 0;
-	_scsOutputStage.outputTimeStamp = counter_get();
-		
-	return true;
+	pBuffer[0] = SCS_ACK_PACKET_TAG;
+	pBuffer[1] = packetId;
+	_calculateCrc16(pBuffer, 2, &crcLow, &crcHigh);
+	pBuffer[2] = crcLow;
+	pBuffer[3] = crcHigh;
 }
 
-static void _acknowledgeScsOutputPacket(unsigned char packetId)
+// acknowledge data packet received in input stage
+static inline void _ackInputStageDataPacket(unsigned char packetId) 
 {
-	if((_scsOutputStage.state != SCS_OUTPUT_WAITING_ACK) && (_scsOutputStage.state != SCS_OUTPUT_WAITING_ACK_AND_SENDING)) {
-		return; //do not expect an ACK.
-	}
-
-	unsigned char tag = _uCharFromHex(_scsOutputStage.packetBuffer[1], _scsOutputStage.packetBuffer[0]);
-	
-	if(tag == SCS_DATA_PACKET_TAG) 
+	switch(_scsOutputStage.state)
 	{
-		unsigned char curPacketId = _uCharFromHex(_scsOutputStage.packetBuffer[3], _scsOutputStage.packetBuffer[2]);
-		if(curPacketId == packetId) 
+		case SCS_OUTPUT_IDLE:
 		{
-			if(_scsOutputStage.state == SCS_OUTPUT_WAITING_ACK) {
-				_scsOutputStage.state = SCS_OUTPUT_IDLE; //ready for the next block of data
+			_initOutputStageAckPacket(packetId);
+			_scsOutputStage.ackPktSendingIndex = 0;
+			_scsOutputStage.state = SCS_OUTPUT_SENDING_ACK;
+		}
+		break;
+		case SCS_OUTPUT_SENDING_DATA:
+		{
+			_initOutputStageAckPacket(packetId);
+			_scsOutputStage.ackPktSendingIndex = 0;
+			_scsOutputStage.state = SCS_OUTPUT_SENDING_DATA_PENDING_ACK;
+		}
+		break;
+		case SCS_OUTPUT_WAIT_ACK:
+		{
+			_initOutputStageAckPacket(packetId);
+			_scsOutputStage.ackPktSendingIndex = 0;
+			_scsOutputStage.state = SCS_OUTPUT_SENDING_ACK_WAIT_ACK;
+		}
+		break;
+		default:
+		{
+			//cannot acknowledge Data packet.
+		}
+		break;
+	}
+}
+
+// be called when a ACK packet is received in input stage
+static inline void _on_inputStageAckPacketComplete(unsigned char packetId)
+{
+	_scsOutputStage.ackedDataPktId = packetId;
+}
+
+// be called when a Data packet is received in input stage
+static inline void _on_inputStageDataPacketComplete()
+{
+	unsigned char packetId = _scsInputStage.packetBuffer[1];
+	
+	if(packetId == SCS_INVALID_PACKET_ID) {
+		//illegal packet Id.
+		printString("ERROR: invalid DATA packet Id\r\n");
+		return;
+	}
+	if(packetId == _scsInputStage.prevDataPktId) {
+		//this packet has been received successfully, discard content of this packet.
+		_ackInputStageDataPacket(packetId);
+		return;
+	}
+	
+	//check continuation of packetId
+	if(_scsInputStage.prevDataPktId == SCS_INVALID_PACKET_ID) {
+		//this device just starts, any valid packet id is OK
+		// do nothing 
+	}
+	else 
+	{
+		if(packetId == 0) {
+			//this is the first packet from host
+			//do nothing
+		}
+		else 
+		{
+			unsigned char expectedPacketId = _scsInputStage.prevDataPktId + 1;
+				
+			if(expectedPacketId == SCS_INVALID_PACKET_ID) {
+				expectedPacketId = 1;
 			}
-			else {
-				_scsOutputStage.state = SCS_OUTPUT_SENDING;
+			if(packetId != expectedPacketId) {
+				printString("ERROR: unexpected host packetId "); 
+				printHex(packetId);
+				printString(" expect: ");
+				printHex(expectedPacketId);
+				printString("\r\n");
+				return; //ignore this packet.
 			}
 		}
 	}
-}
-
-static bool _saveInputData(unsigned char data)
-{
-	if((_scsInputStage.dataBufferWriteIndex + 1) == _scsInputStage.dataBufferReadIndex)
-	{
-		if(_scsInputStage.dataBufferOverflow == false)
-		{
-			printString("input overflow\r\n");
-			_scsInputStage.dataBufferOverflow = true;
-		}
-		return false;
-	}
-	else
-	{
-		_scsInputStage.dataBufferOverflow = false;
-		_scsInputStage.dataBuffer[_scsInputStage.dataBufferWriteIndex] = data;
-		_scsInputStage.dataBufferWriteIndex = (_scsInputStage.dataBufferWriteIndex + 1) & SCS_INPUT_STAGE_DATA_BUFFER_INDEX_MASK;
-		
-		return true;
-	}
-}
-
-bool getScsInputData(unsigned char * pData)
-{
-	if(pData == NULL) {
-		return false;
-	}
 	
-	if(_scsInputStage.dataBufferReadIndex == _scsInputStage.dataBufferWriteIndex) {
-		return false;
+	unsigned char dataLength = _scsInputStage.packetBuffer[2];
+	if(dataLength > _getAppInputBufferAvailable()) {
+		//not enough capacity in APP's inputBuffer
+		//do not send ACK so that this packet is re-sent by host later
+		printString("ERROR: not enough APP input buffer\r\n");
+		return;
 	}
-	else
-	{
-		*pData = _scsInputStage.dataBuffer[_scsInputStage.dataBufferReadIndex];
-		_scsInputStage.dataBufferReadIndex = (_scsInputStage.dataBufferReadIndex + 1) & SCS_INPUT_STAGE_DATA_BUFFER_INDEX_MASK;
-		return true;
-	}
+
+	_writeAppInputBuffer(_scsInputStage.packetBuffer + 3, dataLength);
+	_scsInputStage.prevDataPktId = packetId;
+	
+	_ackInputStageDataPacket(packetId);
 }
 
+// check if a packet from host is complete
 static void _processScsInputStage(void)
 {
-	bool dataReceived = false;
+	unsigned char c;
 	
-	if(_scsInputStage.packetByteAmount > 0)
+	if(_scsInputStage.state == SCS_INPUT_IDLE) 
 	{
-		//partial packet 
-		if(counter_diff(_scsInputStage.timeStamp) >= _scsInputTimeOut) 
+		if(_getChar(&c)) 
 		{
-			printString("ERROR: - ");
-			printHex(_scsInputStage.packetByteAmount);
-			printString(":");
-			for(unsigned char i=0; i<_scsInputStage.packetByteAmount; i++) {
-				printChar(_scsInputStage.packetBuffer[i]);
-			}
-			printString("\r\n");
-			_scsInputStage.packetByteAmount = 0; //discard packet data
-		}
-	}
-	
-	for(;;)
-	{
-		if(_getChar(_scsInputStage.packetBuffer + _scsInputStage.packetByteAmount))
-		{
-			dataReceived = true;
-			_scsInputStage.packetByteAmount++;
-			
-			if(_scsInputStage.packetByteAmount < SCS_PACKET_LENGTH) {
-				continue; //incomplete packet, continue receiving
-			}
-			
-			//enough bytes for a packet, check CRC
-			unsigned char crcLow, crcHigh;
-			unsigned char * pPacket =_scsInputStage.packetBuffer;
-			unsigned char tmpChar;
-			bool packetError = false;
-			
-			for(unsigned char i=0; i<SCS_PACKET_LENGTH; i++) 
+			if((c == SCS_DATA_PACKET_TAG) || (c == SCS_ACK_PACKET_TAG))
 			{
-				tmpChar = pPacket[i];
-				
-				if((tmpChar >= '0') && (tmpChar <= '9')) continue;
-				if((tmpChar >= 'A') && (tmpChar <= 'F')) continue;
-				if((tmpChar >= 'a') && (tmpChar <= 'f')) continue;
-				
-				packetError = true;
-				break;	
-			}
-			if(packetError)
-			{
-				printString("ERROR: non-hex\r\n");
-				_scsInputStage.packetByteAmount = 0; //discard packet
-				break;
-			}
-							
-			_calculateCrc16(pPacket, SCS_PACKET_LENGTH - 4, &crcLow, &crcHigh);
-			if((crcLow != _uCharFromHex(pPacket[SCS_PACKET_LENGTH - 3], pPacket[SCS_PACKET_LENGTH - 4])) || 
-				(crcHigh != _uCharFromHex(pPacket[SCS_PACKET_LENGTH - 1], pPacket[SCS_PACKET_LENGTH - 2]))) 
-			{
-				//invalid packet
-				printString("ERROR: crc mismatch:");
-				for(unsigned char i=0; i<SCS_PACKET_LENGTH; i++) {
-					printChar(_scsInputStage.packetBuffer[i]);
-				}
-				printString("\r\n");
-				
-				_scsInputStage.packetByteAmount = 0; //discard packet
-				break;
-			}
-			
-			//a valid packet
-			unsigned char tag = _uCharFromHex(pPacket[1], pPacket[0]);
-			unsigned char curPacketId = _uCharFromHex(pPacket[3], pPacket[2]); 
-			
-			if(tag == SCS_DATA_PACKET_TAG)
-			{
-				if(curPacketId != _scsInputStage.previousId) 
-				{
-					//new packet, the host has received the acknowledgment for previous packet.
-					_scsInputStage.previousId = curPacketId;
-							
-					//send data to application
-					unsigned char length = _uCharFromHex(pPacket[5], pPacket[4]);
-					length = length << 1; //convert to length of HEX bytes.
-					for(unsigned char i=0; i<length; i+=2) 
-					{
-						if(_saveInputData(_uCharFromHex(pPacket[6 + i + 1], pPacket[6 + i])) == false) {
-							break;									
-						}
-					}
-				}
-				printString("> D "); 
-				printHex(curPacketId); 
-				printChar(' ');
-				_scsInputStage.state = SCS_INPUT_ACKNOWLEDGING;
-			}
-			else if(tag == SCS_ACK_PACKET_TAG)
-			{
-				printString("> A "); 
-				printHex(curPacketId); 
-				printChar(' ');
-				_acknowledgeScsOutputPacket(curPacketId);
+				_scsInputStage.state = SCS_INPUT_RECEIVING;
+				_scsInputStage.timeStamp = counter_get();
+				_scsInputStage.packetBuffer[0] = c;
+				_scsInputStage.byteAmount = 1;
 			}
 			else
 			{
-				printString("ERROR: unknown packet type ");
-				printHex(tag);
-				printString(" ");
+				//do nothing, ignore this character
 			}
+		}
+	}
+	else if(_scsInputStage.state == SCS_INPUT_RECEIVING) 
+	{
+		if(_getChar(&c)) 
+		{
+			unsigned char pktType = _scsInputStage.packetBuffer[0];
 			
-			_scsInputStage.packetByteAmount = 0;	
-			break; //finished a packet, process further input in next round to keep state correct
+			_scsInputStage.packetBuffer[_scsInputStage.byteAmount] = c;
+			_scsInputStage.byteAmount++;
+			
+			if(pktType == SCS_DATA_PACKET_TAG)
+			{
+				unsigned char byteAmount = _scsInputStage.byteAmount;
+				unsigned char * pBuffer = _scsInputStage.packetBuffer;
+				
+				if(byteAmount > 3)
+				{
+					unsigned char dataLength = pBuffer[2];
+					
+					if(dataLength > SCS_DATA_MAX_LENGTH) 
+					{
+						printString("ERROR: corrupted input data packet\r\n");
+						_scsInputStage.state = SCS_INPUT_IDLE;
+					}
+					else if(byteAmount == (dataLength + SCS_DATA_PACKET_STAFF_LENGTH))
+					{
+						// a complete data packet is received
+						unsigned char crcLow, crcHigh;
+						
+						_calculateCrc16(pBuffer, byteAmount - 2, &crcLow, &crcHigh);
+						if((crcLow == pBuffer[byteAmount - 2]) && (crcHigh == pBuffer[byteAmount - 1]))
+						{
+							printString("> D "); printHex(pBuffer[1]); printString("\r\n");
+							_on_inputStageDataPacketComplete();							
+						}
+						else {
+							printString("ERROR: corrupted input data packet\r\n");
+						}
+						_scsInputStage.state = SCS_INPUT_IDLE;
+					}
+					else if(byteAmount > SCS_PACKET_MAX_LENGTH)
+					{
+						//shouldn't occur
+						printString("ERROR: data packet overflow: "); printHex(byteAmount); printString("\r\n");
+						_scsInputStage.state = SCS_INPUT_IDLE;
+					}
+					else {
+						//do nothing, continue to receive byte.
+					}
+				}
+				else {
+					//do nothing, continue to receive byte
+				}
+			}
+			else if(pktType == SCS_ACK_PACKET_TAG)
+			{
+				if(_scsInputStage.byteAmount == SCS_ACK_PACKET_LENGTH) 
+				{
+					//a complete ACK packet is received
+					unsigned char crcLow, crcHigh;
+					
+					_calculateCrc16(_scsInputStage.packetBuffer, 2, &crcLow, &crcHigh);
+					
+					if((crcLow == _scsInputStage.packetBuffer[2]) && (crcHigh == _scsInputStage.packetBuffer[3]))
+					{
+						unsigned char packetId = _scsInputStage.packetBuffer[1];
+						_on_inputStageAckPacketComplete(packetId);
+						printString("> A "); printHex(packetId); printString("\r\n");
+					}
+					else
+					{
+						printString("ERROR: corrupted input ACK packet\r\n");
+					}
+					_scsInputStage.state = SCS_INPUT_IDLE; //change to IDLE state.
+				}
+				else if(_scsInputStage.byteAmount > SCS_ACK_PACKET_LENGTH) 
+				{
+					// shouldn't occur
+					printString("ERROR: wrong input ACK packet length ");
+					printHex(_scsInputStage.byteAmount);
+					printString("\r\n");
+					_scsInputStage.state = SCS_INPUT_IDLE; //change to IDLE state.
+				}
+				else {
+					//do nothing, wait until complete packet is received.
+				}
+			}
+			else
+			{
+				//shouldn't occur
+				printString("ERROR: corrupted input stage\r\n");
+				_scsInputStage.state = SCS_INPUT_IDLE;
+			}
 		}
 		else
 		{
-			if(dataReceived) {
-				_scsInputStage.timeStamp = counter_get(); //partial packet
+			//check timeout
+			if(counter_diff(_scsInputStage.timeStamp) > _scsInputTimeOut) 
+			{
+				_scsInputStage.state = SCS_INPUT_IDLE; //change to IDLE state.
+				printString("ERROR: input stage timed out");
 			}
-			
-			break;
 		}
 	}
+	else 
+	{
+		//shouldn't occur
+		printString("ERROR: wrong input stage state ");
+		printHex(_scsInputStage.state);
+		printString("\r\n");
+		
+		_scsInputStage.state = SCS_INPUT_IDLE;
+	}
+}
+
+//handle SCS_OUTPUT_IDLE.
+// read data to host from APP's outputBuffer.
+static void _processScsOutputStageIdle()
+{
+	unsigned char * pPacket = _scsOutputStage.dataPktBuffer;
+	unsigned short size = _readOutputBuffer(pPacket + 3, SCS_DATA_MAX_LENGTH);
+	unsigned char crcLow, crcHigh;
+	
+	if(size == 0) {
+		return; //no data need to be sent to host
+	}
+	if(size > SCS_DATA_MAX_LENGTH) {
+		//shouldn't occur
+		printString("ERROR: too much data read from APP's output buffer\r\n");
+		return;
+	}
+	
+	//fill the packet staff
+	pPacket[0] = SCS_DATA_PACKET_TAG; //tag
+	//packet id
+	if(_scsOutputStage.currentDataPktId == SCS_INVALID_PACKET_ID) {
+		_scsOutputStage.currentDataPktId = 0;
+		pPacket[1] = 0;
+	}
+	else {
+		_scsOutputStage.currentDataPktId++;
+		if(_scsOutputStage.currentDataPktId == SCS_INVALID_PACKET_ID) {
+			_scsOutputStage.currentDataPktId = 1; //turn around
+		}
+		pPacket[1] = _scsOutputStage.currentDataPktId;
+	}
+	//length
+	pPacket[2] = (unsigned char)size;
+	//CRC
+	_calculateCrc16(pPacket, size + 3, &crcLow, &crcHigh);
+	pPacket[3+size] = crcLow;
+	pPacket[4+size] = crcHigh;
+	
+	_scsOutputStage.dataPktSendingIndex = 0;
+	_scsOutputStage.ackedDataPktId = SCS_INVALID_PACKET_ID;
+	_scsOutputStage.dataPktTimeStamp = counter_get();
+	_scsOutputStage.state = SCS_OUTPUT_SENDING_DATA;	
 }
 
 //send out data in output stage as much as possible
 static void _processScsOutputStage(void)
 {
-	bool dataSent = false;
-	
-	if(_scsOutputStage.state == SCS_OUTPUT_SENDING) 
+	switch(_scsOutputStage.state)
 	{
-		for(;;) 
+		case SCS_OUTPUT_IDLE:
 		{
-			if(_putChar(_scsOutputStage.deliveryBuffer[_scsOutputStage.deliveryIndex]))
-			{
-				dataSent = true;
-				_scsOutputStage.deliveryIndex++;
-				if(_scsOutputStage.deliveryIndex < SCS_PACKET_LENGTH) {
-					continue;
-				}
-				
-				//a packet has been sent out
-				unsigned char tag = _uCharFromHex(_scsOutputStage.deliveryBuffer[1], _scsOutputStage.deliveryBuffer[0]);
-				unsigned char curPacketId = _uCharFromHex(_scsOutputStage.deliveryBuffer[3], _scsOutputStage.deliveryBuffer[2]);
-
-				if(tag == SCS_ACK_PACKET_TAG) 
-				{
-					_scsOutputStage.state = SCS_OUTPUT_IDLE; //no acknowledgment is needed
-					printString("< A ");
-					printHex(curPacketId);
-					printChar(' ');
-				}
-				else if(tag == SCS_DATA_PACKET_TAG) 
-				{
-					_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //wait for the acknowledgment
-					_scsOutputStage.ackTimeStamp = counter_get();
-					printString("< D ");
-					printHex(curPacketId);
-					printChar(' ');
-				}
-				else 
-				{
-					//unknown packet type
-					printString("ERROR: unknown packet was sent\r\n");
-					_scsOutputStage.state = SCS_OUTPUT_IDLE;
-				}
-				break;
-			}
-			else 
-			{
-				if(dataSent) {
-					_scsOutputStage.outputTimeStamp = counter_get();
-				}
-				else 
-				{
-					if(counter_diff(_scsOutputStage.outputTimeStamp) > _scsOutputTimeout)
-					{
-						unsigned char tag = _uCharFromHex(_scsOutputStage.deliveryBuffer[1], _scsOutputStage.deliveryBuffer[0]);
-						unsigned char curPacketId = _uCharFromHex(_scsOutputStage.deliveryBuffer[3], _scsOutputStage.deliveryBuffer[2]);
-						
-						_scsOutputStage.outputTimeStamp = counter_get();
-						printString("ERROR: | ");
-						if(tag == SCS_ACK_PACKET_TAG) {
-							printString("A ");
-						}
-						else if(tag == SCS_DATA_PACKET_TAG) {
-							printString("D ");
-						}
-						else {
-							printString("! ");
-						}
-						printHex(curPacketId);
-						printChar(' ');
-						printHex(_scsOutputStage.deliveryIndex);
-					}
-				}
-				break;//no free space in USB end point
-			}
+			_processScsOutputStageIdle();
 		}
-	}
-	else if(_scsOutputStage.state == SCS_OUTPUT_WAITING_ACK_AND_SENDING) 
-	{
-		for(;;)
+		break;
+		case SCS_OUTPUT_SENDING_DATA:
 		{
-			if(_putChar(_scsOutputStage.deliveryBuffer[_scsOutputStage.deliveryIndex]))
-			{
-				dataSent = true;
-				_scsOutputStage.deliveryIndex++;
-				if(_scsOutputStage.deliveryIndex < SCS_PACKET_LENGTH) {
-					continue;
-				}
-				
-				//a packet has been sent out
-				unsigned char tag = _uCharFromHex(_scsOutputStage.deliveryBuffer[1], _scsOutputStage.deliveryBuffer[0]);
-				unsigned char curPacketId = _uCharFromHex(_scsOutputStage.deliveryBuffer[3], _scsOutputStage.deliveryBuffer[2]);
-				
-				if(tag == SCS_ACK_PACKET_TAG) 
-				{
-					printString("< A ");
-					printHex(curPacketId);
-					printChar(' ');
-				}
-				else if(tag == SCS_DATA_PACKET_TAG) 
-				{
-					//no data packet should be sent when a data packet is waiting for ACK.
-					printString("ERROR: wrong data packet was sent\r\n");
-				}
-				else 
-				{
-					//unknown packet type
-					printString("ERROR: unknown packet was sent\r\n");
-				}
-				
-				_scsOutputStage.state = SCS_OUTPUT_WAITING_ACK; //wait for the acknowledgment
-				break;
+			unsigned char packetLength = _scsOutputStage.dataPktBuffer[2] + SCS_DATA_PACKET_STAFF_LENGTH;
+			unsigned char * pStart = _scsOutputStage.dataPktBuffer + _scsOutputStage.dataPktSendingIndex;
+			unsigned char remaining = packetLength - _scsOutputStage.dataPktSendingIndex;
+			unsigned char size = _putChars(pStart, remaining);
+			
+			_scsOutputStage.dataPktSendingIndex += size;
+			if(size < remaining) {
+				//do nothing
 			}
-			else 
-			{
-				if(dataSent) {
-					_scsOutputStage.outputTimeStamp = counter_get();
-				}
-				else
-				{
-					if(counter_diff(_scsOutputStage.outputTimeStamp) > _scsOutputTimeout)
-					{
-						unsigned char tag = _uCharFromHex(_scsOutputStage.deliveryBuffer[1], _scsOutputStage.deliveryBuffer[0]);
-						unsigned char curPacketId = _uCharFromHex(_scsOutputStage.deliveryBuffer[3], _scsOutputStage.deliveryBuffer[2]);
-						
-						_scsOutputStage.outputTimeStamp = counter_get();
-						printString("ERROR: | ");
-						if(tag == SCS_ACK_PACKET_TAG) {
-							printString("A ");
-						}
-						else if(tag == SCS_DATA_PACKET_TAG) {
-							printString("D ");
-						}
-						else {
-							printString("! ");
-						}
-						printHex(curPacketId);
-						printChar(' ');
-						printHex(_scsOutputStage.deliveryIndex);
-					}
-				}
-				break;//no free space in USB end point
+			else if(size == remaining) {
+				//data packet is sent out
+				_scsOutputStage.state = SCS_OUTPUT_WAIT_ACK; 
+				printString("< D "); printHex(_scsOutputStage.dataPktBuffer[1]); printString("\r\n");
+			}
+			else {
+				//shouldn't happen
+				printString("ERROR: too much data sent out\r\n");
+				_scsOutputStage.state = SCS_OUTPUT_WAIT_ACK;
 			}
 		}
-	}
-	
-	if(_scsOutputStage.state == SCS_OUTPUT_WAITING_ACK) 
-	{
-		if(counter_diff(_scsOutputStage.ackTimeStamp) >= _scsDataAckTimeout) 
+		break;
+		case SCS_OUTPUT_SENDING_DATA_PENDING_ACK:
 		{
-			//re-send this data packet
-			for(unsigned char i=0; i<SCS_PACKET_LENGTH; i++) {
-				_scsOutputStage.deliveryBuffer[i] = _scsOutputStage.packetBuffer[i];
+			unsigned char packetLength = _scsOutputStage.dataPktBuffer[2] + SCS_DATA_PACKET_STAFF_LENGTH;
+			unsigned char * pStart = _scsOutputStage.dataPktBuffer + _scsOutputStage.dataPktSendingIndex;
+			unsigned char remaining = packetLength - _scsOutputStage.dataPktSendingIndex;
+			unsigned char size = _putChars(pStart, remaining);
+			
+			_scsOutputStage.dataPktSendingIndex += size;
+			if(size < remaining) {
+				//do nothing
 			}
-			_scsOutputStage.state = SCS_OUTPUT_SENDING;
-			_scsOutputStage.deliveryIndex = 0;
-			_scsOutputStage.outputTimeStamp = counter_get();
-			printString("ERROR: ACK Timeout ");
+			else if(size == remaining) {
+				//data packet is sent out
+				_scsOutputStage.state = SCS_OUTPUT_SENDING_ACK_WAIT_ACK; 
+				printString("< D "); printHex(_scsOutputStage.dataPktBuffer[1]); printString("\r\n");
+			}
+			else {
+				//shouldn't happen
+				printString("ERROR: too much data sent out\r\n");
+				_scsOutputStage.state = SCS_OUTPUT_SENDING_ACK_WAIT_ACK;
+			}
 		}
-	}
-	
-	if(_scsInputStage.state == SCS_INPUT_ACKNOWLEDGING)
-	{
-		if(_sendInputAcknowledgment(_scsInputStage.previousId)) {
-			_scsInputStage.state = SCS_INPUT_RECEIVING; 
+		break;
+		case SCS_OUTPUT_WAIT_ACK:
+		{
+			unsigned char packetId = _scsOutputStage.dataPktBuffer[1];
+			
+			if(packetId == _scsOutputStage.ackedDataPktId) {
+				_scsOutputStage.state = SCS_OUTPUT_IDLE;
+			}
+			else if(counter_diff(_scsOutputStage.dataPktTimeStamp) > _scsOutputTimeout)
+			{
+				//time out, send data packet again
+				_scsOutputStage.dataPktSendingIndex = 0;
+				_scsOutputStage.dataPktTimeStamp = counter_get();
+				_scsOutputStage.state = SCS_OUTPUT_SENDING_DATA;
+				printString("ERROR: host ACK time out, "); printHex(packetId); printString("\r\n");
+			}
 		}
-	}
-}
-
-static void _fillScsOutputStage(void)
-{
-	unsigned char * pPacket;
-	unsigned char dataAmount;
-	unsigned char crcLow, crcHigh;
-	unsigned char lowHex, highHex;
-	
-	if(_scsOutputStage.state != SCS_OUTPUT_IDLE) {
-		return;
-	}
-	
-	if(outputConsumerIndex == outputProducerIndex) {
-		return; //no application data
-	}
-	
-	//get a block of data from outputBuffer 
-	pPacket = _scsOutputStage.packetBuffer;
-	//tag
-	_uCharToHex(SCS_DATA_PACKET_TAG, &lowHex, &highHex);
-	pPacket[0] = highHex;
-	pPacket[1] = lowHex;
-	//packetId
-	_uCharToHex(_scsOutputStage.packetId, &lowHex, &highHex);
-	pPacket[2] = highHex;
-	pPacket[3] = lowHex;
-	//data
-	for(dataAmount = 0; outputConsumerIndex != outputProducerIndex; )
-	{
-		_uCharToHex(outputBuffer[outputConsumerIndex], &lowHex, &highHex);
-		pPacket[6 + dataAmount] = highHex;
-		pPacket[6 + dataAmount + 1] = lowHex;
-		
-		outputConsumerIndex = (outputConsumerIndex + 1) & APP_OUTPUT_BUFFER_INDEX_MASK;
-		dataAmount += 2;
-		if(dataAmount == (SCS_PACKET_LENGTH - 10)) {
-			break; //packet is full
+		break;
+		case SCS_OUTPUT_SENDING_ACK_WAIT_ACK:
+		{
+			unsigned char * pStart = _scsOutputStage.ackPktBuffer + _scsOutputStage.ackPktSendingIndex;
+			unsigned char remaining = SCS_ACK_PACKET_LENGTH - _scsOutputStage.dataPktSendingIndex;
+			unsigned char size = _putChars(pStart, remaining);
+			
+			_scsOutputStage.ackPktSendingIndex += size;
+			if(size < remaining) {
+				//do nothing
+			}
+			else if(size == remaining) {
+				//ACK packet is sent out
+				_scsOutputStage.state = SCS_OUTPUT_WAIT_ACK;
+				printString("< A "); printHex(_scsOutputStage.ackPktBuffer[1]); printString("\r\n");
+			}
+			else {
+				//shouldn't happen
+				printString("ERROR: too much ACK sent out\r\n");
+				_scsOutputStage.state = SCS_OUTPUT_WAIT_ACK;
+			}
 		}
-	}
-	//length
-	_uCharToHex((dataAmount >> 1), &lowHex, &highHex); //convert to length of actual data
-	pPacket[4] = highHex;
-	pPacket[5] = lowHex;
-	//padding
-	for(; dataAmount < (SCS_PACKET_LENGTH - 10); dataAmount++) {
-		pPacket[6 + dataAmount] = '0'; //padding
-	}
-	//calculate CRC
-	_calculateCrc16(pPacket, SCS_PACKET_LENGTH - 4, &crcLow, &crcHigh);
-	_uCharToHex(crcLow, &lowHex, &highHex);
-	pPacket[SCS_PACKET_LENGTH - 4] = highHex;
-	pPacket[SCS_PACKET_LENGTH - 3] = lowHex;
-	_uCharToHex(crcHigh, &lowHex, &highHex);
-	pPacket[SCS_PACKET_LENGTH - 2] = highHex;
-	pPacket[SCS_PACKET_LENGTH - 1] = lowHex;
-	
-	//copy packet content
-	for(unsigned char i=0; i<SCS_PACKET_LENGTH; i++) {
-		_scsOutputStage.deliveryBuffer[i] = _scsOutputStage.packetBuffer[i];
-	}
-	
-	//get ready for being sent.
-	_scsOutputStage.state = SCS_OUTPUT_SENDING;
-	_scsOutputStage.deliveryIndex = 0;
-	_scsOutputStage.outputTimeStamp = counter_get();
-	
-	//increase packet id
-	_scsOutputStage.packetId++;
-	if(_scsOutputStage.packetId == SCS_INVALID_PACKET_ID) {
-		_scsOutputStage.packetId++; //jump over the invalid packet id
-	}
-	if(_scsOutputStage.packetId == SCS_INITIAL_PACKET_ID) {
-		_scsOutputStage.packetId++; //jump over the initial packet id
+		break;
+		case SCS_OUTPUT_SENDING_ACK:
+		{
+			unsigned char * pStart = _scsOutputStage.ackPktBuffer + _scsOutputStage.ackPktSendingIndex;
+			unsigned char remaining = SCS_ACK_PACKET_LENGTH - _scsOutputStage.dataPktSendingIndex;
+			unsigned char size = _putChars(pStart, remaining);
+			
+			_scsOutputStage.ackPktSendingIndex += size;
+			if(size < remaining) {
+				//do nothing
+			}
+			else if(size == remaining) {
+				//ACK packet is sent out
+				_scsOutputStage.state = SCS_OUTPUT_IDLE;
+				printString("< A "); printHex(_scsOutputStage.ackPktBuffer[1]); printString("\r\n");
+			}
+			else {
+				//shouldn't happen
+				printString("ERROR: too much ACK sent out\r\n");
+				_scsOutputStage.state = SCS_OUTPUT_IDLE;
+			}
+		}
+		break;
+		default:
+		{
+			printString("ERROR: wrong output stage state: "); printHex(_scsOutputStage.state);printString("\r\n");
+			_scsOutputStage.state = SCS_OUTPUT_IDLE;
+		}
+		break;
 	}
 }
 
 void pollScsDataExchange(void)
 {
-	_processScsOutputStage();
 	_processScsInputStage();
-	_fillScsOutputStage();
+	_processScsOutputStage();
 }
 
 void initScsDataExchange(void)
 {
+#if DATA_EXCHANGE_THROUGH_USB
+	_initUsbInputBuffer();
+#endif
+
+	//input stage
 	_scsInputTimeOut = ((uint32_t)SCS_DATA_INPUT_TIMEOUT * 1000)/counter_clock_length();
+	_scsInputStage.state = SCS_INPUT_IDLE;
+	_scsInputStage.prevDataPktId = SCS_INVALID_PACKET_ID;
 	
-	_scsInputStage.state = SCS_INPUT_RECEIVING;
-	_scsInputStage.packetByteAmount = 0;
-	_scsInputStage.previousId = SCS_INVALID_PACKET_ID;
-	_scsInputStage.dataBufferOverflow = false;
-	_scsInputStage.dataBufferReadIndex = 0;
-	_scsInputStage.dataBufferWriteIndex = 0;
-	
-	_scsDataAckTimeout = ((uint32_t)SCS_DATA_ACK_TIMEOUT * 1000)/counter_clock_length();
+	//output stage
 	_scsOutputTimeout = ((uint32_t)SCS_DATA_OUTPUT_TIMEOUT * 1000)/counter_clock_length();
-	_scsOutputStage.deliveryIndex = 0;
 	_scsOutputStage.state = SCS_OUTPUT_IDLE;
-	_scsOutputStage.packetId = SCS_INITIAL_PACKET_ID;
+	_scsOutputStage.currentDataPktId = SCS_INVALID_PACKET_ID;
+	_scsOutputStage.ackedDataPktId = SCS_INVALID_PACKET_ID;
 }
 
 void Invenco_init(void)
@@ -1075,7 +1132,7 @@ void Invenco_init(void)
 	//counter
 	counter_init();
 
-	//uart
+	//UART
 	uartOption.baudrate=115200;
 	uartOption.charlength=USART_CHSIZE_8BIT_gc;
 	uartOption.paritytype=USART_PMODE_DISABLED_gc;

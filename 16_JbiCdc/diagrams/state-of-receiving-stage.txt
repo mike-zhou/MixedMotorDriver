@@ -1,0 +1,19 @@
+@startuml
+
+[*] --> IDLE
+
+IDLE --> IDLE: nonHeaderByte
+
+IDLE --> RECEIVING: packetHeadArrive
+RECEIVING --> RECEIVING: byteArrive
+RECEIVING --> IDLE: timeout
+
+RECEIVING --> IDLE: corruptedPacket
+RECEIVING --> IDLE: dataPacket
+RECEIVING --> IDLE: ackPacket
+
+IDLE: accept only packet TAG
+RECEIVING: check if packet finish after
+RECEIVING: each byte arrives
+
+@enduml

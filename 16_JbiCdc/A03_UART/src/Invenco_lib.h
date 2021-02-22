@@ -14,24 +14,29 @@
 #include "tc.h"
 
 //Only 2 communication channels are available, USB and UART.
-//If the following is defined, ScsDataExchange interacts with host through USB, 
+//If the following is defined as 1, ScsDataExchange interacts with host through USB, 
 //otherwise with UART.
-//#define DATA_EXCHANGE_THROUGH_USB
+#define DATA_EXCHANGE_THROUGH_USB 0
 
-// functions to send information to the monitor in host
+// API for APPs to send information to the monitor in host
 void printString(char * pString);
 void printHex(unsigned char hex);
 void inline printChar(unsigned char c);
 
-// functions app uses to exchange data with host
+// API for APPs to exchange data with host
 void clearInputBuffer(void);
-bool writeInputBuffer(unsigned char c);
 unsigned char readInputBuffer(void);
 bool writeOutputBufferChar(unsigned char c);
 void writeOutputBufferString(const char * pString);
 void writeOutputBufferHex(unsigned char n);
-void sendOutputBufferToHost(void);
 void enableOutputBuffer(void);
+
+//APP call this function to initialize underlying data exchange mechanism
+void initScsDataExchange(void);
+//APP call this function periodically to drive the underlying data exchange
+void pollScsDataExchange(void);
+
+
 
 //////////////////////////////////
 // counter related
@@ -56,79 +61,5 @@ enum CommandState
 };
 
 void Invenco_init(void);
-
-#define SCS_PACKET_LENGTH 64
-#define SCS_DATA_PACKET_TAG 0xDD
-/************************************************************************/
-/* 
-Data packet structure:
-	0xDD		// 1 byte
-	id			// 1 byte, 0 to 254
-	dataLength	// 1 byte
-	data bytes	// bytes of dataLength
-	padding		// bytes of (SCS_PACKET_LENGTH - 5 - dataLength)
-	crcLow		// 1 byte
-	crcHigh		// 1 byte                                                                    
-*/
-/************************************************************************/
-#define SCS_ACK_PACKET_TAG 0xAA
-/************************************************************************/
-/*          
-Acknowledge packet structure:
-	0xAA		// 1 byte
-	id			// 1 byte, 0 to 254
-	padding		// bytes of SCS_PACKET_LENGTH
-	crcLow      // 1 byte
-	crcHigh		// 1 byte                                           
-*/
-/************************************************************************/
-#define SCS_DATA_INPUT_TIMEOUT 50 //milliseconds
-#define SCS_DATA_ACK_TIMEOUT 200 //milliseconds
-#define SCS_DATA_OUTPUT_TIMEOUT 200 //milliseconds
-#define SCS_INITIAL_PACKET_ID 0 //this id is used only once at the launch of application
-#define SCS_INVALID_PACKET_ID 0xFF
-#define SCS_INPUT_STAGE_DATA_BUFFER_INDEX_MASK 0x7f //shouldn't exceed 0xff, constrained by width of buffer access index.
-enum SCS_Input_Packet_State
-{
-	SCS_INPUT_RECEIVING = 0,
-	SCS_INPUT_ACKNOWLEDGING
-};
-struct SCS_Input_Stage
-{
-	unsigned char packetBuffer[SCS_PACKET_LENGTH];
-	enum SCS_Input_Packet_State state;
-	unsigned char packetByteAmount;
-	unsigned short timeStamp;
-	unsigned char previousId;
-	
-	unsigned char dataBuffer[SCS_INPUT_STAGE_DATA_BUFFER_INDEX_MASK + 1];
-	bool dataBufferOverflow;
-	unsigned char dataBufferReadIndex;
-	unsigned char dataBufferWriteIndex;
-};
-
-enum SCS_Output_Packet_State
-{
-	SCS_OUTPUT_IDLE = 0,
-	SCS_OUTPUT_SENDING,
-	SCS_OUTPUT_WAITING_ACK,
-	SCS_OUTPUT_WAITING_ACK_AND_SENDING //only ACK packet can be sent in this state
-};
-
-struct SCS_Output_Stage
-{
-	unsigned char packetBuffer[SCS_PACKET_LENGTH];
-	unsigned char deliveryBuffer[SCS_PACKET_LENGTH];
-	enum SCS_Output_Packet_State state;
-	unsigned char deliveryIndex;
-	unsigned short ackTimeStamp;
-	unsigned short outputTimeStamp;
-	unsigned char packetId;
-};
-
-void initScsDataExchange(void);
-void pollScsDataExchange(void);
-//read a received byte
-bool getScsInputData(unsigned char * pData);
 
 #endif /* ECD300_TEST_H_ */

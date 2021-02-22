@@ -1,0 +1,42 @@
+@startuml
+
+[*] --> IDLE
+
+IDLE --> SENDING_DATA: dataPakcetPending
+IDLE --> SENDING_ACK: ackPakcetPending
+
+SENDING_ACK --> SENDING_ACK: byteLeave
+SENDING_ACK --> IDLE: ackPacketLeave
+
+SENDING_DATA --> SENDING_DATA: byteLeave
+SENDING_DATA --> WAIT_ACK: dataPacketLeave
+SENDING_DATA --> SENDING_DATA_PENDING_ACK: ackPacketPending
+
+WAIT_ACK --> IDLE: acknowledged
+WAIT_ACK --> SENDING_DATA: timeout
+WAIT_ACK --> SENDING_ACK_WAIT_ACK: ackPacketPending
+
+SENDING_ACK_WAIT_ACK --> SENDING_ACK_WAIT_ACK: byteLeave
+SENDING_ACK_WAIT_ACK --> WAIT_ACK: ackPacketLeave
+SENDING_ACK_WAIT_ACK --> SENDING_ACK: acknowledged
+
+SENDING_DATA_PENDING_ACK --> SENDING_ACK_WAIT_ACK: dataPacketLeave
+SENDING_DATA_PENDING_ACK --> SENDING_DATA_PENDING_ACK: byteLeave
+
+IDLE: accept DATA packet,
+IDLE: and ACK packet
+SENDING_DATA: is sending out DATA packet
+
+SENDING_DATA_PENDING_ACK: is sending out DATA packet,
+SENDING_DATA_PENDING_ACK: and an ACK packet to send
+
+WAIT_ACK: is waiting for acknowledgement
+WAIT_ACK: of DATA packet
+
+SENDING_ACK_WAIT_ACK: is sending out ACK packet,
+SENDING_ACK_WAIT_ACK: and is waiting for acknowledgement
+SENDING_ACK_WAIT_ACK: of DATA packet
+
+SENDING_ACK: is sending out ACK packet
+
+@enduml
