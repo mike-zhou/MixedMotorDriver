@@ -8,98 +8,149 @@
 #include "Invenco_lib.h"
 #include "crc.h"
 
+//send a buffer to host through USB
+// return amount of bytes sent out to host
+static inline unsigned char _putCharsUsb(unsigned char * pBuffer, unsigned char size)
+{
+	iram_size_t freeSpace = udi_cdc_get_free_tx_buffer();
+	iram_size_t remaining = 0;
+	
+	if(freeSpace > size) {
+		freeSpace = size;
+	}
+	if(freeSpace > 0) {
+		remaining = udi_cdc_write_buf(pBuffer, freeSpace);
+	}
+	
+	return freeSpace - remaining;
+}
+
+//send a buffer to host through UART
+// return amount of bytes sent out to host
+static inline unsigned char _putCharsUart(unsigned char * pBuffer, unsigned char size)
+{
+	unsigned char counter;
+	char rc;
+	
+	for(counter = 0; counter < size; counter++)
+	{
+		rc = ecd300PutChar(ECD300_UART_2, pBuffer[counter]);
+		if(rc != 0) {
+			break;
+		}
+	}
+	
+	return counter;
+}
+
+#if DATA_EXCHANGE_THROUGH_USB
+//monitor traffic is through UART.
+static bool _writeMonitorChar(unsigned char c)
+{
+	char rc;
+	
+	rc = ecd300PutChar(ECD300_UART_2, c);
+	if(rc == 0) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+#else
+//monitor traffic is through USB
+#define MONITOR_OUTPUT_BUFFER_MASK 0xFF
+static unsigned char _monitorOutputBuffer[MONITOR_OUTPUT_BUFFER_MASK + 1];
+unsigned short _monitorOutputBufferConsumerIndex;
+unsigned short _monitorOutputBufferProducerIdnex;
+
+static bool _writeMonitorChar(unsigned char c)
+{
+	unsigned short nextProducerIndex = (_monitorOutputBufferProducerIdnex + 1) & MONITOR_OUTPUT_BUFFER_MASK;
+	if(nextProducerIndex == _monitorOutputBufferConsumerIndex) {
+		return false; //buffer full
+	}
+	_monitorOutputBuffer[nextProducerIndex] = c;
+	_monitorOutputBufferProducerIdnex = nextProducerIndex;
+	return true;
+}	
+#endif
+
+static void _processMonitorStage()
+{
+#if DATA_EXCHANGE_THROUGH_USB	
+#else
+	if(_monitorOutputBufferConsumerIndex == _monitorOutputBufferProducerIdnex) {
+		return; // no data to send
+	}
+	if(_monitorOutputBufferConsumerIndex < _monitorOutputBufferProducerIdnex) 
+	{
+		unsigned char * pBuffer = _monitorOutputBuffer + _monitorOutputBufferConsumerIndex;
+		unsigned short size = _monitorOutputBufferProducerIdnex - _monitorOutputBufferConsumerIndex;
+		unsigned char amount;
+		
+		if(size > 0xff) {
+			size = 0xff;
+		}			
+		amount = _putCharsUsb(pBuffer, size);
+		_monitorOutputBufferConsumerIndex += amount;
+	}
+	else 
+	{
+		unsigned char * pBuffer = _monitorOutputBuffer + _monitorOutputBufferConsumerIndex;
+		unsigned short size = MONITOR_OUTPUT_BUFFER_MASK - _monitorOutputBufferConsumerIndex + 1;
+		unsigned char amount;
+		
+		if(size > 0xff) {
+			size = 0xff;
+		}
+		amount = _putCharsUsb(pBuffer, size);
+		_monitorOutputBufferConsumerIndex = (_monitorOutputBufferConsumerIndex + amount) & MONITOR_OUTPUT_BUFFER_MASK;
+	}
+#endif	
+}
+
 //////////////////////////////////////////////////
 //// public functions
 //////////////////////////////////////////////////
 void printString(char * pString)
 {
-#if DATA_EXCHANGE_THROUGH_USB
-	unsigned char c;
-	char rc;
-	
-	//send info to UART as much as possible
-	for(;;)
-	{
-		c = *pString;
-		if(c == '\0') {
-			break;
-		}
-		rc = ecd300PutChar(ECD300_UART_2, c);
-		if(rc != 0) {
-			break;
-		}
-		pString++;
-	}
-#else
 	for(; *pString != '\0'; )
 	{
-		if(udi_cdc_is_tx_ready()) {
-			udi_cdc_putc(*pString);
+		if(_writeMonitorChar(*pString)) {
 			pString++;	
 		}		
 		else {
 			break;
 		}
 	}
-#endif
 }
 
 void printHex(unsigned char hex)
 {
-#if DATA_EXCHANGE_THROUGH_USB
 	unsigned char c;
-	unsigned char rc;
 	
 	c = (hex >> 4) & 0xf;
 	if(c <= 9) {
-		rc = ecd300PutChar(ECD300_UART_2, c + '0');
+		_writeMonitorChar(c + '0');
 	}
 	else {
-		rc = ecd300PutChar(ECD300_UART_2, c - 0xA + 'A');
+		_writeMonitorChar(c - 0xA + 'A');
 	}
 	
-	if(rc == 0) 
-	{
-		c = hex & 0xf;
-		if(c <= 9) {
-			rc = ecd300PutChar(ECD300_UART_2, c + '0');
-		}
-		else {
-			rc = ecd300PutChar(ECD300_UART_2, c - 0xA + 'A');
-		}
+	c = hex & 0xf;
+	if(c <= 9) {
+		_writeMonitorChar(c + '0');
 	}
-
-#else
-	if(udi_cdc_is_tx_ready()) {
-		//high 4 bits
-		if(((hex >> 4) & 0x0F) <= 9) {
-			udi_cdc_putc(((hex >> 4) & 0x0F) + '0');
-		}	
-		else {
-			udi_cdc_putc(((hex >> 4) & 0x0F) - 0xA + 'A');
-		}
+	else {
+		_writeMonitorChar(c - 0xA + 'A');
 	}
-	if(udi_cdc_is_tx_ready()) {
-		//low 4 bits
-		if((hex & 0x0F) <= 9) {
-			udi_cdc_putc((hex & 0x0F) + '0');
-		}
-		else {
-			udi_cdc_putc((hex & 0x0F) - 0xA + 'A');
-		}
-	}
-#endif
 }
 
 void inline printChar(unsigned char c)
 {
-#if DATA_EXCHANGE_THROUGH_USB
-	ecd300PutChar(ECD300_UART_2, c);
-#else
-	if(udi_cdc_is_tx_ready()) {
-		udi_cdc_putc(c);
-	}
-#endif
+	_writeMonitorChar(c);
 }
 
 /**
@@ -619,34 +670,9 @@ static bool _putChar(unsigned char c)
 static unsigned char _putChars(unsigned char * pBuffer, unsigned char size)
 {
 #if DATA_EXCHANGE_THROUGH_USB
-
-	iram_size_t freeSpace = udi_cdc_get_free_tx_buffer();
-	iram_size_t remaining = 0;
-	
-	if(freeSpace > size) {
-		freeSpace = size;
-	}
-	if(freeSpace > 0) {
-		remaining = udi_cdc_write_buf(pBuffer, freeSpace);
-	}
-	
-	return freeSpace - remaining;
-	
+	return _putCharsUsb(pBuffer, size);
 #else
-
-	unsigned char counter;
-	char rc;
-	
-	for(counter = 0; counter < size; counter++)
-	{
-		rc = ecd300PutChar(ECD300_UART_2, pBuffer[counter]);
-		if(rc != 0) {
-			break;
-		}
-	}
-	
-	return counter;
-	
+	return _putCharsUart(pBuffer, size);
 #endif
 }
 
@@ -1089,6 +1115,7 @@ void pollScsDataExchange(void)
 {
 	_processScsInputStage();
 	_processScsOutputStage();
+	_processMonitorStage();
 }
 
 void initScsDataExchange(void)
