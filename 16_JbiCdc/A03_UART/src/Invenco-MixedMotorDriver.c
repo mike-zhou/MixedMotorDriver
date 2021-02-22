@@ -146,6 +146,11 @@ static unsigned short mmdCurrentClock;
 static unsigned short locatorMinimumStablePeriod;
 static bool echoCommand;
 
+#define INTERNAL_CMD_BUFFER_MASK 0x7F
+static unsigned char internalCmdBuffer[INTERNAL_CMD_BUFFER_MASK + 1];
+static unsigned short internalCmdBufferConsumerIndex = 0;
+static unsigned short internalCmdBufferProducerIndex = 0;
+
 struct MMD_stepper_data
 {
 	enum MMD_stepper_state state;
@@ -258,6 +263,37 @@ struct MMD_status
 	//command
 	enum CommandState cmdState;
 } mmdStatus;
+
+static void writeInternalBuffer(unsigned char c)
+{
+	unsigned short nextProducerIndex = (internalCmdBufferProducerIndex + 1) & INTERNAL_CMD_BUFFER_MASK;
+	
+	if(nextProducerIndex == internalCmdBufferConsumerIndex) {
+		printString("ERROR: internal cmd buffer overflow\r\n");
+		return;
+	}
+	
+	internalCmdBuffer[nextProducerIndex] = c;
+	internalCmdBufferProducerIndex = nextProducerIndex;
+}
+
+static unsigned char readInternalBuffer()
+{
+	unsigned char c = 0;
+	
+	if(internalCmdBufferConsumerIndex != internalCmdBufferProducerIndex) {
+		c = internalCmdBuffer[internalCmdBufferConsumerIndex];
+		internalCmdBufferConsumerIndex = (internalCmdBufferConsumerIndex + 1) & INTERNAL_CMD_BUFFER_MASK;
+	}
+	
+	return c;
+}
+
+static void clearInternalBuffer()
+{
+	internalCmdBufferConsumerIndex = 0;
+	internalCmdBufferProducerIndex = 0;
+}
 
 static void MMD_pull_up_gpio_inputs(void)
 {
@@ -2404,14 +2440,14 @@ static void mmd_parse_command(void)
 	// C cmdNumber param0 param1 param2 param3 param4 param5
 
 	//1st char
-	tag = readInputBuffer();
+	tag = readInternalBuffer();
 
 	if((tag == 'C') || (tag == 'c'))
 	{
 		validCmd = true;
 		
 		//2nd char
-		data = readInputBuffer();
+		data = readInternalBuffer();
 		if(data != ' ') {
 			validCmd = false;
 		}
@@ -2429,7 +2465,7 @@ static void mmd_parse_command(void)
 			//read command number
 			for(;;)
 			{
-				c = readInputBuffer();
+				c = readInternalBuffer();
 				if((c >= '0') && (c <= '9')) {
 					cmd =  cmd * 10 + c - '0';
 				}
@@ -2458,7 +2494,7 @@ static void mmd_parse_command(void)
 					//read a parameter
 					for(;;)
 					{
-						c = readInputBuffer();
+						c = readInternalBuffer();
 						if((c >= '0') && (c <= '9')) {
 							p =  p * 10 + c - '0';
 							digitMet = true;
@@ -2503,7 +2539,7 @@ static void mmd_parse_command(void)
 	if(!validCmd) {
 		mmdCommand.command = COMMAND_INVALID;
 		mmdCommand.parameterAmount = 0;
-		clearInputBuffer();
+		clearInternalBuffer();
 		mmd_write_reply_header();
 		writeOutputBufferString(STR_INVALID_COMMAND);
 		writeOutputBufferString(STR_CARRIAGE_RETURN);
@@ -2569,7 +2605,7 @@ static void mmd_parse_command(void)
 
 static void mmd_cancel_command(void)
 {
-	clearInputBuffer();
+	clearInternalBuffer();
 	mmdCommand.state = AWAITING_COMMAND;
 }
 
@@ -2594,7 +2630,7 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2611,14 +2647,14 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] > 0x7FFF) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_EXCESSIVE_DELAY);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2637,14 +2673,14 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_DIRECT_CURRENT_MOTORS_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_DCM_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2661,7 +2697,7 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2678,14 +2714,14 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_BDC_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2701,14 +2737,14 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_BI_DIRECTION_DIRECT_CURRENT_MOTORS_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_BDC_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2730,7 +2766,7 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2745,14 +2781,14 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_STEPPERS_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2772,14 +2808,14 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_STEPPERS_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2797,28 +2833,28 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(stepperIndex >= MMD_STEPPERS_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.steppersData[stepperIndex].state != STEPPER_STATE_KNOWN_POSITION) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_NOT_POSITIONED);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(steps < 1) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_INVALID_PARAMETER);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2833,7 +2869,7 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2853,42 +2889,42 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(stepperIndex >= MMD_STEPPERS_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(locatorIndex >= MMD_LOCATOR_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_LOCATOR_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if((lineNumberStart < 1) || (lineNumberStart > 8)) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if((lineNumberTerminal < 1) || (lineNumberTerminal > 8)) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(lineNumberStart == lineNumberTerminal) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_LOCATOR_LINE_INDEX_DUPLICATE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2903,14 +2939,14 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_STEPPERS_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2928,21 +2964,21 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(stepperIndex >= MMD_STEPPERS_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(state > STEPPER_STATE_DECELERATING) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_WRONG_STATE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2960,21 +2996,21 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(stepperIndex >= MMD_STEPPERS_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_STEPPER_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if((clockWise != 0) && (clockWise != 1)) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_INVALID_PARAMETER);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -2989,14 +3025,14 @@ static void mmd_run_command(void)
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else if(mmdCommand.parameters[0] >= MMD_LOCATOR_AMOUNT) {
 					mmd_write_reply_header();
 					writeOutputBufferString(STR_LOCATOR_LINE_INDEX_OUT_OF_SCOPE);
 					writeOutputBufferString(STR_CARRIAGE_RETURN);
-					clearInputBuffer();
+					clearInternalBuffer();
 					mmdCommand.state = AWAITING_COMMAND;
 				}
 				else {
@@ -3010,7 +3046,7 @@ static void mmd_run_command(void)
 				mmd_write_reply_header();
 				writeOutputBufferString(STR_UNKNOWN_COMMAND);
 				writeOutputBufferString(STR_CARRIAGE_RETURN);
-				clearInputBuffer();
+				clearInternalBuffer();
 				mmdCommand.state = AWAITING_COMMAND;
 
 			}
@@ -3750,10 +3786,10 @@ void ecd300MixedMotorDrivers(void)
 		unsigned char key;
 		
 		pollScsDataExchange();
-		
-		if(getScsInputData(&key))
+		key = readInputBuffer();
+		if(key != 0)
 		{
-			writeInputBuffer(key); //append to input buffer
+			writeInternalBuffer(key); //append to input buffer
 			
 			//toggle PD0 to indicate character reception.
 			if(PORTD_IN&0x01) {
@@ -3781,8 +3817,6 @@ void ecd300MixedMotorDrivers(void)
 		mmd_run_command();
 		
 		//mmd_check_status();
-
-		sendOutputBufferToHost();
 	}
 
 	while(1)
