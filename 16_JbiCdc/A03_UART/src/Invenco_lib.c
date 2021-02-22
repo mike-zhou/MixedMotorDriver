@@ -6,6 +6,7 @@
  */ 
 
 #include "Invenco_lib.h"
+#include "Invenco_lib_internal.h"
 #include "crc.h"
 
 //send a buffer to host through USB
@@ -60,14 +61,13 @@ static bool _writeMonitorChar(unsigned char c)
 
 #else
 //monitor traffic is through USB
-#define MONITOR_OUTPUT_BUFFER_MASK 0xFF
-static unsigned char _monitorOutputBuffer[MONITOR_OUTPUT_BUFFER_MASK + 1];
-unsigned short _monitorOutputBufferConsumerIndex;
-unsigned short _monitorOutputBufferProducerIdnex;
+static unsigned char _monitorOutputBuffer[MONITOR_OUTPUT_BUFFER_LENGTH_MASK + 1];
+static unsigned short _monitorOutputBufferConsumerIndex;
+static unsigned short _monitorOutputBufferProducerIdnex;
 
 static bool _writeMonitorChar(unsigned char c)
 {
-	unsigned short nextProducerIndex = (_monitorOutputBufferProducerIdnex + 1) & MONITOR_OUTPUT_BUFFER_MASK;
+	unsigned short nextProducerIndex = (_monitorOutputBufferProducerIdnex + 1) & MONITOR_OUTPUT_BUFFER_LENGTH_MASK;
 	if(nextProducerIndex == _monitorOutputBufferConsumerIndex) {
 		return false; //buffer full
 	}
@@ -99,14 +99,14 @@ static void _processMonitorStage()
 	else 
 	{
 		unsigned char * pBuffer = _monitorOutputBuffer + _monitorOutputBufferConsumerIndex;
-		unsigned short size = MONITOR_OUTPUT_BUFFER_MASK - _monitorOutputBufferConsumerIndex + 1;
+		unsigned short size = MONITOR_OUTPUT_BUFFER_LENGTH_MASK - _monitorOutputBufferConsumerIndex + 1;
 		unsigned char amount;
 		
 		if(size > 0xff) {
 			size = 0xff;
 		}
 		amount = _putCharsUsb(pBuffer, size);
-		_monitorOutputBufferConsumerIndex = (_monitorOutputBufferConsumerIndex + amount) & MONITOR_OUTPUT_BUFFER_MASK;
+		_monitorOutputBufferConsumerIndex = (_monitorOutputBufferConsumerIndex + amount) & MONITOR_OUTPUT_BUFFER_LENGTH_MASK;
 	}
 #endif	
 }
@@ -275,10 +275,8 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 }
 
 //data buffer for upper layer software
-#define APP_INPUT_BUFFER_INDEX_MASK 0xFF
-#define APP_OUTPUT_BUFFER_INDEX_MASK 0xFF
-static	unsigned char inputBuffer[APP_INPUT_BUFFER_INDEX_MASK + 1]; 
-static	unsigned char outputBuffer[APP_OUTPUT_BUFFER_INDEX_MASK + 1];
+static	unsigned char inputBuffer[APP_INPUT_BUFFER_LENGTH_MASK + 1]; 
+static	unsigned char outputBuffer[APP_OUTPUT_BUFFER_LENGTH_MASK + 1];
 // the way to check whether buffer is full:
 //	if ((producer + 1) & mask) == consumer, then buffer is full
 static	unsigned short inputProducerIndex=0;
@@ -292,7 +290,7 @@ static  bool outputOverflow = false;
 static inline unsigned short _getAppInputBufferAvailable()
 {
 	if(inputProducerIndex >= inputConsumerIndex) {
-		return APP_INPUT_BUFFER_INDEX_MASK - (inputProducerIndex - inputConsumerIndex);
+		return APP_INPUT_BUFFER_LENGTH_MASK - (inputProducerIndex - inputConsumerIndex);
 	}
 	else {
 		return inputConsumerIndex - inputProducerIndex - 1;
@@ -308,7 +306,7 @@ static inline unsigned short _writeAppInputBuffer(unsigned char * pBuffer, unsig
 	
 	for(i=0; i<length; i++) 
 	{
-		nextWritingIndex = (inputProducerIndex + 1) & APP_INPUT_BUFFER_INDEX_MASK;
+		nextWritingIndex = (inputProducerIndex + 1) & APP_INPUT_BUFFER_LENGTH_MASK;
 		if(nextWritingIndex == inputConsumerIndex) {
 			//input buffer is full
 			break;
@@ -336,7 +334,7 @@ unsigned char readInputBuffer(void)
 	
 	if(inputConsumerIndex != inputProducerIndex) {
 		c = inputBuffer[inputConsumerIndex];
-		inputConsumerIndex = (inputConsumerIndex + 1) & APP_INPUT_BUFFER_INDEX_MASK;
+		inputConsumerIndex = (inputConsumerIndex + 1) & APP_INPUT_BUFFER_LENGTH_MASK;
 	}
 	else {
 		c = 0;
@@ -352,7 +350,7 @@ unsigned short _getOutputBufferUsed()
 		return outputProducerIndex - outputConsumerIndex;
 	}
 	else {
-		return outputProducerIndex + APP_OUTPUT_BUFFER_INDEX_MASK + 1 - outputConsumerIndex;
+		return outputProducerIndex + APP_OUTPUT_BUFFER_LENGTH_MASK + 1 - outputConsumerIndex;
 	}
 }
 
@@ -369,7 +367,7 @@ unsigned short _readOutputBuffer(unsigned char * pBuffer, unsigned short size)
 		}
 		*pBuffer = outputBuffer[outputConsumerIndex];
 		pBuffer++;
-		outputConsumerIndex = (outputConsumerIndex + 1) & APP_OUTPUT_BUFFER_INDEX_MASK;
+		outputConsumerIndex = (outputConsumerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH_MASK;
 	}
 	
 	return counter;
@@ -384,7 +382,7 @@ bool writeOutputBufferChar(unsigned char c)
 		return false;
 	}
 	
-	unsigned short nextProducerIndex = (outputProducerIndex + 1) & APP_OUTPUT_BUFFER_INDEX_MASK;
+	unsigned short nextProducerIndex = (outputProducerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH_MASK;
 	
 	if(nextProducerIndex == outputConsumerIndex) {
 		if(outputOverflow == false) {
@@ -514,77 +512,6 @@ unsigned short counter_clock_length(void)
 }
 
 
-/*********************************************************
-* Data exchange stages
-**********************************************************/
-#define SCS_PACKET_MAX_LENGTH 64
-#define SCS_DATA_PACKET_TAG 0xDD
-/************************************************************************/
-/* 
-Data packet structure:
-	0xDD		// 1 byte
-	id			// 1 byte: 0, 1 to 0xFE
-	dataLength	// 1 byte
-	data bytes	// bytes of dataLength
-	crcLow		// 1 byte
-	crcHigh		// 1 byte                                                                    
-*/
-/************************************************************************/
-#define SCS_ACK_PACKET_TAG 0xAA
-/************************************************************************/
-/*          
-Acknowledge packet structure:
-	0xAA		// 1 byte
-	id			// 1 byte: 0, 1 to 0xFE
-	crcLow      // 1 byte
-	crcHigh		// 1 byte                                           
-*/
-/************************************************************************/
-#define SCS_DATA_PACKET_STAFF_LENGTH 5 //tag, id, dataLength, crcLow, crcHigh
-#define SCS_DATA_MAX_LENGTH (SCS_PACKET_MAX_LENGTH - SCS_DATA_PACKET_STAFF_LENGTH)
-#define SCS_ACK_PACKET_LENGTH 4
-#define SCS_DATA_INPUT_TIMEOUT 50 //milliseconds
-#define SCS_DATA_OUTPUT_TIMEOUT 200 //milliseconds
-#define SCS_INITIAL_PACKET_ID 0 //this id is used only once at the launch of application
-#define SCS_INVALID_PACKET_ID 0xFF
-enum SCS_Input_Stage_State
-{
-	SCS_INPUT_IDLE = 0,
-	SCS_INPUT_RECEIVING
-};
-struct SCS_Input_Stage
-{
-	enum SCS_Input_Stage_State state;
-	unsigned char packetBuffer[SCS_PACKET_MAX_LENGTH];
-	unsigned char byteAmount;
-	unsigned short timeStamp;
-	unsigned char prevDataPktId;
-};
-
-enum SCS_Output_Packet_State
-{
-	SCS_OUTPUT_IDLE = 0,
-	SCS_OUTPUT_SENDING_DATA,
-	SCS_OUTPUT_SENDING_ACK,
-	SCS_OUTPUT_SENDING_DATA_PENDING_ACK,
-	SCS_OUTPUT_WAIT_ACK,
-	SCS_OUTPUT_SENDING_ACK_WAIT_ACK
-};
-
-struct SCS_Output_Stage
-{
-	enum SCS_Output_Packet_State state;
-	//data packet
-	unsigned char dataPktBuffer[SCS_PACKET_MAX_LENGTH];
-	unsigned char dataPktSendingIndex; //index of byte to be sent
-	unsigned char currentDataPktId;
-	unsigned char ackedDataPktId;
-	unsigned short dataPktTimeStamp;
-	//acknowledge packet
-	unsigned char ackPktBuffer[SCS_ACK_PACKET_LENGTH];
-	unsigned char ackPktSendingIndex; //index of byte to be sent
-};
-
 static struct SCS_Input_Stage _scsInputStage;
 static unsigned short _scsInputTimeOut;
 static struct SCS_Output_Stage _scsOutputStage;
@@ -592,7 +519,6 @@ static unsigned short _scsOutputTimeout;
 
 #if DATA_EXCHANGE_THROUGH_USB
 
-	#define USB_INPUT_BUFFER_SIZE 64
 	static unsigned char _usbInputBuffer[USB_INPUT_BUFFER_SIZE];
 	static unsigned char _usbInputBufferConsumerIndex;
 	static unsigned char _usbInputBufferUsed;

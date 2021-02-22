@@ -537,6 +537,9 @@
     <Compile Include="src\ECD300_usart_config.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="src\Invenco_lib_internal.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\jbi\JBICOMP.C">
       <SubType>compile</SubType>
     </Compile>
