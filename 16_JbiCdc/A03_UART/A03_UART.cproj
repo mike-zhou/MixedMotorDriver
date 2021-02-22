@@ -104,7 +104,7 @@
         <documentation help="http://asf.atmel.com/docs/3.11.0/common.applications.user_application.stk600-rc100x.atxmega128a1u/html/index.html" />
         <offline-documentation help="" />
         <dependencies>
-          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.34.1" />
+          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.39.0" />
         </dependencies>
         <project id="common.applications.user_application.stk600-rc100x.atxmega128a1u" value="Add" config="" content-id="Atmel.ASF" />
         <board id="board.stk600-rc100x.atxmega128a1u" value="Add" config="" content-id="Atmel.ASF" />
@@ -520,9 +520,6 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\Invenco-ShortCircuteCheck.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\Invenco-SmartCardSwitch.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\Invenco_lib.c">

@@ -55,8 +55,6 @@ extern void ecd300TestNand(void);
 
 extern void ecd300TestInfraRed(void);
 
-extern void ecd300SmartCardSwitch(void);
-
 extern void ecd300CheckShortCircute(void);
 
 extern void ecd300MixedMotorDrivers(void);
@@ -78,7 +76,6 @@ int main (void)
 	//ecd300TestInfraRed();
 	//ecd300TestJbi();
 	//ecd300CheckShortCircute();
-	//ecd300SmartCardSwitch();
 	ecd300MixedMotorDrivers();
 }
 
