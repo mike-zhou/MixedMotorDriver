@@ -8,7 +8,7 @@
 #ifndef ECD300_TEST_H_
 #define ECD300_TEST_H_
 
-#include <asf.h>
+#include "asf.h"
 #include "ECD300.h"
 #include "usb_protocol_cdc.h"
 #include "tc.h"

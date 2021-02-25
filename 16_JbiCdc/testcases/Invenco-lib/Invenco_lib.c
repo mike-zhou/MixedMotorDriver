@@ -11,7 +11,7 @@
 
 //send a buffer to host through USB
 // return amount of bytes sent out to host
-static inline unsigned char _putCharsUsb(unsigned char * pBuffer, unsigned char size)
+unsigned char _putCharsUsb(unsigned char * pBuffer, unsigned char size)
 {
 	iram_size_t freeSpace = udi_cdc_get_free_tx_buffer();
 	iram_size_t remaining = 0;
@@ -28,7 +28,7 @@ static inline unsigned char _putCharsUsb(unsigned char * pBuffer, unsigned char 
 
 //send a buffer to host through UART
 // return amount of bytes sent out to host
-static inline unsigned char _putCharsUart(unsigned char * pBuffer, unsigned char size)
+unsigned char _putCharsUart(unsigned char * pBuffer, unsigned char size)
 {
 	unsigned char counter;
 	char rc;
@@ -46,7 +46,7 @@ static inline unsigned char _putCharsUart(unsigned char * pBuffer, unsigned char
 
 #if DATA_EXCHANGE_THROUGH_USB
 //monitor traffic is through UART.
-static bool _writeMonitorChar(unsigned char c)
+bool _writeMonitorChar(unsigned char c)
 {
 	char rc;
 	
@@ -61,11 +61,11 @@ static bool _writeMonitorChar(unsigned char c)
 
 #else
 //monitor traffic is through USB
-static unsigned char _monitorOutputBuffer[MONITOR_OUTPUT_BUFFER_LENGTH_MASK + 1];
-static unsigned short _monitorOutputBufferConsumerIndex;
-static unsigned short _monitorOutputBufferProducerIdnex;
+unsigned char _monitorOutputBuffer[MONITOR_OUTPUT_BUFFER_LENGTH_MASK + 1];
+unsigned short _monitorOutputBufferConsumerIndex;
+unsigned short _monitorOutputBufferProducerIdnex;
 
-static bool _writeMonitorChar(unsigned char c)
+bool _writeMonitorChar(unsigned char c)
 {
 	unsigned short nextProducerIndex = (_monitorOutputBufferProducerIdnex + 1) & MONITOR_OUTPUT_BUFFER_LENGTH_MASK;
 	if(nextProducerIndex == _monitorOutputBufferConsumerIndex) {
@@ -77,7 +77,7 @@ static bool _writeMonitorChar(unsigned char c)
 }	
 #endif
 
-static void _processMonitorStage()
+void _processMonitorStage()
 {
 #if DATA_EXCHANGE_THROUGH_USB	
 #else
@@ -148,7 +148,7 @@ void printHex(unsigned char hex)
 	}
 }
 
-void inline printChar(unsigned char c)
+void printChar(unsigned char c)
 {
 	_writeMonitorChar(c);
 }
@@ -160,9 +160,9 @@ void inline printChar(unsigned char c)
  * SRAM. The example code will use the EBI helper function to setup the
  * contents before writing the configuration using ebi_cs_write_config().
  */
-static struct ebi_cs_config     _csConfig;
+struct ebi_cs_config     _csConfig;
 
-static void _ecd300ConfigEbi(void)
+void _ecd300ConfigEbi(void)
 {
 	/*
 	 * Configure the EBI port with 17 address lines, enable both address
@@ -275,19 +275,19 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 }
 
 //data buffer for upper layer software
-static	unsigned char inputBuffer[APP_INPUT_BUFFER_LENGTH_MASK + 1]; 
-static	unsigned char outputBuffer[APP_OUTPUT_BUFFER_LENGTH_MASK + 1];
+unsigned char inputBuffer[APP_INPUT_BUFFER_LENGTH_MASK + 1];
+unsigned char outputBuffer[APP_OUTPUT_BUFFER_LENGTH_MASK + 1];
 // the way to check whether buffer is full:
 //	if ((producer + 1) & mask) == consumer, then buffer is full
-static	unsigned short inputProducerIndex=0;
-static	unsigned short inputConsumerIndex=0;
-static	unsigned short outputProducerIndex=0;
-static	unsigned short outputConsumerIndex=0;
-static  bool outputBufferEnabled = false;
-static  bool outputOverflow = false;
+unsigned short inputProducerIndex=0;
+unsigned short inputConsumerIndex=0;
+unsigned short outputProducerIndex=0;
+unsigned short outputConsumerIndex=0;
+ bool outputBufferEnabled = false;
+ bool outputOverflow = false;
 
 // return free space in APP's input buffer
-static inline unsigned short _getAppInputBufferAvailable()
+unsigned short _getAppInputBufferAvailable()
 {
 	if(inputProducerIndex >= inputConsumerIndex) {
 		return APP_INPUT_BUFFER_LENGTH_MASK - (inputProducerIndex - inputConsumerIndex);
@@ -299,7 +299,7 @@ static inline unsigned short _getAppInputBufferAvailable()
 
 // write to APP's input buffer
 // return amount of byte written to APP's input buffer. 
-static inline unsigned short _writeAppInputBuffer(unsigned char * pBuffer, unsigned short length)
+unsigned short _writeAppInputBuffer(unsigned char * pBuffer, unsigned short length)
 {
 	unsigned short i;
 	unsigned short nextWritingIndex;
@@ -512,17 +512,17 @@ unsigned short counter_clock_length(void)
 }
 
 
-static struct SCS_Input_Stage _scsInputStage;
-static unsigned short _scsInputTimeOut;
-static struct SCS_Output_Stage _scsOutputStage;
-static unsigned short _scsOutputTimeout;
+struct SCS_Input_Stage _scsInputStage;
+unsigned short _scsInputTimeOut;
+struct SCS_Output_Stage _scsOutputStage;
+unsigned short _scsOutputTimeout;
 
 #if DATA_EXCHANGE_THROUGH_USB
 
-	static unsigned char _usbInputBuffer[USB_INPUT_BUFFER_SIZE];
-	static unsigned char _usbInputBufferConsumerIndex;
-	static unsigned char _usbInputBufferUsed;
-	static void _initUsbInputBuffer()
+	unsigned char _usbInputBuffer[USB_INPUT_BUFFER_SIZE];
+	unsigned char _usbInputBufferConsumerIndex;
+	unsigned char _usbInputBufferUsed;
+	void _initUsbInputBuffer()
 	{
 		_usbInputBufferConsumerIndex = 0;
 		_usbInputBufferUsed = 0;
@@ -532,7 +532,7 @@ static unsigned short _scsOutputTimeout;
 
 //receive a character from host.
 // return true if a character is received.
-static bool _getChar(unsigned char * p)
+bool _getChar(unsigned char * p)
 {
 #if DATA_EXCHANGE_THROUGH_USB
 	if(_usbInputBufferConsumerIndex == _usbInputBufferUsed) 
@@ -570,7 +570,7 @@ static bool _getChar(unsigned char * p)
 }
 
 //send a character to host
-static bool _putChar(unsigned char c)
+bool _putChar(unsigned char c)
 {
 #if DATA_EXCHANGE_THROUGH_USB
 	if(udi_cdc_is_tx_ready()) {
@@ -593,7 +593,7 @@ static bool _putChar(unsigned char c)
 
 //send a buffer to host
 // return amount of bytes sent out to host
-static unsigned char _putChars(unsigned char * pBuffer, unsigned char size)
+unsigned char _putChars(unsigned char * pBuffer, unsigned char size)
 {
 #if DATA_EXCHANGE_THROUGH_USB
 	return _putCharsUsb(pBuffer, size);
@@ -602,7 +602,7 @@ static unsigned char _putChars(unsigned char * pBuffer, unsigned char size)
 #endif
 }
 
-static bool _calculateCrc16(unsigned char * pData, unsigned char length, unsigned char * pCrcLow, unsigned char * pCrcHigh)
+bool _calculateCrc16(unsigned char * pData, unsigned char length, unsigned char * pCrcLow, unsigned char * pCrcHigh)
 {
 	uint32_t crc;
 	
@@ -620,7 +620,7 @@ static bool _calculateCrc16(unsigned char * pData, unsigned char length, unsigne
 	return true;
 }
 
-static inline void _initOutputStageAckPacket(unsigned char packetId)
+void _initOutputStageAckPacket(unsigned char packetId)
 {
 	unsigned char crcLow, crcHigh;
 	unsigned char * pBuffer = _scsOutputStage.ackPktBuffer;
@@ -633,7 +633,7 @@ static inline void _initOutputStageAckPacket(unsigned char packetId)
 }
 
 // acknowledge data packet received in input stage
-static inline void _ackInputStageDataPacket(unsigned char packetId) 
+void _ackInputStageDataPacket(unsigned char packetId)
 {
 	switch(_scsOutputStage.state)
 	{
@@ -667,13 +667,13 @@ static inline void _ackInputStageDataPacket(unsigned char packetId)
 }
 
 // be called when a ACK packet is received in input stage
-static inline void _on_inputStageAckPacketComplete(unsigned char packetId)
+void _on_inputStageAckPacketComplete(unsigned char packetId)
 {
 	_scsOutputStage.ackedDataPktId = packetId;
 }
 
 // be called when a Data packet is received in input stage
-static inline void _on_inputStageDataPacketComplete()
+void _on_inputStageDataPacketComplete()
 {
 	unsigned char packetId = _scsInputStage.packetBuffer[1];
 	
@@ -732,7 +732,7 @@ static inline void _on_inputStageDataPacketComplete()
 }
 
 // check if a packet from host is complete
-static void _processScsInputStage(void)
+void _processScsInputStage(void)
 {
 	unsigned char c;
 	
@@ -869,7 +869,7 @@ static void _processScsInputStage(void)
 
 //handle SCS_OUTPUT_IDLE.
 // read data to host from APP's outputBuffer.
-static void _processScsOutputStageIdle()
+void _processScsOutputStageIdle()
 {
 	unsigned char * pPacket = _scsOutputStage.dataPktBuffer;
 	unsigned short size = _readOutputBuffer(pPacket + 3, SCS_DATA_MAX_LENGTH);
@@ -912,7 +912,7 @@ static void _processScsOutputStageIdle()
 }
 
 //send out data in output stage as much as possible
-static void _processScsOutputStage(void)
+void _processScsOutputStage(void)
 {
 	switch(_scsOutputStage.state)
 	{
