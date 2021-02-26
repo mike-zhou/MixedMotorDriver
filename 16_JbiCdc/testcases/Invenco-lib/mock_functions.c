@@ -25,9 +25,9 @@ unsigned char PORTK_DIR;
 
 
 
-/**
+/*****************************************
  * EBI
- */
+ *****************************************/
 void ebi_setup_port(unsigned char addr, unsigned char sram, unsigned char lpc, unsigned char flags)
 {
 
@@ -68,9 +68,17 @@ void ebi_enable_cs(unsigned char mode, struct ebi_cs_config * p)
 
 }
 
-/**
+/************************************************
  * USB
- */
+ ************************************************/
+
+unsigned char mockUsbInputBuffer[MOCK_USB_INPUT_BUFFER_MASK + 1];
+unsigned short mockUsbInputBufferConsumerIndex = 0;
+unsigned short mockUsbInputBufferProducerIndex = 0;
+unsigned char mockUsbOutputBuffer[MOCK_USB_OUTPUT_BUFFER_MASK];
+unsigned short mockUsbOutputBufferConsumerIndex = 0;
+unsigned short mockUsbOutputBufferProducerIndex = 0;
+
 void udc_start()
 {
 
@@ -78,38 +86,101 @@ void udc_start()
 
 iram_size_t udi_cdc_get_free_tx_buffer(void)
 {
+	int used;
 
+	if(mockUsbOutputBufferConsumerIndex <= mockUsbOutputBufferProducerIndex) {
+		used = mockUsbOutputBufferProducerIndex - mockUsbOutputBufferConsumerIndex;
+	}
+	else {
+		used = (MOCK_USB_OUTPUT_BUFFER_MASK - mockUsbOutputBufferConsumerIndex) + mockUsbOutputBufferProducerIndex;
+	}
+
+	return MOCK_USB_INPUT_BUFFER_MASK - used;
 }
 
 iram_size_t udi_cdc_get_nb_received_data()
 {
+	int used;
 
+	if(mockUsbInputBufferConsumerIndex <= mockUsbInputBufferProducerIndex) {
+		used = mockUsbInputBufferProducerIndex - mockUsbInputBufferConsumerIndex;
+	}
+	else {
+		used = (MOCK_USB_INPUT_BUFFER_MASK - mockUsbInputBufferConsumerIndex) + mockUsbInputBufferProducerIndex;
+	}
+
+	return used;
 }
 
 iram_size_t udi_cdc_write_buf(const void * buf, iram_size_t size)
 {
+	unsigned char * pSource = (unsigned char *)buf;
+	unsigned int count;
 
+	for(count = 0; count < size; count++) 
+	{
+		int nextIndex = (mockUsbOutputBufferProducerIndex + 1) & MOCK_USB_OUTPUT_BUFFER_MASK;
+		
+		if(nextIndex == mockUsbOutputBufferConsumerIndex) {
+			break;
+		}
+		mockUsbOutputBuffer[mockUsbOutputBufferProducerIndex] = pSource[count];
+		mockUsbOutputBufferProducerIndex = nextIndex;
+	}
+
+	return count;
 }
 
 iram_size_t udi_cdc_read_buf(void * buf, iram_size_t size)
 {
+	unsigned int count;
+	unsigned char * pBuf = (unsigned char * )buf;
 
+	for(count =0; count < size; count++)
+	{
+		if(mockUsbInputBufferConsumerIndex == mockUsbInputBufferProducerIndex) {
+			break;
+		}
+		pBuf[count] = mockUsbInputBuffer[mockUsbInputBufferConsumerIndex];
+		mockUsbInputBufferConsumerIndex = (mockUsbInputBufferConsumerIndex + 1) & MOCK_USB_INPUT_BUFFER_MASK;
+	}
+
+	return count;
 }
 
 bool udi_cdc_is_tx_ready(void)
 {
+	bool bFull;
+	unsigned int nextIndex = (mockUsbOutputBufferProducerIndex + 1) & MOCK_USB_OUTPUT_BUFFER_MASK;
 
+	if(nextIndex == mockUsbOutputBufferConsumerIndex) {
+		bFull = true;
+	}
+	else {
+		bFull = false;
+	}
+
+	return bFull;
 }
 
 int udi_cdc_putc(int value)
 {
+	unsigned int nextIndex = (mockUsbOutputBufferProducerIndex + 1) & MOCK_USB_OUTPUT_BUFFER_MASK;
 
+	if(nextIndex == mockUsbOutputBufferConsumerIndex) {
+		return 0;
+	}
+	else {
+		mockUsbOutputBuffer[mockUsbOutputBufferProducerIndex] = value;
+		mockUsbOutputBufferProducerIndex = nextIndex;
+		return 1;
+	}
 }
 
 
-/**
+/*******************************************
  * UART
- */
+ *******************************************/
 char ecd300InitUart(unsigned char devIndex, usart_rs232_options_t * pOptions)
 {
 
@@ -125,9 +196,9 @@ char ecd300PollChar(unsigned char devIndex, unsigned char * pChar)
 
 }
 
-/**
+/*************************************************
  * Timer Counter
- */
+ *************************************************/
 void sysclk_init()
 {
 
@@ -156,9 +227,9 @@ unsigned short tc_read_count(void * pTc)
 
 }
 
-/**
+/*****************************************
  * CRC
- */
+ *****************************************/
 void crc_set_initial_value(unsigned long v)
 {
 
@@ -175,9 +246,9 @@ void disableJtagPort()
 
 }
 
-/**
+/****************************************
  * Miscellaneous
- */
+ ****************************************/
 void sleepmgr_init()
 {
 
