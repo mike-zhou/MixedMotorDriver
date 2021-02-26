@@ -11,15 +11,19 @@
 #include "tc.h"
 #include "usb_protocol_cdc.h"
 
+#include "mock_functions.h"
+
 unsigned char PORTA_DIR;
-unsigned char	PORTB_DIR;
-unsigned char	PORTC_DIR;
-unsigned char	PORTD_DIR;
-unsigned char	PORTE_DIR;
-unsigned char	PORTF_DIR;
-unsigned char	PORTH_DIR;
-unsigned char	PORTJ_DIR;
-unsigned char	PORTK_DIR;
+unsigned char PORTB_DIR;
+unsigned char PORTC_DIR;
+unsigned char PORTD_DIR;
+unsigned char PORTE_DIR;
+unsigned char PORTF_DIR;
+unsigned char PORTH_DIR;
+unsigned char PORTJ_DIR;
+unsigned char PORTK_DIR;
+
+
 
 /**
  * EBI
@@ -77,10 +81,31 @@ iram_size_t udi_cdc_get_free_tx_buffer(void)
 
 }
 
+iram_size_t udi_cdc_get_nb_received_data()
+{
+
+}
+
 iram_size_t udi_cdc_write_buf(const void * buf, iram_size_t size)
 {
 
 }
+
+iram_size_t udi_cdc_read_buf(void * buf, iram_size_t size)
+{
+
+}
+
+bool udi_cdc_is_tx_ready(void)
+{
+
+}
+
+int udi_cdc_putc(int value)
+{
+
+}
+
 
 /**
  * UART
