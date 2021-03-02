@@ -44,56 +44,41 @@ static inline unsigned char _putCharsUart(unsigned char * pBuffer, unsigned char
 	return counter;
 }
 
-#if DATA_EXCHANGE_THROUGH_USB
-//monitor traffic is through UART.
-static bool _writeMonitorChar(unsigned char c)
-{
-	char rc;
-	
-	rc = ecd300PutChar(ECD300_UART_2, c);
-	if(rc == 0) {
-		return true;
-	}
-	else {
-		return false;
-	}
-}
-
-#else
 //monitor traffic is through USB
 static unsigned char _monitorOutputBuffer[MONITOR_OUTPUT_BUFFER_LENGTH_MASK + 1];
 static unsigned short _monitorOutputBufferConsumerIndex;
-static unsigned short _monitorOutputBufferProducerIdnex;
+static unsigned short _monitorOutputBufferProducerIndex;
 
 static bool _writeMonitorChar(unsigned char c)
 {
-	unsigned short nextProducerIndex = (_monitorOutputBufferProducerIdnex + 1) & MONITOR_OUTPUT_BUFFER_LENGTH_MASK;
+	unsigned short nextProducerIndex = (_monitorOutputBufferProducerIndex + 1) & MONITOR_OUTPUT_BUFFER_LENGTH_MASK;
 	if(nextProducerIndex == _monitorOutputBufferConsumerIndex) {
 		return false; //buffer full
 	}
 	_monitorOutputBuffer[nextProducerIndex] = c;
-	_monitorOutputBufferProducerIdnex = nextProducerIndex;
+	_monitorOutputBufferProducerIndex = nextProducerIndex;
 	return true;
 }	
-#endif
 
 static void _processMonitorStage()
 {
-#if DATA_EXCHANGE_THROUGH_USB	
-#else
-	if(_monitorOutputBufferConsumerIndex == _monitorOutputBufferProducerIdnex) {
+	if(_monitorOutputBufferConsumerIndex == _monitorOutputBufferProducerIndex) {
 		return; // no data to send
 	}
-	if(_monitorOutputBufferConsumerIndex < _monitorOutputBufferProducerIdnex) 
+	if(_monitorOutputBufferConsumerIndex < _monitorOutputBufferProducerIndex) 
 	{
 		unsigned char * pBuffer = _monitorOutputBuffer + _monitorOutputBufferConsumerIndex;
-		unsigned short size = _monitorOutputBufferProducerIdnex - _monitorOutputBufferConsumerIndex;
+		unsigned short size = _monitorOutputBufferProducerIndex - _monitorOutputBufferConsumerIndex;
 		unsigned char amount;
 		
 		if(size > 0xff) {
 			size = 0xff;
 		}			
+#if DATA_EXCHANGE_THROUGH_USB
+		amount = _putCharsUart(pBuffer, size);	
+#else
 		amount = _putCharsUsb(pBuffer, size);
+#endif	
 		_monitorOutputBufferConsumerIndex += amount;
 	}
 	else 
@@ -105,10 +90,13 @@ static void _processMonitorStage()
 		if(size > 0xff) {
 			size = 0xff;
 		}
+#if DATA_EXCHANGE_THROUGH_USB
+		amount = _putCharsUart(pBuffer, size);
+#else
 		amount = _putCharsUsb(pBuffer, size);
+#endif
 		_monitorOutputBufferConsumerIndex = (_monitorOutputBufferConsumerIndex + amount) & MONITOR_OUTPUT_BUFFER_LENGTH_MASK;
 	}
-#endif	
 }
 
 //////////////////////////////////////////////////
@@ -275,25 +263,25 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 }
 
 //data buffer for upper layer software
-static	unsigned char inputBuffer[APP_INPUT_BUFFER_LENGTH_MASK + 1]; 
-static	unsigned char outputBuffer[APP_OUTPUT_BUFFER_LENGTH_MASK + 1];
+static	unsigned char _inputBuffer[APP_INPUT_BUFFER_LENGTH_MASK + 1]; 
+static	unsigned char _outputBuffer[APP_OUTPUT_BUFFER_LENGTH_MASK + 1];
 // the way to check whether buffer is full:
 //	if ((producer + 1) & mask) == consumer, then buffer is full
-static	unsigned short inputProducerIndex=0;
-static	unsigned short inputConsumerIndex=0;
-static	unsigned short outputProducerIndex=0;
-static	unsigned short outputConsumerIndex=0;
-static  bool outputBufferEnabled = false;
-static  bool outputOverflow = false;
+static	unsigned short _inputProducerIndex=0;
+static	unsigned short _inputConsumerIndex=0;
+static	unsigned short _outputProducerIndex=0;
+static	unsigned short _outputConsumerIndex=0;
+static  bool _outputBufferEnabled = false;
+static  bool _outputOverflow = false;
 
 // return free space in APP's input buffer
 static inline unsigned short _getAppInputBufferAvailable()
 {
-	if(inputProducerIndex >= inputConsumerIndex) {
-		return APP_INPUT_BUFFER_LENGTH_MASK - (inputProducerIndex - inputConsumerIndex);
+	if(_inputProducerIndex >= _inputConsumerIndex) {
+		return APP_INPUT_BUFFER_LENGTH_MASK - (_inputProducerIndex - _inputConsumerIndex);
 	}
 	else {
-		return inputConsumerIndex - inputProducerIndex - 1;
+		return _inputConsumerIndex - _inputProducerIndex - 1;
 	}
 }
 
@@ -306,14 +294,14 @@ static inline unsigned short _writeAppInputBuffer(unsigned char * pBuffer, unsig
 	
 	for(i=0; i<length; i++) 
 	{
-		nextWritingIndex = (inputProducerIndex + 1) & APP_INPUT_BUFFER_LENGTH_MASK;
-		if(nextWritingIndex == inputConsumerIndex) {
+		nextWritingIndex = (_inputProducerIndex + 1) & APP_INPUT_BUFFER_LENGTH_MASK;
+		if(nextWritingIndex == _inputConsumerIndex) {
 			//input buffer is full
 			break;
 		}
 		
-		inputBuffer[inputProducerIndex] = pBuffer[i];
-		inputProducerIndex = nextWritingIndex;
+		_inputBuffer[_inputProducerIndex] = pBuffer[i];
+		_inputProducerIndex = nextWritingIndex;
 	}
 	
 	return i;
@@ -321,8 +309,8 @@ static inline unsigned short _writeAppInputBuffer(unsigned char * pBuffer, unsig
 
 void clearInputBuffer(void)
 {
-	inputProducerIndex = 0;
-	inputConsumerIndex = 0;
+	_inputProducerIndex = 0;
+	_inputConsumerIndex = 0;
 }
 
 // read a character from input buffer.
@@ -332,9 +320,9 @@ unsigned char readInputBuffer(void)
 {
 	unsigned char c;
 	
-	if(inputConsumerIndex != inputProducerIndex) {
-		c = inputBuffer[inputConsumerIndex];
-		inputConsumerIndex = (inputConsumerIndex + 1) & APP_INPUT_BUFFER_LENGTH_MASK;
+	if(_inputConsumerIndex != _inputProducerIndex) {
+		c = _inputBuffer[_inputConsumerIndex];
+		_inputConsumerIndex = (_inputConsumerIndex + 1) & APP_INPUT_BUFFER_LENGTH_MASK;
 	}
 	else {
 		c = 0;
@@ -346,11 +334,11 @@ unsigned char readInputBuffer(void)
 //return amount of bytes in output buffer
 unsigned short _getOutputBufferUsed()
 {
-	if(outputProducerIndex >= outputConsumerIndex) {
-		return outputProducerIndex - outputConsumerIndex;
+	if(_outputProducerIndex >= _outputConsumerIndex) {
+		return _outputProducerIndex - _outputConsumerIndex;
 	}
 	else {
-		return outputProducerIndex + APP_OUTPUT_BUFFER_LENGTH_MASK + 1 - outputConsumerIndex;
+		return _outputProducerIndex + APP_OUTPUT_BUFFER_LENGTH_MASK + 1 - _outputConsumerIndex;
 	}
 }
 
@@ -362,12 +350,12 @@ unsigned short _readOutputBuffer(unsigned char * pBuffer, unsigned short size)
 	
 	for(counter=0; counter<size; counter++) 
 	{
-		if(outputConsumerIndex == outputProducerIndex) {
+		if(_outputConsumerIndex == _outputProducerIndex) {
 			break;
 		}
-		*pBuffer = outputBuffer[outputConsumerIndex];
+		*pBuffer = _outputBuffer[_outputConsumerIndex];
 		pBuffer++;
-		outputConsumerIndex = (outputConsumerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH_MASK;
+		_outputConsumerIndex = (_outputConsumerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH_MASK;
 	}
 	
 	return counter;
@@ -378,23 +366,23 @@ unsigned short _readOutputBuffer(unsigned char * pBuffer, unsigned short size)
 //return false if output buffer overflows
 bool writeOutputBufferChar(unsigned char c)
 {
-	if(!outputBufferEnabled) {
+	if(!_outputBufferEnabled) {
 		return false;
 	}
 	
-	unsigned short nextProducerIndex = (outputProducerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH_MASK;
+	unsigned short nextProducerIndex = (_outputProducerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH_MASK;
 	
-	if(nextProducerIndex == outputConsumerIndex) {
-		if(outputOverflow == false) {
-			outputOverflow = true;
+	if(nextProducerIndex == _outputConsumerIndex) {
+		if(_outputOverflow == false) {
+			_outputOverflow = true;
 			printString("*");
 		}
 		return false;
 	}
 	else {
-		outputOverflow = false;
-		outputBuffer[outputProducerIndex] = c;
-		outputProducerIndex = nextProducerIndex;
+		_outputOverflow = false;
+		_outputBuffer[_outputProducerIndex] = c;
+		_outputProducerIndex = nextProducerIndex;
 		return true;
 	}
 }
@@ -402,7 +390,7 @@ bool writeOutputBufferChar(unsigned char c)
 //write a string to output buffer
 void writeOutputBufferString(const char * pString)
 {
-	if(!outputBufferEnabled) {
+	if(!_outputBufferEnabled) {
 		return;
 	}
 	
@@ -421,7 +409,7 @@ void writeOutputBufferString(const char * pString)
 
 void writeOutputBufferHex(unsigned char n)
 {
-	if(!outputBufferEnabled) {
+	if(!_outputBufferEnabled) {
 		return;
 	}
 	
@@ -442,7 +430,7 @@ void writeOutputBufferHex(unsigned char n)
 
 void enableOutputBuffer(void)
 {
-	outputBufferEnabled = true;
+	_outputBufferEnabled = true;
 }
 
 
@@ -1097,3 +1085,172 @@ void Invenco_init(void)
 	udc_start();
 	initScsDataExchange();
 }
+
+#if MOCK_FUNCTION
+
+unsigned short getInputBufferConsumerIndex()
+{
+	return _inputConsumerIndex;
+}
+
+unsigned short getInputBufferProducerIndex()
+{
+	return _inputProducerIndex;
+}
+
+unsigned short getInputBufferLengthMask()
+{
+	return APP_INPUT_BUFFER_LENGTH_MASK;
+}
+
+unsigned char * getInputBuffer()
+{
+	return _inputBuffer;
+}
+
+/************************************************************************/
+/* return amount of bytes in the _inputBuffer                           */
+/************************************************************************/
+int getInputBufferUsed()
+{
+	if(_inputConsumerIndex <= _inputProducerIndex) {
+		return _inputProducerIndex - _inputConsumerIndex;
+	}
+	else {
+		return APP_INPUT_BUFFER_LENGTH_MASK - _inputConsumerIndex + _inputProducerIndex;
+	}
+}
+
+/************************************************************************/
+/* copy the content of inputBuffer to pBuffer                           */
+/* return the actual size of bytes copied to pBuffer					*/
+/************************************************************************/
+int peekInputBuffer(unsigned char * pBuffer, int size)
+{
+	unsigned short consumerIndex = _inputConsumerIndex;
+	unsigned short producerIndex = _inputProducerIndex;
+	int count = 0;
+	
+	for(; count < size; count++) 
+	{
+		if(consumerIndex == producerIndex) {
+			break;
+		}
+		pBuffer[count] = _inputBuffer[consumerIndex];
+		consumerIndex = (consumerIndex + 1) & APP_INPUT_BUFFER_LENGTH_MASK;
+	}
+	
+	return count;
+}
+
+unsigned short getOutputBufferConsumerIndex()
+{
+	return _outputConsumerIndex;
+}
+
+unsigned short getOutputBufferProducerIndex()
+{
+	return _outputProducerIndex;
+}
+
+unsigned short getOutputBufferLengthMask()
+{
+	return APP_OUTPUT_BUFFER_LENGTH_MASK;
+}
+
+unsigned char * getOutputBuffer()
+{
+	return _outputBuffer;
+}
+
+/************************************************************************/
+/* return amount of bytes in the _outputBuffer                          */
+/************************************************************************/
+int getOutputBufferUsed()
+{
+	if(_outputConsumerIndex <= _outputProducerIndex) {
+		return _outputProducerIndex - _outputConsumerIndex;
+	}
+	else {
+		return APP_OUTPUT_BUFFER_LENGTH_MASK - _outputConsumerIndex + _outputProducerIndex;
+	}
+}
+
+/************************************************************************/
+/* copy the content of outputBuffer to pBuffer                           */
+/* return the actual size of bytes copied to pBuffer					*/
+/************************************************************************/
+int peekOutputBuffer(unsigned char * pBuffer, int size)
+{
+	unsigned short consumerIndex = _outputConsumerIndex;
+	unsigned short producerIndex = _outputProducerIndex;
+	int count = 0;
+	
+	for(; count < size; count++)
+	{
+		if(consumerIndex == producerIndex) {
+			break;
+		}
+		pBuffer[count] = _outputBuffer[consumerIndex];
+		consumerIndex = (consumerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH_MASK;
+	}
+	
+	return count;
+}
+
+unsigned short getMonitorOutputBufferConsumerIndex()
+{
+	return _monitorOutputBufferConsumerIndex;
+}
+
+unsigned short getMonitorOutputBufferProducerIndex()
+{
+	return _monitorOutputBufferProducerIndex;
+}
+
+unsigned short getMonitorOutputBufferLengthMask()
+{
+	return MONITOR_OUTPUT_BUFFER_LENGTH_MASK;
+}
+
+unsigned char * getMonitorOutputBuffer()
+{
+	return _monitorOutputBuffer;
+}
+
+/************************************************************************/
+/* return amount of bytes in the _monitorOutputBuffer                   */
+/************************************************************************/
+int getMonitorOutputBufferUsed()
+{
+	if(_monitorOutputBufferConsumerIndex <= _monitorOutputBufferProducerIndex) {
+		return _monitorOutputBufferProducerIndex - _monitorOutputBufferConsumerIndex;
+	}
+	else {
+		return MONITOR_OUTPUT_BUFFER_LENGTH_MASK - _monitorOutputBufferConsumerIndex + _monitorOutputBufferProducerIndex;
+	}
+}
+
+/************************************************************************/
+/* copy the content of monitorOutputBuffer to pBuffer                   */
+/* return the actual size of bytes copied to pBuffer					*/
+/************************************************************************/
+int peekMonitorBuffer(unsigned char * pBuffer, int size)
+{
+	unsigned short consumerIndex = _monitorOutputBufferConsumerIndex;
+	unsigned short producerIndex = _monitorOutputBufferProducerIndex;
+	int count = 0;
+	
+	for(; count < size; count++)
+	{
+		if(consumerIndex == producerIndex) {
+			break;
+		}
+		pBuffer[count] = _monitorOutputBuffer[consumerIndex];
+		consumerIndex = (consumerIndex + 1) & MONITOR_OUTPUT_BUFFER_LENGTH_MASK;
+	}
+	
+	return count;
+}
+
+#endif
