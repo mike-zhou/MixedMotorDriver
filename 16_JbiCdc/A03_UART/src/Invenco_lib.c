@@ -1088,6 +1088,12 @@ void Invenco_init(void)
 
 #if MOCK_FUNCTION
 
+void resetInputBuffer()
+{
+	_inputConsumerIndex = 0;
+	_inputProducerIndex = 0;
+}
+
 unsigned short getInputBufferConsumerIndex()
 {
 	return _inputConsumerIndex;
@@ -1143,6 +1149,12 @@ int peekInputBuffer(unsigned char * pBuffer, int size)
 	return count;
 }
 
+void resetOutputBuffer()
+{
+	_outputConsumerIndex = 0;
+	_outputProducerIndex = 0;
+}
+
 unsigned short getOutputBufferConsumerIndex()
 {
 	return _outputConsumerIndex;
@@ -1196,6 +1208,12 @@ int peekOutputBuffer(unsigned char * pBuffer, int size)
 	}
 	
 	return count;
+}
+
+void resetMonitorOutputBuffer()
+{
+	_monitorOutputBufferConsumerIndex = 0;
+	_monitorOutputBufferProducerIndex = 0;
 }
 
 unsigned short getMonitorOutputBufferConsumerIndex()
