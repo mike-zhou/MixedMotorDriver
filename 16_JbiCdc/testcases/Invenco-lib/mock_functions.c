@@ -177,6 +177,91 @@ int udi_cdc_putc(int value)
 	}
 }
 
+/**
+ * empty the mockUsbOutputBuffer
+ */
+void usbClearOutputBuffer()
+{
+	mockUsbOutputBufferProducerIndex = mockUsbOutputBufferConsumerIndex;
+}
+/**
+ * return amount of available data in the mockUsbOutputBuffer
+ */
+int usbGetOutputBufferUsed()
+{
+	if(mockUsbOutputBufferConsumerIndex <= mockUsbOutputBufferProducerIndex) {
+		return mockUsbOutputBufferProducerIndex - mockUsbOutputBufferConsumerIndex;
+	}
+	else {
+		return MOCK_UART_OUTPUT_BUFFER_MASK - mockUsbOutputBufferConsumerIndex + mockUsbOutputBufferProducerIndex;
+	}
+}
+
+/**
+ * read data from mockOutputData, 
+ * return the amount of data actually read
+ */
+int usbConsumeData(unsigned char * pBuffer, int size)
+{
+	int count = 0;
+
+	for(; count < size; count++) 
+	{
+		if(mockUsbOutputBufferConsumerIndex == mockUsbOutputBufferProducerIndex) {
+			break;
+		}
+		pBuffer[count] = mockUsbOutputBuffer[mockUsbOutputBufferConsumerIndex];
+		count++;
+		mockUsbOutputBufferConsumerIndex = (mockUsbOutputBufferConsumerIndex + 1) & MOCK_UART_OUTPUT_BUFFER_MASK;
+	}
+
+	return count;
+}
+
+/**
+ * clear mockUsbInputBuffer
+ */
+void usbClearInputBuffer()
+{
+	mockUsbInputBufferProducerIndex = mockUsbInputBufferConsumerIndex;
+}
+
+/**
+ * return the amount of byte available in the mockUsbInputBuffer
+ */
+int usbGetInputBufferUsed()
+{
+	if(mockUsbInputBufferConsumerIndex <= mockUsbInputBufferProducerIndex) {
+		return mockUsbInputBufferProducerIndex - mockUsbInputBufferConsumerIndex;
+	}
+	else {
+		return MOCK_USB_INPUT_BUFFER_MASK - mockUsbInputBufferConsumerIndex + mockUsbInputBufferProducerIndex;
+	}
+}
+
+/*
+ * write data to mockUsbInputBuffer,
+ * return the amount of data actually written
+ */
+int usbProduceData(unsigned char * pBuffer, int size)
+{
+	int count = 0;
+
+	for(; count < size; count++) 
+	{
+		int nextIndex = (mockUsbInputBufferProducerIndex + 1) & MOCK_USB_INPUT_BUFFER_MASK;
+		
+		if(nextIndex == mockUsbInputBufferConsumerIndex) {
+			break;
+		}
+		mockUsbInputBuffer[mockUsbInputBufferProducerIndex] = pBuffer[count];
+		count++;
+		mockUsbInputBufferProducerIndex = nextIndex;
+	}
+
+	return count;
+}
+
 
 /*******************************************
  * UART
