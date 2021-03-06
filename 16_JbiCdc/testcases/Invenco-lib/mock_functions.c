@@ -72,12 +72,12 @@ void ebi_enable_cs(unsigned char mode, struct ebi_cs_config * p)
  * USB
  ************************************************/
 
-unsigned char mockUsbInputBuffer[MOCK_USB_INPUT_BUFFER_MASK + 1];
-unsigned short mockUsbInputBufferConsumerIndex = 0;
-unsigned short mockUsbInputBufferProducerIndex = 0;
-unsigned char mockUsbOutputBuffer[MOCK_USB_OUTPUT_BUFFER_MASK];
-unsigned short mockUsbOutputBufferConsumerIndex = 0;
-unsigned short mockUsbOutputBufferProducerIndex = 0;
+unsigned char _mockUsbInputBuffer[MOCK_USB_INPUT_BUFFER_MASK + 1];
+unsigned short _mockUsbInputBufferConsumerIndex = 0;
+unsigned short _mockUsbInputBufferProducerIndex = 0;
+unsigned char _mockUsbOutputBuffer[MOCK_USB_OUTPUT_BUFFER_MASK];
+unsigned short _mockUsbOutputBufferConsumerIndex = 0;
+unsigned short _mockUsbOutputBufferProducerIndex = 0;
 
 void udc_start()
 {
@@ -88,11 +88,11 @@ iram_size_t udi_cdc_get_free_tx_buffer(void)
 {
 	int used;
 
-	if(mockUsbOutputBufferConsumerIndex <= mockUsbOutputBufferProducerIndex) {
-		used = mockUsbOutputBufferProducerIndex - mockUsbOutputBufferConsumerIndex;
+	if(_mockUsbOutputBufferConsumerIndex <= _mockUsbOutputBufferProducerIndex) {
+		used = _mockUsbOutputBufferProducerIndex - _mockUsbOutputBufferConsumerIndex;
 	}
 	else {
-		used = (MOCK_USB_OUTPUT_BUFFER_MASK - mockUsbOutputBufferConsumerIndex) + mockUsbOutputBufferProducerIndex;
+		used = (MOCK_USB_OUTPUT_BUFFER_MASK - _mockUsbOutputBufferConsumerIndex) + _mockUsbOutputBufferProducerIndex;
 	}
 
 	return MOCK_USB_INPUT_BUFFER_MASK - used;
@@ -102,11 +102,11 @@ iram_size_t udi_cdc_get_nb_received_data()
 {
 	int used;
 
-	if(mockUsbInputBufferConsumerIndex <= mockUsbInputBufferProducerIndex) {
-		used = mockUsbInputBufferProducerIndex - mockUsbInputBufferConsumerIndex;
+	if(_mockUsbInputBufferConsumerIndex <= _mockUsbInputBufferProducerIndex) {
+		used = _mockUsbInputBufferProducerIndex - _mockUsbInputBufferConsumerIndex;
 	}
 	else {
-		used = (MOCK_USB_INPUT_BUFFER_MASK - mockUsbInputBufferConsumerIndex) + mockUsbInputBufferProducerIndex;
+		used = (MOCK_USB_INPUT_BUFFER_MASK - _mockUsbInputBufferConsumerIndex) + _mockUsbInputBufferProducerIndex;
 	}
 
 	return used;
@@ -119,16 +119,16 @@ iram_size_t udi_cdc_write_buf(const void * buf, iram_size_t size)
 
 	for(count = 0; count < size; count++) 
 	{
-		int nextIndex = (mockUsbOutputBufferProducerIndex + 1) & MOCK_USB_OUTPUT_BUFFER_MASK;
+		int nextIndex = (_mockUsbOutputBufferProducerIndex + 1) & MOCK_USB_OUTPUT_BUFFER_MASK;
 		
-		if(nextIndex == mockUsbOutputBufferConsumerIndex) {
+		if(nextIndex == _mockUsbOutputBufferConsumerIndex) {
 			break;
 		}
-		mockUsbOutputBuffer[mockUsbOutputBufferProducerIndex] = pSource[count];
-		mockUsbOutputBufferProducerIndex = nextIndex;
+		_mockUsbOutputBuffer[_mockUsbOutputBufferProducerIndex] = pSource[count];
+		_mockUsbOutputBufferProducerIndex = nextIndex;
 	}
 
-	return count;
+	return size - count;
 }
 
 iram_size_t udi_cdc_read_buf(void * buf, iram_size_t size)
@@ -138,22 +138,22 @@ iram_size_t udi_cdc_read_buf(void * buf, iram_size_t size)
 
 	for(count =0; count < size; count++)
 	{
-		if(mockUsbInputBufferConsumerIndex == mockUsbInputBufferProducerIndex) {
+		if(_mockUsbInputBufferConsumerIndex == _mockUsbInputBufferProducerIndex) {
 			break;
 		}
-		pBuf[count] = mockUsbInputBuffer[mockUsbInputBufferConsumerIndex];
-		mockUsbInputBufferConsumerIndex = (mockUsbInputBufferConsumerIndex + 1) & MOCK_USB_INPUT_BUFFER_MASK;
+		pBuf[count] = _mockUsbInputBuffer[_mockUsbInputBufferConsumerIndex];
+		_mockUsbInputBufferConsumerIndex = (_mockUsbInputBufferConsumerIndex + 1) & MOCK_USB_INPUT_BUFFER_MASK;
 	}
 
-	return count;
+	return size - count;
 }
 
 bool udi_cdc_is_tx_ready(void)
 {
 	bool bFull;
-	unsigned int nextIndex = (mockUsbOutputBufferProducerIndex + 1) & MOCK_USB_OUTPUT_BUFFER_MASK;
+	unsigned int nextIndex = (_mockUsbOutputBufferProducerIndex + 1) & MOCK_USB_OUTPUT_BUFFER_MASK;
 
-	if(nextIndex == mockUsbOutputBufferConsumerIndex) {
+	if(nextIndex == _mockUsbOutputBufferConsumerIndex) {
 		bFull = true;
 	}
 	else {
@@ -165,14 +165,14 @@ bool udi_cdc_is_tx_ready(void)
 
 int udi_cdc_putc(int value)
 {
-	unsigned int nextIndex = (mockUsbOutputBufferProducerIndex + 1) & MOCK_USB_OUTPUT_BUFFER_MASK;
+	unsigned int nextIndex = (_mockUsbOutputBufferProducerIndex + 1) & MOCK_USB_OUTPUT_BUFFER_MASK;
 
-	if(nextIndex == mockUsbOutputBufferConsumerIndex) {
+	if(nextIndex == _mockUsbOutputBufferConsumerIndex) {
 		return 0;
 	}
 	else {
-		mockUsbOutputBuffer[mockUsbOutputBufferProducerIndex] = value;
-		mockUsbOutputBufferProducerIndex = nextIndex;
+		_mockUsbOutputBuffer[_mockUsbOutputBufferProducerIndex] = value;
+		_mockUsbOutputBufferProducerIndex = nextIndex;
 		return 1;
 	}
 }
@@ -182,18 +182,19 @@ int udi_cdc_putc(int value)
  */
 void usbClearOutputBuffer()
 {
-	mockUsbOutputBufferProducerIndex = mockUsbOutputBufferConsumerIndex;
+	_mockUsbOutputBufferProducerIndex = 0;
+	_mockUsbOutputBufferConsumerIndex = 0;
 }
 /**
  * return amount of available data in the mockUsbOutputBuffer
  */
-int usbGetOutputBufferUsed()
+int usbOutputBufferUsed()
 {
-	if(mockUsbOutputBufferConsumerIndex <= mockUsbOutputBufferProducerIndex) {
-		return mockUsbOutputBufferProducerIndex - mockUsbOutputBufferConsumerIndex;
+	if(_mockUsbOutputBufferConsumerIndex <= _mockUsbOutputBufferProducerIndex) {
+		return _mockUsbOutputBufferProducerIndex - _mockUsbOutputBufferConsumerIndex;
 	}
 	else {
-		return MOCK_UART_OUTPUT_BUFFER_MASK - mockUsbOutputBufferConsumerIndex + mockUsbOutputBufferProducerIndex;
+		return MOCK_UART_OUTPUT_BUFFER_MASK - _mockUsbOutputBufferConsumerIndex + _mockUsbOutputBufferProducerIndex;
 	}
 }
 
@@ -207,12 +208,11 @@ int usbConsumeData(unsigned char * pBuffer, int size)
 
 	for(; count < size; count++) 
 	{
-		if(mockUsbOutputBufferConsumerIndex == mockUsbOutputBufferProducerIndex) {
+		if(_mockUsbOutputBufferConsumerIndex == _mockUsbOutputBufferProducerIndex) {
 			break;
 		}
-		pBuffer[count] = mockUsbOutputBuffer[mockUsbOutputBufferConsumerIndex];
-		count++;
-		mockUsbOutputBufferConsumerIndex = (mockUsbOutputBufferConsumerIndex + 1) & MOCK_UART_OUTPUT_BUFFER_MASK;
+		pBuffer[count] = _mockUsbOutputBuffer[_mockUsbOutputBufferConsumerIndex];
+		_mockUsbOutputBufferConsumerIndex = (_mockUsbOutputBufferConsumerIndex + 1) & MOCK_UART_OUTPUT_BUFFER_MASK;
 	}
 
 	return count;
@@ -223,7 +223,8 @@ int usbConsumeData(unsigned char * pBuffer, int size)
  */
 void usbClearInputBuffer()
 {
-	mockUsbInputBufferProducerIndex = mockUsbInputBufferConsumerIndex;
+	_mockUsbInputBufferProducerIndex = 0;
+	_mockUsbInputBufferConsumerIndex = 0;
 }
 
 /**
@@ -231,11 +232,11 @@ void usbClearInputBuffer()
  */
 int usbGetInputBufferUsed()
 {
-	if(mockUsbInputBufferConsumerIndex <= mockUsbInputBufferProducerIndex) {
-		return mockUsbInputBufferProducerIndex - mockUsbInputBufferConsumerIndex;
+	if(_mockUsbInputBufferConsumerIndex <= _mockUsbInputBufferProducerIndex) {
+		return _mockUsbInputBufferProducerIndex - _mockUsbInputBufferConsumerIndex;
 	}
 	else {
-		return MOCK_USB_INPUT_BUFFER_MASK - mockUsbInputBufferConsumerIndex + mockUsbInputBufferProducerIndex;
+		return MOCK_USB_INPUT_BUFFER_MASK - _mockUsbInputBufferConsumerIndex + _mockUsbInputBufferProducerIndex;
 	}
 }
 
@@ -249,44 +250,150 @@ int usbProduceData(unsigned char * pBuffer, int size)
 
 	for(; count < size; count++) 
 	{
-		int nextIndex = (mockUsbInputBufferProducerIndex + 1) & MOCK_USB_INPUT_BUFFER_MASK;
+		int nextIndex = (_mockUsbInputBufferProducerIndex + 1) & MOCK_USB_INPUT_BUFFER_MASK;
 		
-		if(nextIndex == mockUsbInputBufferConsumerIndex) {
+		if(nextIndex == _mockUsbInputBufferConsumerIndex) {
 			break;
 		}
-		mockUsbInputBuffer[mockUsbInputBufferProducerIndex] = pBuffer[count];
-		count++;
-		mockUsbInputBufferProducerIndex = nextIndex;
+		_mockUsbInputBuffer[_mockUsbInputBufferProducerIndex] = pBuffer[count];
+		_mockUsbInputBufferProducerIndex = nextIndex;
 	}
 
 	return count;
 }
 
+int usbInputBufferConsumerIndex()
+{
+	return _mockUsbInputBufferConsumerIndex;
+}
+
+int usbInputBufferProducerIndex()
+{
+	return _mockUsbInputBufferProducerIndex;
+}
+
+int usbOutputBufferConsumerIndex()
+{
+	return _mockUsbOutputBufferConsumerIndex;
+}
+
+int usbOutputBufferProducerIndex()
+{
+	return _mockUsbOutputBufferProducerIndex;
+}
 
 /*******************************************
  * UART
  *******************************************/
+static unsigned char _mockUartInputBuffer[MOCK_UART_INPUT_BUFFER_MASK + 1];
+static unsigned short _mockUartInputBufferConsumerIndex = 0;
+static unsigned short _mockUartInputBufferProducerIndex = 0;
+static unsigned char _mockUartIOutputBuffer[MOCK_UART_OUTPUT_BUFFER_MASK + 1];
+static unsigned short _mockUartOutputBufferConsumerIndex = 0;
+static unsigned short _mockUartOutputBufferProducerIndex = 0;
+
 char ecd300InitUart(unsigned char devIndex, usart_rs232_options_t * pOptions)
 {
-
 }
 
 char ecd300PutChar(unsigned char devIndex, unsigned char character)
 {
+	unsigned short nextIndex = (_mockUartOutputBufferProducerIndex + 1) & MOCK_UART_OUTPUT_BUFFER_MASK;
 
+	if(nextIndex == _mockUartOutputBufferConsumerIndex) {
+		return -1;
+	}
+	_mockUartIOutputBuffer[_mockUartOutputBufferProducerIndex] = character;
+	_mockUartOutputBufferProducerIndex = nextIndex;
+
+	return 0;
 }
 
 char ecd300PollChar(unsigned char devIndex, unsigned char * pChar)
 {
+	if(_mockUartInputBufferConsumerIndex == _mockUartInputBufferProducerIndex) {
+		return 0;
+	}
+	*pChar = _mockUartInputBuffer[_mockUartInputBufferConsumerIndex];
+	_mockUartInputBufferConsumerIndex = (_mockUartInputBufferConsumerIndex + 1) & MOCK_USB_INPUT_BUFFER_MASK;
 
+	return 1;
+}
+
+void uartReset()
+{
+	_mockUartInputBufferConsumerIndex = 0;
+	_mockUartInputBufferProducerIndex = 0;
+	_mockUartOutputBufferConsumerIndex = 0;
+	_mockUartOutputBufferProducerIndex = 0;
+}
+
+int uartInputBufferConsumerIndex()
+{
+	return _mockUartInputBufferConsumerIndex;
+}
+
+int uartInputBufferProducerIndex()
+{
+	return _mockUartInputBufferProducerIndex;
+}
+
+int uartOutputBufferConsumerIndex()
+{
+	return _mockUartOutputBufferConsumerIndex;
+}
+
+int uartOutputBufferProducerIndex()
+{
+	return _mockUartOutputBufferProducerIndex;
+}
+
+/***
+ * simulate UART bytes arrival
+ * 	return amount of bytes really received.
+ */
+int uartProduceData(unsigned char * pBuffer, int size)
+{
+	int count = 0;
+
+	for(; count < size; count++)
+	{
+		int nextIndex = (_mockUartInputBufferProducerIndex + 1) & MOCK_UART_INPUT_BUFFER_MASK;
+
+		if(nextIndex == _mockUartInputBufferConsumerIndex) {
+			break;
+		}
+		_mockUartInputBuffer[_mockUartInputBufferProducerIndex] = pBuffer[count];
+		_mockUartInputBufferProducerIndex = nextIndex;
+	}
+
+	return count;
+}
+
+int uartConsumeData(unsigned char * pBuffer, int size)
+{
+	int count = 0;
+
+	for(; count < size; count++)
+	{
+		if(_mockUartOutputBufferConsumerIndex == _mockUartOutputBufferProducerIndex) {
+			break;
+		}
+		pBuffer[count] = _mockUartIOutputBuffer[_mockUartOutputBufferConsumerIndex];
+		_mockUartOutputBufferConsumerIndex = (_mockUartOutputBufferConsumerIndex + 1) & MOCK_UART_OUTPUT_BUFFER_MASK;
+	}
+
+	return count;
 }
 
 /*************************************************
  * Timer Counter
  *************************************************/
+static unsigned short _timerCounter;
+
 void sysclk_init()
 {
-
+	_timerCounter = 0;
 }
 
 void tc_enable(void * pTc)
@@ -303,13 +410,31 @@ void tc_set_resolution(void * pTc, unsigned char r)
 
 unsigned long tc_get_resolution(void * pTc)
 {
-
+	return 30; //one clock equals 30 us
 }
 
 
 unsigned short tc_read_count(void * pTc)
 {
+	return _timerCounter;
+}
 
+/***
+ * increase one clock
+ */
+void tcOneClock()
+{
+	_timerCounter++;
+}
+
+/***
+ * increase designated clocks
+ */
+void tcClocks(unsigned int ticks)
+{
+	for(int i=0; i<ticks; i++) {
+		tcOneClock();
+	}
 }
 
 /*****************************************

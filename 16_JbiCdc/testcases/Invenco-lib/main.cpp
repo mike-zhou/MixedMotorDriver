@@ -7,12 +7,12 @@
 
 extern "C"
 {
-	void Invenco_init(void);
+	void startTestCases();
 }
 
 int main()
 {
-	Invenco_init();
+	startTestCases();
 	return 0;
 }
 

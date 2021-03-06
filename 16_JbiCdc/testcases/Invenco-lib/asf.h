@@ -8,15 +8,12 @@
 #ifndef ASF_H_
 #define ASF_H_
 
-typedef char bool;
-#define true 1
-#define false 0
+#include <stdbool.h>
+#include <stdio.h>
 
 typedef unsigned short iram_size_t;
 typedef unsigned char uint8_t;
 typedef unsigned long uint32_t;
-
-#define NULL ((unsigned char *) 0)
 
 #define EBI_PORT_SRAM 	0x1
 #define EBI_PORT_3PORT 	0x1
