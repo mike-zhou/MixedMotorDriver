@@ -294,6 +294,7 @@ static unsigned short _mockUartOutputBufferProducerIndex = 0;
 
 char ecd300InitUart(unsigned char devIndex, usart_rs232_options_t * pOptions)
 {
+	return 0;
 }
 
 char ecd300PutChar(unsigned char devIndex, unsigned char character)
@@ -440,14 +441,70 @@ void tcClocks(unsigned int ticks)
 /*****************************************
  * CRC
  *****************************************/
+static const unsigned short _CRC_POLY_CCITT	= 0x1021;
+static unsigned short _crc_tabccitt[256];
+static unsigned short _crc_initial_value;
+
+void _init_crcccitt_tab( void )
+{
+	unsigned short i;
+	unsigned short j;
+	unsigned short crc;
+	unsigned short c;
+
+	for (i=0; i<256; i++) {
+
+		crc = 0;
+		c   = i << 8;
+
+		for (j=0; j<8; j++) {
+
+			if ( (crc ^ c) & 0x8000 ) crc = ( crc << 1 ) ^ _CRC_POLY_CCITT;
+			else                      crc =   crc << 1;
+
+			c = c << 1;
+		}
+
+		_crc_tabccitt[i] = crc;
+	}
+}
+
+static unsigned short _crc_ccitt_generic( const unsigned char *input_str, int num_bytes, unsigned short start_value )
+{
+	unsigned short crc;
+	unsigned short tmp;
+	unsigned short short_c;
+	const unsigned char *ptr;
+	int a;
+
+	_init_crcccitt_tab();
+
+	crc = start_value;
+	ptr = input_str;
+
+	if ( ptr != NULL ) for (a=0; a<num_bytes; a++) {
+
+		short_c = 0x00ff & (unsigned short) *ptr;
+		tmp     = (crc >> 8) ^ short_c;
+		crc     = (crc << 8) ^ _crc_tabccitt[tmp];
+
+		ptr++;
+	}
+
+	return crc;
+}
+
 void crc_set_initial_value(unsigned long v)
 {
-
+	_crc_initial_value = (unsigned short)v;
 }
 
 unsigned long crc_io_checksum(void * pBuf, unsigned short len, unsigned char type)
 {
+	unsigned short crc;
 
+	crc = _crc_ccitt_generic(pBuf, len, _crc_initial_value);
+	return crc;
 }
 
 
