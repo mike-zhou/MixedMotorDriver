@@ -89,6 +89,7 @@ struct SCS_Output_Stage
 #define USB_INPUT_BUFFER_SIZE 64
 
 #if MOCK_FUNCTION
+/////// APP input and output buffer /////////////
 void inputBufferReset();
 unsigned short inputBufferConsumerIndex();
 unsigned short inputBufferProducerIndex();
@@ -103,13 +104,7 @@ unsigned short outputBufferLengthMask();
 unsigned char * outputBuffer();
 int outputBufferUsed();
 int outputBufferCopy(unsigned char * pBuffer, int size);
-void monitorOutputBufferReset();
-unsigned short monitorOutputBufferConsumerIndex();
-unsigned short monitorOutputBufferProducerIndex();
-unsigned short monitorOutputBufferLengthMask();
-unsigned char * monitorOutputBuffer();
-int monitorOutputBufferUsed();
-int monitorOutputBufferCopy(unsigned char * pBuffer, int size);
+/////// input and output stage /////////////////
 void inputStageReset();
 enum SCS_Input_Stage_State inputStageState();
 int inputStageUsed();
@@ -123,6 +118,15 @@ unsigned char outputStageDataPktId();
 unsigned char outputStageAckedDataPktId();
 unsigned char outputStageDataPktSendingIndex();
 int outputStageCopyDataBuffer(unsigned char * pBuffer, int size);
+////// monitor buffer /////////////////////////
+void monitorOutputBufferReset();
+unsigned short monitorOutputBufferConsumerIndex();
+unsigned short monitorOutputBufferProducerIndex();
+unsigned short monitorOutputBufferLengthMask();
+unsigned char * monitorOutputBuffer();
+int monitorOutputBufferUsed();
+int monitorOutputBufferCopy(unsigned char * pBuffer, int size);
+//////////////////////////////////////
 #endif
 
 

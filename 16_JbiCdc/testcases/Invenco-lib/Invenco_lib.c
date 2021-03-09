@@ -490,7 +490,7 @@ unsigned short counter_diff(unsigned short prevCounter)
 		return (curCounter - prevCounter);
 	}
 	else {
-		return (0xFFFF - prevCounter + curCounter);
+		return (0xFFFF - prevCounter + curCounter + 1);
 	}
 }
 

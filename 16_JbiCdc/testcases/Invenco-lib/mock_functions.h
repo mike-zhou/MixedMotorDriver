@@ -41,6 +41,10 @@ int uartOutputBufferProducerIndex();
 void crc_set_initial_value(unsigned long v);
 unsigned long crc_io_checksum(void * pBuf, unsigned short len, unsigned char type);
 
-#define ASSERT(condition) { if((condition) != true) printf("ERROR: assert failed at line %d in function %s in file %s\r\n", __LINE__, __FUNCTION__, __FILE__);}
+static inline void breakpointFunc()
+{
+    return;
+}
+#define ASSERT(condition) { if((condition) != true) {printf("ERROR: assert failed at line %d in function %s in file %s\r\n", __LINE__, __FUNCTION__, __FILE__); breakpointFunc(); }}
 
 #endif /* MOCK_FUNCTIONS_H_ */
