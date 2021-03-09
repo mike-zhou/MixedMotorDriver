@@ -535,7 +535,7 @@ static void _uart_completeDataPacket()
 /**
  * test whether input stage can handle a data packet
  */
-static void _000004_uart_completeDataPacket()
+static void _000004_uart_oneCompleteDataPacket()
 {
 	printf("\r\n===================================\r\n");
 	printf("%s started\r\n", __FUNCTION__);
@@ -547,11 +547,99 @@ static void _000004_uart_completeDataPacket()
 	printf("-------------------------------------\r\n");
 }
 
+/**
+ * simulate the arrival of a data packet
+ */
+static void _uart_dataPacketArrive(unsigned char packetId, unsigned char * pData, int dataLength)
+{
+	unsigned char buffer[64];
+
+	memset(buffer, 0, 64);
+	_createDataPacket(packetId, pData, dataLength, buffer, 64);
+
+	uartProduceData(buffer, 64);
+	for(int i=0; i<64; i++) {
+		pollScsDataExchange();
+	}
+}
+
+/**
+ * test whether input stage can handle a data packet
+ */
+static void _000005_uart_repeatedCompleteDataPacket()
+{
+	printf("\r\n===================================\r\n");
+	printf("%s started\r\n", __FUNCTION__);
+
+	unsigned char buffer[SCS_DATA_MAX_LENGTH + 1];
+	unsigned char pId = 0;
+	unsigned char outputBuffer[64];
+	unsigned char appBuffer[64];
+	int rc;
+	char monitorStr[64];
+	unsigned char ackBuffer[64];
+
+	_resetTestEnv();
+	
+	for(int i=0; i<0xFFFF; i++) 
+	{
+		unsigned char len = i % (SCS_DATA_MAX_LENGTH + 1);
+
+		memset(buffer, 0, sizeof(buffer));
+		memset(outputBuffer, 0, 64);
+		memset(appBuffer, 0, 64);
+		memset(monitorStr, 0, 64);
+
+		for(int j=0; j<len; j++) {
+			buffer[j] = len;
+		}
+
+		_uart_dataPacketArrive(pId, buffer, len);
+
+		//check ACK packet
+		rc = _createAckPacket(pId, ackBuffer, 64);
+		ASSERT(rc == 4);
+		rc = uartConsumeData(outputBuffer, 64);
+		ASSERT(rc == 4);
+		for(int j=0; j<4; j++) {
+			ASSERT(ackBuffer[j] == outputBuffer[j]);
+		}
+		//check monitor information
+		rc = usbConsumeData(outputBuffer, 64);
+		ASSERT(rc == 16);
+		sprintf(monitorStr, "> D %02X\r\n< A %02X\r\n", pId, pId);
+		ASSERT(strcmp(outputBuffer, monitorStr) == 0);
+		//check APP data
+		for(int j=0; ;j++) 
+		{
+			unsigned char c = readInputBuffer();
+			if(c == 0) {
+				break;
+			}
+			appBuffer[j] = c;
+		} 
+		for(int j=0; j<len; j++) {
+			ASSERT(buffer[j] == appBuffer[j]);
+		}
+
+		//increase packet id
+		pId++;
+		if(pId == SCS_INVALID_PACKET_ID) {
+			pId = 1;
+		}
+	}
+
+	printf("%s stopped\r\n", __FUNCTION__);
+	printf("-------------------------------------\r\n");
+}
+
+
 void startTestCases()
 {
 	_001000_tc();
 	_000001_uart_oneByteInput();
 	_000002_uart_inputStageTimeout();
 	_000003_uart_completeAckPacket();
-	_000004_uart_completeDataPacket();
+	_000004_uart_oneCompleteDataPacket();
+	_000005_uart_repeatedCompleteDataPacket();
 }
