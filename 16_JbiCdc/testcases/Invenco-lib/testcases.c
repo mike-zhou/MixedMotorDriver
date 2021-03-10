@@ -633,6 +633,177 @@ static void _000005_uart_repeatedCompleteDataPacket()
 	printf("-------------------------------------\r\n");
 }
 
+static void _000006_uart_duplicatedDataPacket()
+{
+	printf("\r\n===================================\r\n");
+	printf("%s started\r\n", __FUNCTION__);
+
+	unsigned char buffer[128];
+	unsigned char ackBuffer[128];
+	unsigned char monitorBuffer[128];
+	char monitorStr[128];
+	unsigned char appBuffer[128];
+	int rc;
+	unsigned char packetId = 0;
+	
+	_resetTestEnv();
+
+	for(int loop=0; loop<0x1ffff; loop++)
+	{
+		char * pData = "hello world, how are you?";
+		_uart_dataPacketArrive(packetId, pData, strlen(pData));
+		rc = _createAckPacket(packetId, ackBuffer, 64);
+		ASSERT(rc == 4);
+		rc = uartConsumeData(buffer, 64);
+		ASSERT(rc == 4);
+		for(int j=0; j<4; j++) {
+			ASSERT(ackBuffer[j] == buffer[j]);
+		}
+		//check monitor information
+		memset(buffer, 0, 64);
+		rc = usbConsumeData(buffer, 64);
+		ASSERT(rc == 16);
+		sprintf(monitorStr, "> D %02X\r\n< A %02X\r\n", packetId, packetId);
+		ASSERT(strcmp(buffer, monitorStr) == 0);
+		//check APP data
+		memset(appBuffer, 0, sizeof(appBuffer));
+		for(int j=0; ;j++) 
+		{
+			unsigned char c = readInputBuffer();
+			if(c == 0) {
+				break;
+			}
+			appBuffer[j] = c;
+		} 
+		for(int j=0; ; j++) {
+			if(appBuffer[j] == 0) {
+				break;
+			}
+			ASSERT(pData[j] == appBuffer[j]);
+		}
+		///////////  second packet ///////////////////
+		_uart_dataPacketArrive(packetId, pData, strlen(pData));
+		rc = _createAckPacket(packetId, ackBuffer, 64);
+		ASSERT(rc == 4);
+		rc = uartConsumeData(buffer, 64);
+		ASSERT(rc == 4);
+		for(int j=0; j<4; j++) {
+			ASSERT(ackBuffer[j] == buffer[j]);
+		}
+		//check monitor information
+		memset(buffer, 0, 64);
+		rc = usbConsumeData(buffer, 64);
+		ASSERT(rc == 16);
+		sprintf(monitorStr, "> D %02X\r\n< A %02X\r\n", packetId, packetId);
+		ASSERT(strcmp(buffer, monitorStr) == 0);
+		//check APP data
+		ASSERT(readInputBuffer() == 0);
+		///////////  3rd packet ///////////////////
+		_uart_dataPacketArrive(packetId, pData, strlen(pData));
+		rc = _createAckPacket(packetId, ackBuffer, 64);
+		ASSERT(rc == 4);
+		rc = uartConsumeData(buffer, 64);
+		ASSERT(rc == 4);
+		for(int j=0; j<4; j++) {
+			ASSERT(ackBuffer[j] == buffer[j]);
+		}
+		//check monitor information
+		memset(buffer, 0, 64);
+		rc = usbConsumeData(buffer, 64);
+		ASSERT(rc == 16);
+		sprintf(monitorStr, "> D %02X\r\n< A %02X\r\n", packetId, packetId);
+		ASSERT(strcmp(buffer, monitorStr) == 0);
+		//check APP data
+		ASSERT(readInputBuffer() == 0);
+		///////////  4th packet ///////////////////
+		_uart_dataPacketArrive(packetId, pData, strlen(pData));
+		rc = _createAckPacket(packetId, ackBuffer, 64);
+		ASSERT(rc == 4);
+		rc = uartConsumeData(buffer, 64);
+		ASSERT(rc == 4);
+		for(int j=0; j<4; j++) {
+			ASSERT(ackBuffer[j] == buffer[j]);
+		}
+		//check monitor information
+		memset(buffer, 0, 64);
+		rc = usbConsumeData(buffer, 64);
+		ASSERT(rc == 16);
+		sprintf(monitorStr, "> D %02X\r\n< A %02X\r\n", packetId, packetId);
+		ASSERT(strcmp(buffer, monitorStr) == 0);
+		//check APP data
+		ASSERT(readInputBuffer() == 0);
+
+		packetId++;
+		if(packetId == SCS_INVALID_PACKET_ID) {
+			packetId = 1;
+		}
+	}
+
+	printf("%s stopped\r\n", __FUNCTION__);
+	printf("-------------------------------------\r\n");
+}
+
+static void _000007_uart_discontinuousPakcetId()
+{
+	printf("\r\n===================================\r\n");
+	printf("%s started\r\n", __FUNCTION__);
+
+	unsigned char buffer[128];
+	unsigned char ackBuffer[128];
+	unsigned char monitorBuffer[128];
+	char monitorStr[128];
+	unsigned char appBuffer[128];
+	int rc;
+	unsigned char packetId = 0;
+
+	_resetTestEnv();
+
+	char * pData = "hello world, how are you?";
+	_uart_dataPacketArrive(packetId, pData, strlen(pData));
+	rc = _createAckPacket(packetId, ackBuffer, 64);
+	ASSERT(rc == 4);
+	rc = uartConsumeData(buffer, 64);
+	ASSERT(rc == 4);
+	for(int j=0; j<4; j++) {
+		ASSERT(ackBuffer[j] == buffer[j]);
+	}
+	//check monitor information
+	memset(buffer, 0, 64);
+	rc = usbConsumeData(buffer, 64);
+	ASSERT(rc == 16);
+	sprintf(monitorStr, "> D %02X\r\n< A %02X\r\n", packetId, packetId);
+	ASSERT(strcmp(buffer, monitorStr) == 0);
+	//check APP data
+	memset(appBuffer, 0, sizeof(appBuffer));
+	for(int j=0; ;j++) 
+	{
+		unsigned char c = readInputBuffer();
+		if(c == 0) {
+			break;
+		}
+		appBuffer[j] = c;
+	} 
+	for(int j=0; ; j++) {
+		if(appBuffer[j] == 0) {
+			break;
+		}
+		ASSERT(pData[j] == appBuffer[j]);
+	}
+
+	packetId = 2;
+	_uart_dataPacketArrive(packetId, pData, strlen(pData));
+	//no ACK for discontinuous packet id
+	//check monitor information
+	sprintf(monitorStr, "> D 02\r\nERROR: unexpected host packetId 02 expect: 01\r\n");
+	memset(buffer, 0, 64);
+	rc = usbConsumeData(buffer, 64);
+	ASSERT(rc == strlen(monitorStr));
+	ASSERT(strcmp(buffer, monitorStr) == 0);
+
+	printf("%s stopped\r\n", __FUNCTION__);
+	printf("-------------------------------------\r\n");
+}
+
 
 void startTestCases()
 {
@@ -642,4 +813,6 @@ void startTestCases()
 	_000003_uart_completeAckPacket();
 	_000004_uart_oneCompleteDataPacket();
 	_000005_uart_repeatedCompleteDataPacket();
+	_000006_uart_duplicatedDataPacket();
+	_000007_uart_discontinuousPakcetId();
 }
