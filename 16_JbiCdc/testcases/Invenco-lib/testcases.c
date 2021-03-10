@@ -883,6 +883,37 @@ static void _000008_uart_crcError()
 	printf("-------------------------------------\r\n");
 }
 
+static void _000009_uart_illegalPacketLength()
+{
+	printf("\r\n===================================\r\n");
+	printf("%s started\r\n", __FUNCTION__);
+
+	unsigned char buffer[64];
+	unsigned char monitorBuffer[64];
+	int rc;
+
+	_resetTestEnv();
+
+	memset(buffer, 0, 64);
+	memset(monitorBuffer, 0, 64);
+	rc = _createDataPacket(5, 0, 0, buffer, 64);
+	ASSERT(rc == 5);
+	buffer[2] = 0x80;
+	uartProduceData(buffer, 64);
+	for(int i=0; i<64; i++) {
+		pollScsDataExchange();
+	}
+	ASSERT(inputStageState() == SCS_INPUT_IDLE);
+	sprintf(buffer, "ERROR: illegal input data packet length 80\r\n");
+	rc = usbConsumeData(monitorBuffer, 64);
+	ASSERT(rc == strlen(buffer));
+	ASSERT(strcmp(buffer, monitorBuffer) == 0);
+
+	printf("%s stopped\r\n", __FUNCTION__);
+	printf("-------------------------------------\r\n");
+}
+
+
 
 void startTestCases()
 {
@@ -895,4 +926,5 @@ void startTestCases()
 	_000006_uart_duplicatedDataPacket();
 	_000007_uart_discontinuousPakcetId();
 	_000008_uart_crcError();
+	_000009_uart_illegalPacketLength();
 }
