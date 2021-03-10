@@ -758,7 +758,7 @@ static void _000007_uart_discontinuousPakcetId()
 
 	_resetTestEnv();
 
-	char * pData = "hello world, how are you?";
+	const char * pData = "hello world, how are you?";
 	_uart_dataPacketArrive(packetId, pData, strlen(pData));
 	rc = _createAckPacket(packetId, ackBuffer, 64);
 	ASSERT(rc == 4);
@@ -800,6 +800,85 @@ static void _000007_uart_discontinuousPakcetId()
 	ASSERT(rc == strlen(monitorStr));
 	ASSERT(strcmp(buffer, monitorStr) == 0);
 
+	packetId = 1;
+	_uart_dataPacketArrive(packetId, pData, strlen(pData));
+	rc = _createAckPacket(packetId, ackBuffer, 64);
+	ASSERT(rc == 4);
+	rc = uartConsumeData(buffer, 64);
+	ASSERT(rc == 4);
+	for(int j=0; j<4; j++) {
+		ASSERT(ackBuffer[j] == buffer[j]);
+	}
+	//check monitor information
+	memset(buffer, 0, 64);
+	rc = usbConsumeData(buffer, 64);
+	ASSERT(rc == 16);
+	sprintf(monitorStr, "> D %02X\r\n< A %02X\r\n", packetId, packetId);
+	ASSERT(strcmp(buffer, monitorStr) == 0);
+	//check APP data
+	memset(appBuffer, 0, sizeof(appBuffer));
+	for(int j=0; ;j++) 
+	{
+		unsigned char c = readInputBuffer();
+		if(c == 0) {
+			break;
+		}
+		appBuffer[j] = c;
+	} 
+	for(int j=0; ; j++) {
+		if(appBuffer[j] == 0) {
+			break;
+		}
+		ASSERT(pData[j] == appBuffer[j]);
+	}
+
+	printf("%s stopped\r\n", __FUNCTION__);
+	printf("-------------------------------------\r\n");
+}
+
+static void _000008_uart_crcError()
+{
+	printf("\r\n===================================\r\n");
+	printf("%s started\r\n", __FUNCTION__);
+
+	_resetTestEnv();
+
+	unsigned char buffer[64];
+	unsigned char monitorStr[64];
+	char * pStr = "hello world";
+	int rc;
+
+	/////// ACK packet ////////////////
+	memset(buffer, 0, 64);
+	memset(monitorStr, 0, 64);
+	rc = _createAckPacket(5, buffer, 64);
+	ASSERT(rc == 4);
+	buffer[3] = 0; //make a crc error
+	uartProduceData(buffer, 64);
+	for(int i=0; i<64; i++) {
+		pollScsDataExchange();
+	}
+	ASSERT(inputStageState() == SCS_INPUT_IDLE);
+	sprintf(monitorStr, "ERROR: corrupted input ACK packet\r\n");
+	rc = usbConsumeData(buffer, 64);
+	ASSERT(rc == strlen(monitorStr));
+	ASSERT(strcmp(buffer, monitorStr) == 0);
+
+	////// data packet ////////////////
+	memset(buffer, 0, 64);
+	memset(monitorStr, 0, 64);
+	rc = _createDataPacket(5, pStr, strlen(pStr), buffer, 64);
+	buffer[rc - 1] = 0; //make a crc error
+	uartProduceData(buffer, 64);
+	for(int i=0; i<64; i++) {
+		pollScsDataExchange();
+	}
+	ASSERT(inputStageState() == SCS_INPUT_IDLE);
+	sprintf(monitorStr, "ERROR: corrupted input data packet\r\n");
+	rc = usbConsumeData(buffer, 64);
+	ASSERT(rc == strlen(monitorStr));
+	ASSERT(strcmp(buffer, monitorStr) == 0);
+
 	printf("%s stopped\r\n", __FUNCTION__);
 	printf("-------------------------------------\r\n");
 }
@@ -815,4 +894,5 @@ void startTestCases()
 	_000005_uart_repeatedCompleteDataPacket();
 	_000006_uart_duplicatedDataPacket();
 	_000007_uart_discontinuousPakcetId();
+	_000008_uart_crcError();
 }

@@ -762,7 +762,7 @@ static void _processScsInputStage(void)
 					
 					if(dataLength > SCS_DATA_MAX_LENGTH) 
 					{
-						printString("ERROR: corrupted input data packet\r\n");
+						printString("ERROR: illegal input data packet length "); printHex(dataLength); printString("\r\n");
 						_scsInputStage.state = SCS_INPUT_IDLE;
 					}
 					else if(byteAmount == (dataLength + SCS_DATA_PACKET_STAFF_LENGTH))
@@ -807,8 +807,8 @@ static void _processScsInputStage(void)
 					if((crcLow == _scsInputStage.packetBuffer[2]) && (crcHigh == _scsInputStage.packetBuffer[3]))
 					{
 						unsigned char packetId = _scsInputStage.packetBuffer[1];
-						_on_inputStageAckPacketComplete(packetId);
 						printString("> A "); printHex(packetId); printString("\r\n");
+						_on_inputStageAckPacketComplete(packetId);
 					}
 					else
 					{
