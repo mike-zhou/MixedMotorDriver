@@ -533,7 +533,7 @@ static void _uart_completeDataPacket()
 }
 
 /**
- * test whether input stage can handle a data packet
+ * test that input stage can handle a data packet
  */
 static void _000004_uart_oneCompleteDataPacket()
 {
@@ -564,7 +564,7 @@ static void _uart_dataPacketArrive(unsigned char packetId, unsigned char * pData
 }
 
 /**
- * test whether input stage can handle a data packet
+ * test that input stage can handle successive data packets
  */
 static void _000005_uart_repeatedCompleteDataPacket()
 {
@@ -633,6 +633,9 @@ static void _000005_uart_repeatedCompleteDataPacket()
 	printf("-------------------------------------\r\n");
 }
 
+/**
+ * test that input stage filter out data packet with duplicated packet id
+ */
 static void _000006_uart_duplicatedDataPacket()
 {
 	printf("\r\n===================================\r\n");
@@ -743,6 +746,9 @@ static void _000006_uart_duplicatedDataPacket()
 	printf("-------------------------------------\r\n");
 }
 
+/**
+ * test that input stage can ignore a discontinuous data packet.
+ */
 static void _000007_uart_discontinuousPakcetId()
 {
 	printf("\r\n===================================\r\n");
@@ -836,6 +842,9 @@ static void _000007_uart_discontinuousPakcetId()
 	printf("-------------------------------------\r\n");
 }
 
+/**
+ * test that input stage can handle crc error.
+ */
 static void _000008_uart_crcError()
 {
 	printf("\r\n===================================\r\n");
@@ -883,6 +892,9 @@ static void _000008_uart_crcError()
 	printf("-------------------------------------\r\n");
 }
 
+/**
+ * test that input stage can handle a data packet with illegal length.
+ */
 static void _000009_uart_illegalPacketLength()
 {
 	printf("\r\n===================================\r\n");
@@ -913,6 +925,44 @@ static void _000009_uart_illegalPacketLength()
 	printf("-------------------------------------\r\n");
 }
 
+/**
+ * test that input stage can accept data packet with a non-zero packet id
+ */
+static void _000010_uart_abruptPacketId()
+{
+	printf("\r\n===================================\r\n");
+	printf("%s started\r\n", __FUNCTION__);
+
+	_resetTestEnv();
+
+	unsigned char * pChars = "hello world";
+	unsigned char buffer[64];
+	unsigned char monitorBuffer[64];
+	unsigned char appBuffer[64];
+	int rc;
+
+	memset(buffer, 0, 64);
+	memset(monitorBuffer, 0, 64);
+	memset(appBuffer, 0, 64);
+	// a data packet with id 5
+	_uart_dataPacketArrive(5, pChars, strlen(pChars));
+	rc = usbConsumeData(monitorBuffer, 64);
+	ASSERT(rc == 16);
+	sprintf(buffer, "> D 05\r\n< A 05\r\n");
+	ASSERT(strcmp(buffer, monitorBuffer) == 0);
+	for(int i=0;;i++)
+	{
+		unsigned char c = readInputBuffer();
+		if(c == 0) {
+			break;
+		}
+		appBuffer[i] = c;
+	}
+	ASSERT(strcmp(pChars, appBuffer) == 0);
+
+	printf("%s stopped\r\n", __FUNCTION__);
+	printf("-------------------------------------\r\n");
+}
 
 
 void startTestCases()
@@ -927,4 +977,5 @@ void startTestCases()
 	_000007_uart_discontinuousPakcetId();
 	_000008_uart_crcError();
 	_000009_uart_illegalPacketLength();
+	_000010_uart_abruptPacketId();
 }
