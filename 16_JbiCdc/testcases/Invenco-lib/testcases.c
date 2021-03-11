@@ -964,18 +964,63 @@ static void _000010_uart_abruptPacketId()
 	printf("-------------------------------------\r\n");
 }
 
+/**
+ * App sends some data to host
+ */
+static void _001000_uart_sendAppData()
+{
+	printf("\r\n===================================\r\n");
+	printf("%s started\r\n", __FUNCTION__);
+
+	_resetTestEnv();
+
+	unsigned char buffer[64];
+	unsigned char monitorBuffer[64];
+	unsigned long crc;
+	int rc;
+
+	unsigned char * pChars = "hello world";
+
+	memset(buffer, 0, 64);
+	memset(monitorBuffer, 0, 64);
+	enableOutputBuffer();
+	writeOutputBufferString(pChars);
+	pollScsDataExchange(); // output idle -> sending data
+	pollScsDataExchange(); // sending data -> waiting ack
+	rc = uartConsumeData(buffer, 64);
+	ASSERT(rc == (strlen(pChars) + SCS_DATA_PACKET_STAFF_LENGTH));
+	crc_set_initial_value(0xffff);
+	crc = crc_io_checksum(buffer, rc - 2, 0);
+	ASSERT((crc & 0xff) == buffer[rc - 2]);
+	ASSERT(((crc >> 8) & 0xff) == buffer[rc - 1]);
+	ASSERT(buffer[2] == strlen(pChars));
+	for(int i=0; i<strlen(pChars); i++) 
+	{
+		ASSERT(buffer[3+i] == pChars[i]);
+	}
+	sprintf(monitorBuffer, "< D 00\r\n");
+	memset(buffer, 0, 64);
+	rc = usbConsumeData(buffer, 64);
+	ASSERT(rc == strlen(monitorBuffer));
+	ASSERT(strcmp(monitorBuffer, buffer) == 0);
+
+	printf("%s stopped\r\n", __FUNCTION__);
+	printf("-------------------------------------\r\n");
+}
+
 
 void startTestCases()
 {
-	_001000_tc();
-	_000001_uart_oneByteInput();
-	_000002_uart_inputStageTimeout();
-	_000003_uart_completeAckPacket();
-	_000004_uart_oneCompleteDataPacket();
-	_000005_uart_repeatedCompleteDataPacket();
-	_000006_uart_duplicatedDataPacket();
-	_000007_uart_discontinuousPakcetId();
-	_000008_uart_crcError();
-	_000009_uart_illegalPacketLength();
-	_000010_uart_abruptPacketId();
+	// _001000_tc();
+	// _000001_uart_oneByteInput();
+	// _000002_uart_inputStageTimeout();
+	// _000003_uart_completeAckPacket();
+	// _000004_uart_oneCompleteDataPacket();
+	// _000005_uart_repeatedCompleteDataPacket();
+	// _000006_uart_duplicatedDataPacket();
+	// _000007_uart_discontinuousPakcetId();
+	// _000008_uart_crcError();
+	// _000009_uart_illegalPacketLength();
+	// _000010_uart_abruptPacketId();
+	_001000_uart_sendAppData();
 }

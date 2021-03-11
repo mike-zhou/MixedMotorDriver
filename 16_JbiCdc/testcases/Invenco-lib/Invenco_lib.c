@@ -865,7 +865,7 @@ static void _processScsOutputStageIdle()
 	unsigned char crcLow, crcHigh;
 	
 	if(size == 0) {
-		return; //no data need to be sent to host
+		return; //no APP data need to be sent to host
 	}
 	if(size > SCS_DATA_MAX_LENGTH) {
 		//shouldn't occur
