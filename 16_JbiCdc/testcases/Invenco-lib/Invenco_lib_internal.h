@@ -118,6 +118,7 @@ unsigned char outputStageDataPktId();
 unsigned char outputStageAckedDataPktId();
 unsigned char outputStageDataPktSendingIndex();
 int outputStageCopyDataBuffer(unsigned char * pBuffer, int size);
+unsigned short outputStageTimeoutValue();
 ////// monitor buffer /////////////////////////
 void monitorOutputBufferReset();
 unsigned short monitorOutputBufferConsumerIndex();

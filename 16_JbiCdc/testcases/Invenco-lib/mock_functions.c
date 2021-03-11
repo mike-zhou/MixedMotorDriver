@@ -75,7 +75,7 @@ void ebi_enable_cs(unsigned char mode, struct ebi_cs_config * p)
 unsigned char _mockUsbInputBuffer[MOCK_USB_INPUT_BUFFER_MASK + 1];
 unsigned short _mockUsbInputBufferConsumerIndex = 0;
 unsigned short _mockUsbInputBufferProducerIndex = 0;
-unsigned char _mockUsbOutputBuffer[MOCK_USB_OUTPUT_BUFFER_MASK];
+unsigned char _mockUsbOutputBuffer[MOCK_USB_OUTPUT_BUFFER_MASK + 1];
 unsigned short _mockUsbOutputBufferConsumerIndex = 0;
 unsigned short _mockUsbOutputBufferProducerIndex = 0;
 
@@ -431,7 +431,7 @@ void tc_set_resolution(void * pTc, unsigned char r)
 
 unsigned long tc_get_resolution(void * pTc)
 {
-	return 30; //one clock equals 30 us
+	return 0x8000; //clokcs per HZ
 }
 
 

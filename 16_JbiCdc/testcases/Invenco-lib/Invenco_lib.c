@@ -494,6 +494,9 @@ unsigned short counter_diff(unsigned short prevCounter)
 	}
 }
 
+/**
+ * returns how many microseconds one click is.
+ */
 unsigned short counter_clock_length(void)
 {
 	unsigned short length = 1000000/tc_get_resolution(&TCC0);
@@ -1040,12 +1043,12 @@ void initScsDataExchange(void)
 #endif
 
 	//input stage
-	_scsInputTimeOut = SCS_DATA_INPUT_TIMEOUT;
+	_scsInputTimeOut = ((uint32_t)SCS_DATA_INPUT_TIMEOUT * 1000)/counter_clock_length();
 	_scsInputStage.state = SCS_INPUT_IDLE;
 	_scsInputStage.prevDataPktId = SCS_INVALID_PACKET_ID;
 	
 	//output stage
-	_scsOutputTimeout = SCS_DATA_OUTPUT_TIMEOUT;
+	_scsOutputTimeout = ((uint32_t)SCS_DATA_OUTPUT_TIMEOUT * 1000)/counter_clock_length();
 	_scsOutputStage.state = SCS_OUTPUT_IDLE;
 	_scsOutputStage.currentDataPktId = SCS_INVALID_PACKET_ID;
 	_scsOutputStage.ackedDataPktId = SCS_INVALID_PACKET_ID;
@@ -1407,6 +1410,14 @@ int outputStageCopyDataBuffer(unsigned char * pBuffer, int size)
 	}
 
 	return count;
+}
+
+/**
+ * return timeout value of output stage
+ */
+unsigned short outputStageTimeoutValue()
+{
+	return _scsOutputTimeout;
 }
 
 #endif
