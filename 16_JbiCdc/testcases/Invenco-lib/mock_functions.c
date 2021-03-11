@@ -277,9 +277,29 @@ int usbOutputBufferConsumerIndex()
 	return _mockUsbOutputBufferConsumerIndex;
 }
 
+bool usbOutputBufferSetConsumerIndex(unsigned short index)
+{
+	if(index > MOCK_USB_OUTPUT_BUFFER_MASK) {
+		return false;
+	}
+
+	_mockUsbOutputBufferConsumerIndex = index;
+	return true;
+}
+
 int usbOutputBufferProducerIndex()
 {
 	return _mockUsbOutputBufferProducerIndex;
+}
+
+bool usbOutputBufferSetProducerIndex(unsigned short index)
+{
+	if(index > MOCK_USB_OUTPUT_BUFFER_MASK) {
+		return false;
+	}
+
+	_mockUsbOutputBufferProducerIndex = index;
+	return true;
 }
 
 /*******************************************

@@ -8,39 +8,59 @@
 #ifndef MOCK_FUNCTIONS_H_
 #define MOCK_FUNCTIONS_H_
 
-
+////////////////////////////////
+// timer counter
+////////////////////////////////
 void tcOneClock();
 void tcClocks(unsigned int ticks);
 
+////////////////////////////////
+// usb
+////////////////////////////////
 #define MOCK_USB_INPUT_BUFFER_MASK 0xFF
 #define MOCK_USB_OUTPUT_BUFFER_MASK 0xFF
 
+// output
 void usbClearOutputBuffer();
 int usbOutputBufferUsed();
 int usbConsumeData(unsigned char * pBuffer, int size);
+int usbOutputBufferConsumerIndex();
+bool usbOutputBufferSetConsumerIndex(unsigned short index);
+int usbOutputBufferProducerIndex();
+bool usbOutputBufferSetProducerIndex(unsigned short index);
+// input
 void usbClearInputBuffer();
 int usbGetInputBufferUsed();
 int usbProduceData(unsigned char * pBuffer, int size);
 int usbInputBufferConsumerIndex();
 int usbInputBufferProducerIndex();
-int usbOutputBufferConsumerIndex();
-int usbOutputBufferProducerIndex();
 
-
+//////////////////////////////
+// uart
+//////////////////////////////
 #define MOCK_UART_INPUT_BUFFER_MASK 0xFF
 #define MOCK_UART_OUTPUT_BUFFER_MASK 0xFF
 
 void uartReset();
+//input
 int uartProduceData(unsigned char * pBuffer, int size);
-int uartConsumeData(unsigned char * pBuffer, int size);
 int uartInputBufferConsumerIndex();
 int uartInputBufferProducerIndex();
+//output
+int uartConsumeData(unsigned char * pBuffer, int size);
 int uartOutputBufferConsumerIndex();
 int uartOutputBufferProducerIndex();
 
+////////////////////////////////////
+// crc
+////////////////////////////////////
 void crc_set_initial_value(unsigned long v);
 unsigned long crc_io_checksum(void * pBuf, unsigned short len, unsigned char type);
 
+
+//////////////////////////////
+// assert
+//////////////////////////////
 static inline void breakpointFunc()
 {
     return;
