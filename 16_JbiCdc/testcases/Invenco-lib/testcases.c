@@ -1145,18 +1145,22 @@ static void _001002_uart_sendAppDataAround()
 
 void startTestCases()
 {
-	// _002000_tc();
-	// _000001_uart_oneByteInput();
-	// _000002_uart_inputStageTimeout();
-	// _000003_uart_completeAckPacket();
-	// _000004_uart_oneCompleteDataPacket();
-	// _000005_uart_repeatedCompleteDataPacket();
-	// _000006_uart_duplicatedDataPacket();
-	// _000007_uart_discontinuousPakcetId();
-	// _000008_uart_crcError();
-	// _000009_uart_illegalPacketLength();
-	// _000010_uart_abruptPacketId();
-	// _001000_uart_sendAppData();
-	// _001001_uart_sendAppDataTimeout();
+	printf("startTestCases started\r\n");
+
+	_002000_tc();
+	_000001_uart_oneByteInput();
+	_000002_uart_inputStageTimeout();
+	_000003_uart_completeAckPacket();
+	_000004_uart_oneCompleteDataPacket();
+	_000005_uart_repeatedCompleteDataPacket();
+	_000006_uart_duplicatedDataPacket();
+	_000007_uart_discontinuousPakcetId();
+	_000008_uart_crcError();
+	_000009_uart_illegalPacketLength();
+	_000010_uart_abruptPacketId();
+	_001000_uart_sendAppData();
+	_001001_uart_sendAppDataTimeout();
 	_001002_uart_sendAppDataAround();
+
+	printf("startTestCases finished\r\n");
 }

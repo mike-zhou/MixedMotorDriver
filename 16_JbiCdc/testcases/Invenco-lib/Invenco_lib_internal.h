@@ -11,9 +11,10 @@
 
 #define MOCK_FUNCTION 1
 
-#define MONITOR_OUTPUT_BUFFER_LENGTH_MASK 0xFF
 #define APP_INPUT_BUFFER_LENGTH_MASK 0xFF
 #define APP_OUTPUT_BUFFER_LENGTH_MASK 0xFF
+
+#define MONITOR_OUTPUT_BUFFER_LENGTH_MASK 0xFF
 
 /*********************************************************
 * Data exchange stages
