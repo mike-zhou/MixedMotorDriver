@@ -979,7 +979,7 @@ static void _processScsOutputStage(void)
 		case SCS_OUTPUT_SENDING_ACK_WAIT_ACK:
 		{
 			unsigned char * pStart = _scsOutputStage.ackPktBuffer + _scsOutputStage.ackPktSendingIndex;
-			unsigned char remaining = SCS_ACK_PACKET_LENGTH - _scsOutputStage.dataPktSendingIndex;
+			unsigned char remaining = SCS_ACK_PACKET_LENGTH - _scsOutputStage.ackPktSendingIndex;
 			unsigned char size = _putChars(pStart, remaining);
 			
 			_scsOutputStage.ackPktSendingIndex += size;
@@ -1001,7 +1001,7 @@ static void _processScsOutputStage(void)
 		case SCS_OUTPUT_SENDING_ACK:
 		{
 			unsigned char * pStart = _scsOutputStage.ackPktBuffer + _scsOutputStage.ackPktSendingIndex;
-			unsigned char remaining = SCS_ACK_PACKET_LENGTH - _scsOutputStage.dataPktSendingIndex;
+			unsigned char remaining = SCS_ACK_PACKET_LENGTH - _scsOutputStage.ackPktSendingIndex;
 			unsigned char size = _putChars(pStart, remaining);
 			
 			_scsOutputStage.ackPktSendingIndex += size;

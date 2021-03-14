@@ -369,6 +369,24 @@ int uartOutputBufferProducerIndex()
 	return _mockUartOutputBufferProducerIndex;
 }
 
+bool uartOutputBufferSetConsumerIndex(int index)
+{
+	if(index > MOCK_UART_OUTPUT_BUFFER_MASK) {
+		return false;
+	}
+	_mockUartOutputBufferConsumerIndex = index;
+	return true;
+}
+
+bool uartOutputBufferSetProducerIndex(int index)
+{
+	if(index > MOCK_UART_OUTPUT_BUFFER_MASK) {
+		return false;
+	}
+	_mockUartOutputBufferProducerIndex = index;
+	return true;
+}
+
 /***
  * simulate UART bytes arrival
  * 	return amount of bytes really received.

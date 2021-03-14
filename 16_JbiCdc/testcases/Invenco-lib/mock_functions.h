@@ -50,6 +50,8 @@ int uartInputBufferProducerIndex();
 int uartConsumeData(unsigned char * pBuffer, int size);
 int uartOutputBufferConsumerIndex();
 int uartOutputBufferProducerIndex();
+bool uartOutputBufferSetConsumerIndex(int index);
+bool uartOutputBufferSetProducerIndex(int index);
 
 ////////////////////////////////////
 // crc
