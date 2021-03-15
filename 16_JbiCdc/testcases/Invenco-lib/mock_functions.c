@@ -194,7 +194,7 @@ int usbOutputBufferUsed()
 		return _mockUsbOutputBufferProducerIndex - _mockUsbOutputBufferConsumerIndex;
 	}
 	else {
-		return MOCK_UART_OUTPUT_BUFFER_MASK - _mockUsbOutputBufferConsumerIndex + _mockUsbOutputBufferProducerIndex;
+		return MOCK_UART_OUTPUT_BUFFER_MASK - _mockUsbOutputBufferConsumerIndex + 1 + _mockUsbOutputBufferProducerIndex;
 	}
 }
 
@@ -236,7 +236,7 @@ int usbGetInputBufferUsed()
 		return _mockUsbInputBufferProducerIndex - _mockUsbInputBufferConsumerIndex;
 	}
 	else {
-		return MOCK_USB_INPUT_BUFFER_MASK - _mockUsbInputBufferConsumerIndex + _mockUsbInputBufferProducerIndex;
+		return MOCK_USB_INPUT_BUFFER_MASK - _mockUsbInputBufferConsumerIndex + 1 + _mockUsbInputBufferProducerIndex;
 	}
 }
 

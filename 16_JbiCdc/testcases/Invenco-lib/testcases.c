@@ -87,7 +87,7 @@ static void _templete_testcase_function()
 /***
  * Test time and counter functionality.
  */
-static void _002000_tc()
+static void _004000_tc()
 {
 	printf("\r\n===================================\r\n");
 	printf("%s started\r\n", __FUNCTION__);
@@ -1582,11 +1582,152 @@ static void _001006_uart_quickHostAck()
 	printf("-------------------------------------\r\n");
 }
 
+/**
+ * test that monitor works well when output is consumed byte by byte
+ */
+static void _002000_uart_monitorByteByByte()
+{
+	printf("\r\n===================================\r\n");
+	printf("%s started\r\n", __FUNCTION__);
+
+	_resetTestEnv();
+
+	printf("%s stopped\r\n", __FUNCTION__);
+	printf("-------------------------------------\r\n");
+}
+
+/**
+ * test that large amount of data can be exchanged between host and app
+ */
+static void _003000_uart_roundsHostAndApp()
+{
+	printf("\r\n===================================\r\n");
+	printf("%s started\r\n", __FUNCTION__);
+
+	unsigned char hostPktId = 0;
+	unsigned char appPktId = 0;
+	unsigned char appBuf[256];
+	unsigned char monitorBuf[256];
+	unsigned char uartBuf[256];
+	unsigned char dataBuf[64];
+	unsigned char buf[64];
+	unsigned char dataLength;
+	int rc;
+
+	_resetTestEnv();
+	enableOutputBuffer();
+
+	for(int loopCounter = 0; loopCounter<0x3ffff; loopCounter++)
+	{
+
+		//data from host to app
+		dataLength = loopCounter % (SCS_DATA_MAX_LENGTH + 1);
+		memset(dataBuf, 0, sizeof(dataBuf));
+		for(int i=0; i<dataLength; i++) {
+			dataBuf[i] = dataLength;
+		}
+		rc = _createDataPacket(hostPktId, dataBuf, dataLength, uartBuf, 256);
+		ASSERT(rc == (dataLength + SCS_DATA_PACKET_STAFF_LENGTH));
+		uartProduceData(uartBuf, rc);
+		for(int i=0; i<rc; i++) {
+			pollScsDataExchange();
+		}
+		ASSERT(inputBufferUsed() == dataLength);
+		//check ack packet.
+		rc = _createAckPacket(hostPktId, buf, 64);
+		ASSERT(rc == 4);
+		memset(uartBuf, 0, sizeof(uartBuf));
+		rc = uartConsumeData(uartBuf, 256);
+		ASSERT(rc == 4);
+		for(int i=0; i<rc; i++) {
+			ASSERT(buf[i] == uartBuf[i]);
+		}
+		//check monitor content
+		sprintf(buf, "> D %02X\r\n< A %02X\r\n", hostPktId, hostPktId);
+		memset(monitorBuf, 0, sizeof(monitorBuf));
+		rc = usbConsumeData(monitorBuf, 256);
+		ASSERT(rc == strlen(buf));
+		ASSERT(strcmp(buf, monitorBuf) == 0);
+		//stage state
+		ASSERT(inputStageState() == SCS_INPUT_IDLE);
+		ASSERT(outputStageState() == SCS_OUTPUT_IDLE);
+
+		if(dataLength > 0)  
+		{
+			unsigned char c;
+			int counter;
+
+			//data from app to host
+			memset(appBuf, 0, sizeof(appBuf));
+			for(counter= 0; ; counter++)
+			{
+				c = readInputBuffer();
+				if(c == 0) {
+					break;
+				}
+				ASSERT(c == dataLength);
+				ASSERT(counter <= dataLength);
+				writeOutputBufferChar(c);
+			}
+			ASSERT(counter == dataLength);
+			ASSERT(counter == outputBufferUsed());
+
+			for(int i=0; i<(dataLength + SCS_DATA_PACKET_STAFF_LENGTH); i++) {
+				pollScsDataExchange();
+			}
+			//check monitor content
+			sprintf(buf, "< D %02X\r\n", appPktId);
+			memset(monitorBuf, 0, 256);
+			rc = usbConsumeData(monitorBuf, 256);
+			ASSERT(rc == strlen(buf));
+			ASSERT(strcmp(buf, monitorBuf) == 0);
+			//check data pkt content
+			memset(buf, dataLength, 64);
+			rc = _createDataPacket(appPktId, buf, dataLength, appBuf, 256);
+			ASSERT(rc == (dataLength + SCS_DATA_PACKET_STAFF_LENGTH));
+			rc = uartConsumeData(uartBuf, 256);
+			ASSERT(rc == (dataLength + SCS_DATA_PACKET_STAFF_LENGTH));
+			for(int i=0; i<rc; i++) {
+				ASSERT(appBuf[i] == uartBuf[i]);
+			}
+			//ack app pkt
+			rc = _createAckPacket(appPktId, buf, 64);
+			ASSERT(rc == 4);
+			uartProduceData(buf, 4);
+			for(int i=0; i<4; i++) {
+				pollScsDataExchange();
+			}
+			//check monitor content
+			sprintf(buf, "> A %02X\r\n", appPktId);
+			rc = usbConsumeData(monitorBuf, 256);
+			ASSERT(rc == strlen(buf));
+			ASSERT(strcmp(buf, monitorBuf) == 0);
+			//stage state
+			ASSERT(inputStageState() == SCS_INPUT_IDLE);
+			ASSERT(outputStageState() == SCS_OUTPUT_IDLE);
+
+			appPktId++;
+			if(appPktId == SCS_INVALID_PACKET_ID) {
+				appPktId = 1;
+			}
+		}
+
+		hostPktId++;
+		if(hostPktId == SCS_INVALID_PACKET_ID) {
+			hostPktId = 1;
+		}
+	}
+
+	printf("%s stopped\r\n", __FUNCTION__);
+	printf("-------------------------------------\r\n");
+}
+
+
 void startTestCases()
 {
 	printf("startTestCases started\r\n");
 
-	// _002000_tc();
+	// _004000_tc();
 	// _000001_uart_oneByteInput();
 	// _000002_uart_inputStageTimeout();
 	// _000003_uart_completeAckPacket();
@@ -1603,7 +1744,8 @@ void startTestCases()
 	// _001003_uart_multiAppData();
 	// _001004_uart_dataBothWay();
 	// _001005_uart_appDataPostpone();
-	_001006_uart_quickHostAck();
+	// _001006_uart_quickHostAck();
+	_003000_uart_roundsHostAndApp();
 
 	printf("startTestCases finished\r\n");
 }

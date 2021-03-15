@@ -1126,7 +1126,7 @@ int inputBufferUsed()
 		return _appInputBufferProducerIndex - _appInputBufferConsumerIndex;
 	}
 	else {
-		return APP_INPUT_BUFFER_LENGTH_MASK - _appInputBufferConsumerIndex + _appInputBufferProducerIndex;
+		return APP_INPUT_BUFFER_LENGTH_MASK - _appInputBufferConsumerIndex + 1 + _appInputBufferProducerIndex;
 	}
 }
 
@@ -1187,7 +1187,7 @@ int outputBufferUsed()
 		return _appOutputBufferProducerIndex - _appOutputBufferConsumerIndex;
 	}
 	else {
-		return APP_OUTPUT_BUFFER_LENGTH_MASK - _appOutputBufferConsumerIndex + _appOutputBufferProducerIndex;
+		return APP_OUTPUT_BUFFER_LENGTH_MASK - _appOutputBufferConsumerIndex + 1 + _appOutputBufferProducerIndex;
 	}
 }
 
