@@ -1223,7 +1223,13 @@ static void _001003_uart_multiAppData()
 
 /**
  * test that input stage and output stage can process data packet at the same time.
- * output stage changes in order: sending -> sending pending -> waiting ack
+ * 	host data packet is coming
+ * 	app data is ready
+ * 	app data is being sent
+ * 	ack packet is to be sent
+ * 	app data packet finishes
+ * 	ack packet is being sent
+ * 	host ack is coming
  */
 static void _001004_uart_dataBothWay()
 {
@@ -1333,8 +1339,13 @@ static void _001004_uart_dataBothWay()
 
 /**
  * test that App data is postponed until ACK packet is sent out.
- * output stage changes in the following order:
- * 	idle -> sending ack -> App data -> IDLE -> sending -> waiting -> idle
+ * 	host data packet is coming
+ * 	ack packet is being sent out
+ * 	App data is ready
+ * 	ack packet is sent out
+ * 	app data is being sent out
+ * 	app data is sent out
+ * 	host ack app data
  */
 static void _001005_uart_appDataPostpone()
 {
@@ -1452,6 +1463,124 @@ static void _001005_uart_appDataPostpone()
 	printf("-------------------------------------\r\n");
 }
 
+/**
+ * test that input stage and output stage can process data packet at the same time.
+ * 	host data packet is coming
+ * 	app data is ready
+ * 	app data is being sent
+ * 	ack packet is to be sent
+ * 	app data packet finishes
+ * 	host ack is coming
+ * 	ack packet is being sent
+ */
+static void _001006_uart_quickHostAck()
+{
+	printf("\r\n===================================\r\n");
+	printf("%s started\r\n", __FUNCTION__);
+
+	unsigned char uartInputBuffer[256];
+	unsigned char uartOutputBuffer[256];
+	unsigned char usbBuffer[256];
+	unsigned char buffer[256];
+	unsigned char * pAppData = "how are you";
+	int rc;
+	int length;
+
+	_resetTestEnv();
+
+	memset(uartInputBuffer, 0, sizeof(uartInputBuffer));
+	memset(uartOutputBuffer, 0, sizeof(uartOutputBuffer));
+	memset(usbBuffer, 0, sizeof(usbBuffer));
+	memset(buffer, 0, sizeof(buffer));
+
+	//fill up uart output buffer to make output stage not send out data packet
+	uartOutputBufferSetProducerIndex(MOCK_UART_OUTPUT_BUFFER_MASK);
+	//create data packet for input stage
+	rc = _createDataPacket(0, 0, 0, buffer, 256);
+	ASSERT(rc == SCS_DATA_PACKET_STAFF_LENGTH);
+	uartProduceData(buffer, rc);
+	//create data packet for output stage
+	enableOutputBuffer();
+	writeOutputBufferString(pAppData);
+
+	//input stage receive data packet.
+	pollScsDataExchange();
+	ASSERT(inputStageState() == SCS_INPUT_RECEIVING);
+	ASSERT(outputStageState() == SCS_OUTPUT_SENDING_DATA);
+	pollScsDataExchange();
+	pollScsDataExchange();
+	pollScsDataExchange();
+	pollScsDataExchange();
+	ASSERT(inputStageState() == SCS_INPUT_IDLE);
+	ASSERT(outputStageState() == SCS_OUTPUT_SENDING_DATA_PENDING_ACK);
+	//check monitor content
+	sprintf(buffer, "> D 00\r\n");
+	length = strlen(buffer);
+	memset(usbBuffer, 0, 256);
+	rc = usbConsumeData(usbBuffer, 256);
+	ASSERT(rc == length);
+	ASSERT(strcmp(buffer, usbBuffer) == 0);
+	//output stage sends out data packet.
+	length = strlen(pAppData) + SCS_DATA_PACKET_STAFF_LENGTH;
+	for(int i=0; i<length; i++) {
+		uartConsumeData(buffer, 1);
+		pollScsDataExchange();
+	}
+	ASSERT(inputStageState() == SCS_INPUT_IDLE);
+	ASSERT(outputStageState() == SCS_OUTPUT_SENDING_ACK_WAIT_ACK);
+	//check monitor content
+	sprintf(buffer, "< D 00\r\n");
+	length = strlen(buffer);
+	memset(usbBuffer, 0, 256);
+	rc = usbConsumeData(usbBuffer, 256);
+	ASSERT(rc == length);
+	ASSERT(strcmp(buffer, usbBuffer) == 0);
+	//ack app data packet
+	rc = _createAckPacket(0, buffer, 256);
+	ASSERT(rc == 4);
+	uartProduceData(buffer, 4);
+	for(int i=0; i<4; i++) {
+		pollScsDataExchange();
+	}
+	ASSERT(inputStageState() == SCS_INPUT_IDLE);
+	ASSERT(outputStageState() == SCS_OUTPUT_SENDING_ACK_WAIT_ACK);
+	//check monitor content
+	sprintf(buffer, "> A 00\r\n");
+	length = strlen(buffer);
+	memset(usbBuffer, 0, 256);
+	rc = usbConsumeData(usbBuffer, 256);
+	ASSERT(rc == length);
+	ASSERT(strcmp(buffer, usbBuffer) == 0);
+	//output stage sends out ack packet
+	for(int i=0; i<4; i++) {
+		uartConsumeData(buffer, 1);
+		pollScsDataExchange();
+	}
+	ASSERT(inputStageState() == SCS_INPUT_IDLE);
+	ASSERT(outputStageState() == SCS_OUTPUT_WAIT_ACK);
+	//check monitor content
+	sprintf(buffer, "< A 00\r\n");
+	length = strlen(buffer);
+	memset(usbBuffer, 0, 256);
+	rc = usbConsumeData(usbBuffer, 256);
+	ASSERT(rc == length);
+	ASSERT(strcmp(buffer, usbBuffer) == 0);
+	//check uart output buffer
+	rc = _createDataPacket(0, pAppData, strlen(pAppData), buffer, 256);
+	length = _createAckPacket(0, buffer+rc, 256);
+	length = rc + length;//total length of data packet and ack packet
+	rc = uartConsumeData(uartOutputBuffer, 256);
+	ASSERT(rc == MOCK_USB_OUTPUT_BUFFER_MASK);
+	for(int i=0; i<length; i++) {
+		ASSERT(buffer[i] == uartOutputBuffer[MOCK_USB_OUTPUT_BUFFER_MASK - length + i]);
+	}
+	pollScsDataExchange(); //from wait_ack to idle
+	ASSERT(inputStageState() == SCS_INPUT_IDLE);
+	ASSERT(outputStageState() == SCS_OUTPUT_IDLE);
+
+	printf("%s stopped\r\n", __FUNCTION__);
+	printf("-------------------------------------\r\n");
+}
 
 void startTestCases()
 {
@@ -1473,7 +1602,8 @@ void startTestCases()
 	// _001002_uart_sendAppDataAround();
 	// _001003_uart_multiAppData();
 	// _001004_uart_dataBothWay();
-	_001005_uart_appDataPostpone();
+	// _001005_uart_appDataPostpone();
+	_001006_uart_quickHostAck();
 
 	printf("startTestCases finished\r\n");
 }
