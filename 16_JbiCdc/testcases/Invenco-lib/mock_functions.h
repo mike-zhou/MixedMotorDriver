@@ -24,6 +24,7 @@ void tcClocks(unsigned int ticks);
 void usbClearOutputBuffer();
 int usbOutputBufferUsed();
 int usbConsumeData(unsigned char * pBuffer, int size);
+int usbOutputBufferCopyLastBytes(unsigned char * pBuffer, int size);
 int usbOutputBufferConsumerIndex();
 bool usbOutputBufferSetConsumerIndex(unsigned short index);
 int usbOutputBufferProducerIndex();
@@ -48,6 +49,7 @@ int uartInputBufferConsumerIndex();
 int uartInputBufferProducerIndex();
 //output
 int uartConsumeData(unsigned char * pBuffer, int size);
+int uartOutputBufferCopyLastBytes(unsigned char * pBuffer, int size);
 int uartOutputBufferConsumerIndex();
 int uartOutputBufferProducerIndex();
 bool uartOutputBufferSetConsumerIndex(int index);

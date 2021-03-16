@@ -219,6 +219,30 @@ int usbConsumeData(unsigned char * pBuffer, int size)
 }
 
 /**
+ * copy last bytes in usb output buffer to pBuffer.
+ * return actual byte amount copied.
+ */
+int usbOutputBufferCopyLastBytes(unsigned char * pBuffer, int size)
+{
+	int counter;
+	unsigned short index = _mockUsbOutputBufferProducerIndex;
+
+	for(counter=0; counter<size; counter++)
+	{
+		if(_mockUsbOutputBufferConsumerIndex == index) {
+			break;
+		}
+		index = (index - 1) & MOCK_USB_OUTPUT_BUFFER_MASK;
+		for(int i=size; i>1; i--) {
+			pBuffer[i-1] = pBuffer[i-2];
+		}
+		pBuffer[0] = _mockUsbOutputBuffer[index];
+	}
+
+	return counter;
+}
+
+/**
  * clear mockUsbInputBuffer
  */
 void usbClearInputBuffer()
@@ -423,6 +447,30 @@ int uartConsumeData(unsigned char * pBuffer, int size)
 	}
 
 	return count;
+}
+
+/**
+ * copy last bytes in uart output buffer to pBuffer
+ * return byte amount copied.
+ */
+int uartOutputBufferCopyLastBytes(unsigned char * pBuffer, int size)
+{
+	int counter;
+	unsigned short index = _mockUartOutputBufferProducerIndex;
+
+	for(counter=0; counter<size; counter++)
+	{
+		if(_mockUartOutputBufferConsumerIndex == index) {
+			break;
+		}
+		index = (index - 1) & MOCK_UART_OUTPUT_BUFFER_MASK;
+		for(int i=size; i>1; i--) {
+			pBuffer[i-1] = pBuffer[i-2];
+		}
+		pBuffer[0] = _mockUartIOutputBuffer[index];
+	}
+
+	return counter;
 }
 
 /*************************************************
