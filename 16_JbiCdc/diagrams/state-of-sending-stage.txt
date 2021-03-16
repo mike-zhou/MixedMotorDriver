@@ -5,9 +5,6 @@
 IDLE --> SENDING_DATA: dataPakcetPending
 IDLE --> SENDING_ACK: ackPakcetPending
 
-SENDING_ACK --> SENDING_ACK: byteLeave
-SENDING_ACK --> IDLE: ackPacketLeave
-
 SENDING_DATA --> SENDING_DATA: byteLeave
 SENDING_DATA --> WAIT_ACK: dataPacketLeave
 SENDING_DATA --> SENDING_DATA_PENDING_ACK: ackPacketPending
@@ -18,10 +15,12 @@ WAIT_ACK --> SENDING_ACK_WAIT_ACK: ackPacketPending
 
 SENDING_ACK_WAIT_ACK --> SENDING_ACK_WAIT_ACK: byteLeave
 SENDING_ACK_WAIT_ACK --> WAIT_ACK: ackPacketLeave
-SENDING_ACK_WAIT_ACK --> SENDING_ACK: acknowledged
 
 SENDING_DATA_PENDING_ACK --> SENDING_ACK_WAIT_ACK: dataPacketLeave
 SENDING_DATA_PENDING_ACK --> SENDING_DATA_PENDING_ACK: byteLeave
+
+SENDING_ACK --> SENDING_ACK: byteLeave
+SENDING_ACK --> IDLE: ackPacketLeave
 
 IDLE: accept DATA packet,
 IDLE: and ACK packet
