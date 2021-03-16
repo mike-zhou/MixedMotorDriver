@@ -1878,30 +1878,87 @@ static void _003001_uart_roundsHostAndAppHungry()
 	printf("-------------------------------------\r\n");
 }
 
+/**
+ * test that monitor buffer can recover from overflow
+ */
+static void _003002_uart_monitorOverflow()
+{
+	printf("\r\n===================================\r\n");
+	printf("%s started\r\n", __FUNCTION__);
+
+	unsigned char buffer[MOCK_USB_OUTPUT_BUFFER_MASK + 1];
+	int rc;
+	unsigned char * pInfo = "hello world";
+
+	_resetTestEnv();
+
+	for(int counter = 0; counter < 0xffff; counter++)
+	{
+		unsigned char c = '0' + (counter % 10);
+
+		if(counter == 0xfffe) {
+			counter = 0xfffe;
+		}
+		//produce 2 characters, but consume 1 
+		printChar(c);
+		printChar(c);
+		pollScsDataExchange();
+		pollScsDataExchange();
+		usbConsumeData(&c, 1);
+	}
+
+	ASSERT(usbOutputBufferUsed() == (MOCK_USB_OUTPUT_BUFFER_MASK - 1));
+	//consume all content in monitor buffer
+	rc = usbConsumeData(buffer, sizeof(buffer));
+	ASSERT(rc == (MOCK_USB_OUTPUT_BUFFER_MASK - 1));
+
+	//send out all content in monitor stage
+	ASSERT(monitorOutputBufferUsed() == (MONITOR_OUTPUT_BUFFER_LENGTH_MASK - 1));
+	pollScsDataExchange();
+	pollScsDataExchange();
+	ASSERT(monitorOutputBufferUsed() == 0);
+	rc = usbConsumeData(buffer, sizeof(buffer));
+	ASSERT(rc == (MONITOR_OUTPUT_BUFFER_LENGTH_MASK - 1));
+
+	printString(pInfo);
+	pollScsDataExchange();
+	pollScsDataExchange();
+	memset(buffer, 0, sizeof(buffer));
+	rc = usbConsumeData(buffer, sizeof(buffer));
+	ASSERT(rc == strlen(pInfo));
+	for(int i=0; i<rc; i++) {
+		ASSERT(buffer[i] == pInfo[i]);
+	}
+
+	printf("%s stopped\r\n", __FUNCTION__);
+	printf("-------------------------------------\r\n");
+}
+
 void startTestCases()
 {
 	printf("startTestCases started\r\n");
 
-	// _004000_tc();
-	// _000001_uart_oneByteInput();
-	// _000002_uart_inputStageTimeout();
-	// _000003_uart_completeAckPacket();
-	// _000004_uart_oneCompleteDataPacket();
-	// _000005_uart_repeatedCompleteDataPacket();
-	// _000006_uart_duplicatedDataPacket();
-	// _000007_uart_discontinuousPakcetId();
-	// _000008_uart_crcError();
-	// _000009_uart_illegalPacketLength();
-	// _000010_uart_abruptPacketId();
-	// _001000_uart_sendAppData();
-	// _001001_uart_sendAppDataTimeout();
-	// _001002_uart_sendAppDataAround();
-	// _001003_uart_multiAppData();
-	// _001004_uart_dataBothWay();
-	// _001005_uart_appDataPostpone();
-	// _001006_uart_quickHostAck();
-	// _003000_uart_roundsHostAndApp();
+	_004000_tc();
+	_000001_uart_oneByteInput();
+	_000002_uart_inputStageTimeout();
+	_000003_uart_completeAckPacket();
+	_000004_uart_oneCompleteDataPacket();
+	_000005_uart_repeatedCompleteDataPacket();
+	_000006_uart_duplicatedDataPacket();
+	_000007_uart_discontinuousPakcetId();
+	_000008_uart_crcError();
+	_000009_uart_illegalPacketLength();
+	_000010_uart_abruptPacketId();
+	_001000_uart_sendAppData();
+	_001001_uart_sendAppDataTimeout();
+	_001002_uart_sendAppDataAround();
+	_001003_uart_multiAppData();
+	_001004_uart_dataBothWay();
+	_001005_uart_appDataPostpone();
+	_001006_uart_quickHostAck();
+	_003000_uart_roundsHostAndApp();
 	_003001_uart_roundsHostAndAppHungry();
+	_003002_uart_monitorOverflow();
 
 	printf("startTestCases finished\r\n");
 }

@@ -83,6 +83,7 @@ static void _processMonitorStage()
 	}
 	else 
 	{
+		// send the first part of data.
 		unsigned char * pBuffer = _monitorOutputBuffer + _monitorOutputBufferConsumerIndex;
 		unsigned short size = MONITOR_OUTPUT_BUFFER_LENGTH_MASK - _monitorOutputBufferConsumerIndex + 1;
 		unsigned char amount;
@@ -136,7 +137,7 @@ void printHex(unsigned char hex)
 	}
 }
 
-void inline printChar(unsigned char c)
+void printChar(unsigned char c)
 {
 	_writeMonitorChar(c);
 }
@@ -1248,7 +1249,7 @@ int monitorOutputBufferUsed()
 		return _monitorOutputBufferProducerIndex - _monitorOutputBufferConsumerIndex;
 	}
 	else {
-		return MONITOR_OUTPUT_BUFFER_LENGTH_MASK - _monitorOutputBufferConsumerIndex + _monitorOutputBufferProducerIndex;
+		return MONITOR_OUTPUT_BUFFER_LENGTH_MASK - _monitorOutputBufferConsumerIndex + 1 + _monitorOutputBufferProducerIndex;
 	}
 }
 
