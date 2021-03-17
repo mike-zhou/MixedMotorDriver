@@ -60,7 +60,7 @@ static bool _writeMonitorChar(unsigned char c)
 	return true;
 }	
 
-static void _processMonitorStage()
+static void _processMonitorStage(void)
 {
 	if(_monitorOutputBufferConsumerIndex == _monitorOutputBufferProducerIndex) {
 		return; // no data to send
@@ -276,7 +276,7 @@ static  bool _appOutputBufferEnabled = false;
 static  bool _appOutputBufferOverflow = false;
 
 // return free space in APP's input buffer
-static inline unsigned short _getAppInputBufferAvailable()
+static inline unsigned short _getAppInputBufferAvailable(void)
 {
 	if(_appInputBufferProducerIndex >= _appInputBufferConsumerIndex) {
 		return APP_INPUT_BUFFER_LENGTH_MASK - (_appInputBufferProducerIndex - _appInputBufferConsumerIndex);
@@ -333,7 +333,7 @@ unsigned char readInputBuffer(void)
 }
 
 //return amount of bytes in output buffer
-unsigned short _getOutputBufferUsed()
+static unsigned short _getOutputBufferUsed(void)
 {
 	if(_appOutputBufferProducerIndex >= _appOutputBufferConsumerIndex) {
 		return _appOutputBufferProducerIndex - _appOutputBufferConsumerIndex;
@@ -345,7 +345,7 @@ unsigned short _getOutputBufferUsed()
 
 //read size of bytes from output buffer to pBuffer
 // return actual size of bytes written to pBuffer.
-unsigned short _readOutputBuffer(unsigned char * pBuffer, unsigned short size)
+static unsigned short _readOutputBuffer(unsigned char * pBuffer, unsigned short size)
 {
 	unsigned short counter;
 	
@@ -666,7 +666,7 @@ static inline void _on_inputStageAckPacketComplete(unsigned char packetId)
 }
 
 // be called when a Data packet is received in input stage
-static inline void _on_inputStageDataPacketComplete()
+static inline void _on_inputStageDataPacketComplete(void)
 {
 	unsigned char packetId = _scsInputStage.packetBuffer[1];
 	
@@ -862,7 +862,7 @@ static void _processScsInputStage(void)
 
 //handle SCS_OUTPUT_IDLE.
 // read data to host from APP's outputBuffer.
-static void _processScsOutputStageIdle()
+static void _processScsOutputStageIdle(void)
 {
 	unsigned char * pPacket = _scsOutputStage.dataPktBuffer;
 	unsigned short size = _readOutputBuffer(pPacket + 3, SCS_DATA_MAX_LENGTH);

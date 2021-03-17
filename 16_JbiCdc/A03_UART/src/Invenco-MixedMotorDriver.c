@@ -277,7 +277,7 @@ static void writeInternalBuffer(unsigned char c)
 	internalCmdBufferProducerIndex = nextProducerIndex;
 }
 
-static unsigned char readInternalBuffer()
+static unsigned char readInternalBuffer(void)
 {
 	unsigned char c = 0;
 	
@@ -289,7 +289,7 @@ static unsigned char readInternalBuffer()
 	return c;
 }
 
-static void clearInternalBuffer()
+static void clearInternalBuffer(void)
 {
 	internalCmdBufferConsumerIndex = 0;
 	internalCmdBufferProducerIndex = 0;
