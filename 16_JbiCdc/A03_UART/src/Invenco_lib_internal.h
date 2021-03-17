@@ -11,9 +11,10 @@
 
 #define MOCK_FUNCTION 0
 
-#define MONITOR_OUTPUT_BUFFER_LENGTH_MASK 0xFF
 #define APP_INPUT_BUFFER_LENGTH_MASK 0xFF
 #define APP_OUTPUT_BUFFER_LENGTH_MASK 0xFF
+
+#define MONITOR_OUTPUT_BUFFER_LENGTH_MASK 0xFF
 
 /*********************************************************
 * Data exchange stages
@@ -62,7 +63,7 @@ struct SCS_Input_Stage
 	unsigned char prevDataPktId;
 };
 
-enum SCS_Output_Packet_State
+enum SCS_Output_Stage_State
 {
 	SCS_OUTPUT_IDLE = 0,
 	SCS_OUTPUT_SENDING_DATA,
@@ -74,7 +75,7 @@ enum SCS_Output_Packet_State
 
 struct SCS_Output_Stage
 {
-	enum SCS_Output_Packet_State state;
+	enum SCS_Output_Stage_State state;
 	//data packet
 	unsigned char dataPktBuffer[SCS_PACKET_MAX_LENGTH];
 	unsigned char dataPktSendingIndex; //index of byte to be sent
@@ -87,6 +88,48 @@ struct SCS_Output_Stage
 };
 
 #define USB_INPUT_BUFFER_SIZE 64
+
+#if MOCK_FUNCTION
+/////// APP input and output buffer /////////////
+void inputBufferReset();
+unsigned short inputBufferConsumerIndex();
+unsigned short inputBufferProducerIndex();
+unsigned short inputBufferLengthMask();
+unsigned char * inputBuffer();
+int inputBufferUsed();
+int inputBufferCopy(unsigned char * pBuffer, int size);
+void outputBufferReset();
+unsigned short outputBufferConsumerIndex();
+unsigned short outputBufferProducerIndex();
+unsigned short outputBufferLengthMask();
+unsigned char * outputBuffer();
+int outputBufferUsed();
+int outputBufferCopy(unsigned char * pBuffer, int size);
+/////// input and output stage /////////////////
+void inputStageReset();
+enum SCS_Input_Stage_State inputStageState();
+int inputStageUsed();
+int inputStageCopyData(unsigned char * pBuffer, int size);
+unsigned char inputStagePrevPktId();
+unsigned short inputStageTimestamp();
+unsigned short inputStageTimeoutValue();
+void outputStageReset();
+enum SCS_Output_Stage_State outputStageState();
+unsigned char outputStageDataPktId();
+unsigned char outputStageAckedDataPktId();
+unsigned char outputStageDataPktSendingIndex();
+int outputStageCopyDataBuffer(unsigned char * pBuffer, int size);
+unsigned short outputStageTimeoutValue();
+////// monitor buffer /////////////////////////
+void monitorOutputBufferReset();
+unsigned short monitorOutputBufferConsumerIndex();
+unsigned short monitorOutputBufferProducerIndex();
+unsigned short monitorOutputBufferLengthMask();
+unsigned char * monitorOutputBuffer();
+int monitorOutputBufferUsed();
+int monitorOutputBufferCopy(unsigned char * pBuffer, int size);
+//////////////////////////////////////
+#endif
 
 
 #endif /* INVENCO_LIB_INTERNAL_H_ */

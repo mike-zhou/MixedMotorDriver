@@ -55,7 +55,7 @@ static bool _writeMonitorChar(unsigned char c)
 	if(nextProducerIndex == _monitorOutputBufferConsumerIndex) {
 		return false; //buffer full
 	}
-	_monitorOutputBuffer[nextProducerIndex] = c;
+	_monitorOutputBuffer[_monitorOutputBufferProducerIndex] = c;
 	_monitorOutputBufferProducerIndex = nextProducerIndex;
 	return true;
 }	
@@ -83,6 +83,7 @@ static void _processMonitorStage()
 	}
 	else 
 	{
+		// send the first part of data.
 		unsigned char * pBuffer = _monitorOutputBuffer + _monitorOutputBufferConsumerIndex;
 		unsigned short size = MONITOR_OUTPUT_BUFFER_LENGTH_MASK - _monitorOutputBufferConsumerIndex + 1;
 		unsigned char amount;
@@ -136,7 +137,7 @@ void printHex(unsigned char hex)
 	}
 }
 
-void inline printChar(unsigned char c)
+void printChar(unsigned char c)
 {
 	_writeMonitorChar(c);
 }
@@ -263,25 +264,25 @@ void main_uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 }
 
 //data buffer for upper layer software
-static	unsigned char _inputBuffer[APP_INPUT_BUFFER_LENGTH_MASK + 1]; 
-static	unsigned char _outputBuffer[APP_OUTPUT_BUFFER_LENGTH_MASK + 1];
+static	unsigned char _appInputBuffer[APP_INPUT_BUFFER_LENGTH_MASK + 1]; 
+static	unsigned char _appOutputBuffer[APP_OUTPUT_BUFFER_LENGTH_MASK + 1];
 // the way to check whether buffer is full:
 //	if ((producer + 1) & mask) == consumer, then buffer is full
-static	unsigned short _inputProducerIndex=0;
-static	unsigned short _inputConsumerIndex=0;
-static	unsigned short _outputProducerIndex=0;
-static	unsigned short _outputConsumerIndex=0;
-static  bool _outputBufferEnabled = false;
-static  bool _outputOverflow = false;
+static	unsigned short _appInputBufferProducerIndex=0;
+static	unsigned short _appInputBufferConsumerIndex=0;
+static	unsigned short _appOutputBufferProducerIndex=0;
+static	unsigned short _appOutputBufferConsumerIndex=0;
+static  bool _appOutputBufferEnabled = false;
+static  bool _appOutputBufferOverflow = false;
 
 // return free space in APP's input buffer
 static inline unsigned short _getAppInputBufferAvailable()
 {
-	if(_inputProducerIndex >= _inputConsumerIndex) {
-		return APP_INPUT_BUFFER_LENGTH_MASK - (_inputProducerIndex - _inputConsumerIndex);
+	if(_appInputBufferProducerIndex >= _appInputBufferConsumerIndex) {
+		return APP_INPUT_BUFFER_LENGTH_MASK - (_appInputBufferProducerIndex - _appInputBufferConsumerIndex);
 	}
 	else {
-		return _inputConsumerIndex - _inputProducerIndex - 1;
+		return _appInputBufferConsumerIndex - _appInputBufferProducerIndex - 1;
 	}
 }
 
@@ -294,14 +295,14 @@ static inline unsigned short _writeAppInputBuffer(unsigned char * pBuffer, unsig
 	
 	for(i=0; i<length; i++) 
 	{
-		nextWritingIndex = (_inputProducerIndex + 1) & APP_INPUT_BUFFER_LENGTH_MASK;
-		if(nextWritingIndex == _inputConsumerIndex) {
+		nextWritingIndex = (_appInputBufferProducerIndex + 1) & APP_INPUT_BUFFER_LENGTH_MASK;
+		if(nextWritingIndex == _appInputBufferConsumerIndex) {
 			//input buffer is full
 			break;
 		}
 		
-		_inputBuffer[_inputProducerIndex] = pBuffer[i];
-		_inputProducerIndex = nextWritingIndex;
+		_appInputBuffer[_appInputBufferProducerIndex] = pBuffer[i];
+		_appInputBufferProducerIndex = nextWritingIndex;
 	}
 	
 	return i;
@@ -309,8 +310,8 @@ static inline unsigned short _writeAppInputBuffer(unsigned char * pBuffer, unsig
 
 void clearInputBuffer(void)
 {
-	_inputProducerIndex = 0;
-	_inputConsumerIndex = 0;
+	_appInputBufferProducerIndex = 0;
+	_appInputBufferConsumerIndex = 0;
 }
 
 // read a character from input buffer.
@@ -320,9 +321,9 @@ unsigned char readInputBuffer(void)
 {
 	unsigned char c;
 	
-	if(_inputConsumerIndex != _inputProducerIndex) {
-		c = _inputBuffer[_inputConsumerIndex];
-		_inputConsumerIndex = (_inputConsumerIndex + 1) & APP_INPUT_BUFFER_LENGTH_MASK;
+	if(_appInputBufferConsumerIndex != _appInputBufferProducerIndex) {
+		c = _appInputBuffer[_appInputBufferConsumerIndex];
+		_appInputBufferConsumerIndex = (_appInputBufferConsumerIndex + 1) & APP_INPUT_BUFFER_LENGTH_MASK;
 	}
 	else {
 		c = 0;
@@ -334,11 +335,11 @@ unsigned char readInputBuffer(void)
 //return amount of bytes in output buffer
 unsigned short _getOutputBufferUsed()
 {
-	if(_outputProducerIndex >= _outputConsumerIndex) {
-		return _outputProducerIndex - _outputConsumerIndex;
+	if(_appOutputBufferProducerIndex >= _appOutputBufferConsumerIndex) {
+		return _appOutputBufferProducerIndex - _appOutputBufferConsumerIndex;
 	}
 	else {
-		return _outputProducerIndex + APP_OUTPUT_BUFFER_LENGTH_MASK + 1 - _outputConsumerIndex;
+		return _appOutputBufferProducerIndex + APP_OUTPUT_BUFFER_LENGTH_MASK + 1 - _appOutputBufferConsumerIndex;
 	}
 }
 
@@ -350,12 +351,12 @@ unsigned short _readOutputBuffer(unsigned char * pBuffer, unsigned short size)
 	
 	for(counter=0; counter<size; counter++) 
 	{
-		if(_outputConsumerIndex == _outputProducerIndex) {
+		if(_appOutputBufferConsumerIndex == _appOutputBufferProducerIndex) {
 			break;
 		}
-		*pBuffer = _outputBuffer[_outputConsumerIndex];
+		*pBuffer = _appOutputBuffer[_appOutputBufferConsumerIndex];
 		pBuffer++;
-		_outputConsumerIndex = (_outputConsumerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH_MASK;
+		_appOutputBufferConsumerIndex = (_appOutputBufferConsumerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH_MASK;
 	}
 	
 	return counter;
@@ -366,23 +367,23 @@ unsigned short _readOutputBuffer(unsigned char * pBuffer, unsigned short size)
 //return false if output buffer overflows
 bool writeOutputBufferChar(unsigned char c)
 {
-	if(!_outputBufferEnabled) {
+	if(!_appOutputBufferEnabled) {
 		return false;
 	}
 	
-	unsigned short nextProducerIndex = (_outputProducerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH_MASK;
+	unsigned short nextProducerIndex = (_appOutputBufferProducerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH_MASK;
 	
-	if(nextProducerIndex == _outputConsumerIndex) {
-		if(_outputOverflow == false) {
-			_outputOverflow = true;
+	if(nextProducerIndex == _appOutputBufferConsumerIndex) {
+		if(_appOutputBufferOverflow == false) {
+			_appOutputBufferOverflow = true;
 			printString("*");
 		}
 		return false;
 	}
 	else {
-		_outputOverflow = false;
-		_outputBuffer[_outputProducerIndex] = c;
-		_outputProducerIndex = nextProducerIndex;
+		_appOutputBufferOverflow = false;
+		_appOutputBuffer[_appOutputBufferProducerIndex] = c;
+		_appOutputBufferProducerIndex = nextProducerIndex;
 		return true;
 	}
 }
@@ -390,7 +391,7 @@ bool writeOutputBufferChar(unsigned char c)
 //write a string to output buffer
 void writeOutputBufferString(const char * pString)
 {
-	if(!_outputBufferEnabled) {
+	if(!_appOutputBufferEnabled) {
 		return;
 	}
 	
@@ -409,7 +410,7 @@ void writeOutputBufferString(const char * pString)
 
 void writeOutputBufferHex(unsigned char n)
 {
-	if(!_outputBufferEnabled) {
+	if(!_appOutputBufferEnabled) {
 		return;
 	}
 	
@@ -430,7 +431,7 @@ void writeOutputBufferHex(unsigned char n)
 
 void enableOutputBuffer(void)
 {
-	_outputBufferEnabled = true;
+	_appOutputBufferEnabled = true;
 }
 
 
@@ -490,13 +491,17 @@ unsigned short counter_diff(unsigned short prevCounter)
 		return (curCounter - prevCounter);
 	}
 	else {
-		return (0xFFFF - prevCounter + curCounter);
+		return (0xFFFF - prevCounter + curCounter + 1);
 	}
 }
 
+/**
+ * returns how many microseconds one click is.
+ */
 unsigned short counter_clock_length(void)
 {
-	return 1000000/tc_get_resolution(&TCC0);
+	unsigned short length = 1000000/tc_get_resolution(&TCC0);
+	return length;
 }
 
 
@@ -761,7 +766,7 @@ static void _processScsInputStage(void)
 					
 					if(dataLength > SCS_DATA_MAX_LENGTH) 
 					{
-						printString("ERROR: corrupted input data packet\r\n");
+						printString("ERROR: illegal input data packet length "); printHex(dataLength); printString("\r\n");
 						_scsInputStage.state = SCS_INPUT_IDLE;
 					}
 					else if(byteAmount == (dataLength + SCS_DATA_PACKET_STAFF_LENGTH))
@@ -806,8 +811,8 @@ static void _processScsInputStage(void)
 					if((crcLow == _scsInputStage.packetBuffer[2]) && (crcHigh == _scsInputStage.packetBuffer[3]))
 					{
 						unsigned char packetId = _scsInputStage.packetBuffer[1];
-						_on_inputStageAckPacketComplete(packetId);
 						printString("> A "); printHex(packetId); printString("\r\n");
+						_on_inputStageAckPacketComplete(packetId);
 					}
 					else
 					{
@@ -840,7 +845,7 @@ static void _processScsInputStage(void)
 			if(counter_diff(_scsInputStage.timeStamp) > _scsInputTimeOut) 
 			{
 				_scsInputStage.state = SCS_INPUT_IDLE; //change to IDLE state.
-				printString("ERROR: input stage timed out");
+				printString("ERROR: input stage timed out\r\n");
 			}
 		}
 	}
@@ -864,7 +869,7 @@ static void _processScsOutputStageIdle()
 	unsigned char crcLow, crcHigh;
 	
 	if(size == 0) {
-		return; //no data need to be sent to host
+		return; //no APP data need to be sent to host
 	}
 	if(size > SCS_DATA_MAX_LENGTH) {
 		//shouldn't occur
@@ -975,7 +980,7 @@ static void _processScsOutputStage(void)
 		case SCS_OUTPUT_SENDING_ACK_WAIT_ACK:
 		{
 			unsigned char * pStart = _scsOutputStage.ackPktBuffer + _scsOutputStage.ackPktSendingIndex;
-			unsigned char remaining = SCS_ACK_PACKET_LENGTH - _scsOutputStage.dataPktSendingIndex;
+			unsigned char remaining = SCS_ACK_PACKET_LENGTH - _scsOutputStage.ackPktSendingIndex;
 			unsigned char size = _putChars(pStart, remaining);
 			
 			_scsOutputStage.ackPktSendingIndex += size;
@@ -997,7 +1002,7 @@ static void _processScsOutputStage(void)
 		case SCS_OUTPUT_SENDING_ACK:
 		{
 			unsigned char * pStart = _scsOutputStage.ackPktBuffer + _scsOutputStage.ackPktSendingIndex;
-			unsigned char remaining = SCS_ACK_PACKET_LENGTH - _scsOutputStage.dataPktSendingIndex;
+			unsigned char remaining = SCS_ACK_PACKET_LENGTH - _scsOutputStage.ackPktSendingIndex;
 			unsigned char size = _putChars(pStart, remaining);
 			
 			_scsOutputStage.ackPktSendingIndex += size;
@@ -1079,7 +1084,6 @@ void Invenco_init(void)
 	uartOption.paritytype=USART_PMODE_DISABLED_gc;
 	uartOption.stopbits=false;
 	ecd300InitUart(ECD300_UART_2, &uartOption);
-	printString("UART is initialized successfully\r\n");
 	
 	//data exchange
 	udc_start();
@@ -1088,42 +1092,42 @@ void Invenco_init(void)
 
 #if MOCK_FUNCTION
 
-void resetInputBuffer()
+void inputBufferReset()
 {
-	_inputConsumerIndex = 0;
-	_inputProducerIndex = 0;
+	_appInputBufferConsumerIndex = 0;
+	_appInputBufferProducerIndex = 0;
 }
 
-unsigned short getInputBufferConsumerIndex()
+unsigned short inputBufferConsumerIndex()
 {
-	return _inputConsumerIndex;
+	return _appInputBufferConsumerIndex;
 }
 
-unsigned short getInputBufferProducerIndex()
+unsigned short inputBufferProducerIndex()
 {
-	return _inputProducerIndex;
+	return _appInputBufferProducerIndex;
 }
 
-unsigned short getInputBufferLengthMask()
+unsigned short inputBufferLengthMask()
 {
 	return APP_INPUT_BUFFER_LENGTH_MASK;
 }
 
-unsigned char * getInputBuffer()
+unsigned char * inputBuffer()
 {
-	return _inputBuffer;
+	return _appInputBuffer;
 }
 
 /************************************************************************/
-/* return amount of bytes in the _inputBuffer                           */
+/* return amount of bytes in the _appInputBuffer                           */
 /************************************************************************/
-int getInputBufferUsed()
+int inputBufferUsed()
 {
-	if(_inputConsumerIndex <= _inputProducerIndex) {
-		return _inputProducerIndex - _inputConsumerIndex;
+	if(_appInputBufferConsumerIndex <= _appInputBufferProducerIndex) {
+		return _appInputBufferProducerIndex - _appInputBufferConsumerIndex;
 	}
 	else {
-		return APP_INPUT_BUFFER_LENGTH_MASK - _inputConsumerIndex + _inputProducerIndex;
+		return APP_INPUT_BUFFER_LENGTH_MASK - _appInputBufferConsumerIndex + 1 + _appInputBufferProducerIndex;
 	}
 }
 
@@ -1131,10 +1135,10 @@ int getInputBufferUsed()
 /* copy the content of inputBuffer to pBuffer                           */
 /* return the actual size of bytes copied to pBuffer					*/
 /************************************************************************/
-int peekInputBuffer(unsigned char * pBuffer, int size)
+int inputBufferCopy(unsigned char * pBuffer, int size)
 {
-	unsigned short consumerIndex = _inputConsumerIndex;
-	unsigned short producerIndex = _inputProducerIndex;
+	unsigned short consumerIndex = _appInputBufferConsumerIndex;
+	unsigned short producerIndex = _appInputBufferProducerIndex;
 	int count = 0;
 	
 	for(; count < size; count++) 
@@ -1142,49 +1146,49 @@ int peekInputBuffer(unsigned char * pBuffer, int size)
 		if(consumerIndex == producerIndex) {
 			break;
 		}
-		pBuffer[count] = _inputBuffer[consumerIndex];
+		pBuffer[count] = _appInputBuffer[consumerIndex];
 		consumerIndex = (consumerIndex + 1) & APP_INPUT_BUFFER_LENGTH_MASK;
 	}
 	
 	return count;
 }
 
-void resetOutputBuffer()
+void outputBufferReset()
 {
-	_outputConsumerIndex = 0;
-	_outputProducerIndex = 0;
+	_appOutputBufferConsumerIndex = 0;
+	_appOutputBufferProducerIndex = 0;
 }
 
-unsigned short getOutputBufferConsumerIndex()
+unsigned short outputBufferConsumerIndex()
 {
-	return _outputConsumerIndex;
+	return _appOutputBufferConsumerIndex;
 }
 
-unsigned short getOutputBufferProducerIndex()
+unsigned short outputBufferProducerIndex()
 {
-	return _outputProducerIndex;
+	return _appOutputBufferProducerIndex;
 }
 
-unsigned short getOutputBufferLengthMask()
+unsigned short outputBufferLengthMask()
 {
 	return APP_OUTPUT_BUFFER_LENGTH_MASK;
 }
 
-unsigned char * getOutputBuffer()
+unsigned char * outputBuffer()
 {
-	return _outputBuffer;
+	return _appOutputBuffer;
 }
 
 /************************************************************************/
-/* return amount of bytes in the _outputBuffer                          */
+/* return amount of bytes in the _appOutputBuffer                          */
 /************************************************************************/
-int getOutputBufferUsed()
+int outputBufferUsed()
 {
-	if(_outputConsumerIndex <= _outputProducerIndex) {
-		return _outputProducerIndex - _outputConsumerIndex;
+	if(_appOutputBufferConsumerIndex <= _appOutputBufferProducerIndex) {
+		return _appOutputBufferProducerIndex - _appOutputBufferConsumerIndex;
 	}
 	else {
-		return APP_OUTPUT_BUFFER_LENGTH_MASK - _outputConsumerIndex + _outputProducerIndex;
+		return APP_OUTPUT_BUFFER_LENGTH_MASK - _appOutputBufferConsumerIndex + 1 + _appOutputBufferProducerIndex;
 	}
 }
 
@@ -1192,10 +1196,10 @@ int getOutputBufferUsed()
 /* copy the content of outputBuffer to pBuffer                           */
 /* return the actual size of bytes copied to pBuffer					*/
 /************************************************************************/
-int peekOutputBuffer(unsigned char * pBuffer, int size)
+int outputBufferCopy(unsigned char * pBuffer, int size)
 {
-	unsigned short consumerIndex = _outputConsumerIndex;
-	unsigned short producerIndex = _outputProducerIndex;
+	unsigned short consumerIndex = _appOutputBufferConsumerIndex;
+	unsigned short producerIndex = _appOutputBufferProducerIndex;
 	int count = 0;
 	
 	for(; count < size; count++)
@@ -1203,35 +1207,35 @@ int peekOutputBuffer(unsigned char * pBuffer, int size)
 		if(consumerIndex == producerIndex) {
 			break;
 		}
-		pBuffer[count] = _outputBuffer[consumerIndex];
+		pBuffer[count] = _appOutputBuffer[consumerIndex];
 		consumerIndex = (consumerIndex + 1) & APP_OUTPUT_BUFFER_LENGTH_MASK;
 	}
 	
 	return count;
 }
 
-void resetMonitorOutputBuffer()
+void monitorOutputBufferReset()
 {
 	_monitorOutputBufferConsumerIndex = 0;
 	_monitorOutputBufferProducerIndex = 0;
 }
 
-unsigned short getMonitorOutputBufferConsumerIndex()
+unsigned short monitorOutputBufferConsumerIndex()
 {
 	return _monitorOutputBufferConsumerIndex;
 }
 
-unsigned short getMonitorOutputBufferProducerIndex()
+unsigned short monitorOutputBufferProducerIndex()
 {
 	return _monitorOutputBufferProducerIndex;
 }
 
-unsigned short getMonitorOutputBufferLengthMask()
+unsigned short monitorOutputBufferLengthMask()
 {
 	return MONITOR_OUTPUT_BUFFER_LENGTH_MASK;
 }
 
-unsigned char * getMonitorOutputBuffer()
+unsigned char * monitorOutputBuffer()
 {
 	return _monitorOutputBuffer;
 }
@@ -1239,13 +1243,13 @@ unsigned char * getMonitorOutputBuffer()
 /************************************************************************/
 /* return amount of bytes in the _monitorOutputBuffer                   */
 /************************************************************************/
-int getMonitorOutputBufferUsed()
+int monitorOutputBufferUsed()
 {
 	if(_monitorOutputBufferConsumerIndex <= _monitorOutputBufferProducerIndex) {
 		return _monitorOutputBufferProducerIndex - _monitorOutputBufferConsumerIndex;
 	}
 	else {
-		return MONITOR_OUTPUT_BUFFER_LENGTH_MASK - _monitorOutputBufferConsumerIndex + _monitorOutputBufferProducerIndex;
+		return MONITOR_OUTPUT_BUFFER_LENGTH_MASK - _monitorOutputBufferConsumerIndex + 1 + _monitorOutputBufferProducerIndex;
 	}
 }
 
@@ -1253,7 +1257,7 @@ int getMonitorOutputBufferUsed()
 /* copy the content of monitorOutputBuffer to pBuffer                   */
 /* return the actual size of bytes copied to pBuffer					*/
 /************************************************************************/
-int peekMonitorBuffer(unsigned char * pBuffer, int size)
+int monitorOutputBufferCopy(unsigned char * pBuffer, int size)
 {
 	unsigned short consumerIndex = _monitorOutputBufferConsumerIndex;
 	unsigned short producerIndex = _monitorOutputBufferProducerIndex;
@@ -1269,6 +1273,152 @@ int peekMonitorBuffer(unsigned char * pBuffer, int size)
 	}
 	
 	return count;
+}
+
+
+/***
+ * reset _scsInputStage
+ */
+void inputStageReset()
+{
+	_scsInputStage.state = SCS_INPUT_IDLE;
+	_scsInputStage.prevDataPktId = SCS_INVALID_PACKET_ID;
+}
+
+/**
+ * return state of _scsInputStage
+ */
+enum SCS_Input_Stage_State inputStageState()
+{
+	return _scsInputStage.state;
+}
+
+/***
+ * return amount of data in the _scsInputStage
+ */
+int inputStageUsed()
+{
+	return _scsInputStage.byteAmount;
+}
+
+/***
+ * copy bytes in the input stage to pBuffer
+ * return amount of bytes copied to pBuffer
+ */
+int inputStageCopyData(unsigned char * pBuffer, int size)
+{
+	int count = 0;
+
+	if(_scsInputStage.state == SCS_INPUT_IDLE) {
+		return 0;
+	}
+
+	for(; count < size; count++)
+	{
+		if(count == _scsInputStage.byteAmount) {
+			break;
+		}
+		pBuffer[count] = _scsInputStage.packetBuffer[count];
+	}
+
+	return count;
+}
+
+/***
+ * return previous packet id.
+ */
+unsigned char inputStagePrevPktId()
+{
+	return _scsInputStage.prevDataPktId;
+}
+
+/**
+ * return time stamp in _scsInputStage
+ */
+unsigned short inputStageTimestamp()
+{
+	return _scsInputStage.timeStamp;
+}
+
+/**
+ * return time out value of input stage
+ */
+unsigned short inputStageTimeoutValue()
+{
+	return _scsInputTimeOut;
+}
+
+/**
+ * reset output stage
+ */
+void outputStageReset()
+{
+	_scsOutputStage.state = SCS_OUTPUT_IDLE;
+	_scsOutputStage.currentDataPktId = SCS_INVALID_PACKET_ID;
+	_scsOutputStage.ackedDataPktId = SCS_INVALID_PACKET_ID;
+}
+
+/**
+ * return state of output stage
+ */
+enum SCS_Output_Stage_State outputStageState()
+{
+	return _scsOutputStage.state;
+}
+
+/**
+ * return current data packet id
+ */
+unsigned char outputStageDataPktId()
+{
+	return _scsOutputStage.currentDataPktId;
+}
+
+/**
+ * return acknowledged data packet id
+ */
+unsigned char outputStageAckedDataPktId()
+{
+	return _scsOutputStage.ackedDataPktId;
+}
+
+/**
+ * return data packet sending index in output stage
+ */
+unsigned char outputStageDataPktSendingIndex()
+{
+	return _scsOutputStage.dataPktSendingIndex;
+}
+
+/**
+ * copy data packet in output stage to pBuffer
+ * return amount of bytes copied to pBuffer
+ */
+int outputStageCopyDataBuffer(unsigned char * pBuffer, int size)
+{
+	int count;
+	int packetSize;
+
+	if((_scsOutputStage.state != SCS_OUTPUT_SENDING_DATA) && (_scsOutputStage.state != SCS_OUTPUT_SENDING_DATA_PENDING_ACK)) {
+		return 0;
+	}
+
+	packetSize = _scsOutputStage.dataPktBuffer[2] + SCS_DATA_PACKET_STAFF_LENGTH;
+
+	for(count = 0; (count < size) && (count < packetSize); count++) 
+	{
+		pBuffer[count] = _scsOutputStage.dataPktBuffer[count];
+	}
+
+	return count;
+}
+
+/**
+ * return timeout value of output stage
+ */
+unsigned short outputStageTimeoutValue()
+{
+	return _scsOutputTimeout;
 }
 
 #endif
