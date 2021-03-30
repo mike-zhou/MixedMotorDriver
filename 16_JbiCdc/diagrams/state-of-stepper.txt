@@ -1,0 +1,31 @@
+@startuml
+
+[*] --> UNKNOWN_POSITION : power on
+
+UNKNOWN_POSITION --> APPROCHING_HOME_LOCATOR: run after config home
+
+APPROCHING_HOME_LOCATOR --> LEAVING_HOME_LOCATOR: detector is triggered
+
+LEAVING_HOME_LOCATOR --> GO_HOME: detector is untriggered
+
+GO_HOME --> IDLE: moved predefined distance
+
+IDLE --> ACCELERATING: run after set steps
+
+ACCELERATING --> CRUISING              
+ACCELERATING --> DECELERATING
+
+CRUISING --> DECELERATING
+
+DECELERATING --> IDLE
+
+UNKNOWN_POSITION: state just after power on
+APPROCHING_HOME_LOCATOR: moving to home locator
+LEAVING_HOME_LOCATOR: leaving home locator
+GO_HOME: moving to home location
+IDLE: at a known position
+ACCELERATING: frequency increases
+CRUISING: frequency keep constant
+DECELERATING: frequency decreases
+
+@enduml
