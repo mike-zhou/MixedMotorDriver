@@ -1072,7 +1072,7 @@ void stepper_interrupt_disable(void)
 	tc_set_overflow_interrupt_level(&TCC1, TC_INT_LVL_OFF);		
 }
 
-void stepper_interrupt_reset(void)
+void stepper_interrupt_reset_counter(void)
 {
 	tc_write_count(&TCC1, 0);	
 }
@@ -1085,6 +1085,11 @@ void stepper_interrupt_set_period(unsigned short period)
 void stepper_interrupt_register(void(* callback)(void))
 {
 	tc_set_overflow_interrupt_callback(&TCC1, callback);
+}
+
+unsigned short stepper_interrupt_get_counter(void)
+{
+	return tc_read_count(&TCC1);
 }
 
 void Invenco_init(void)

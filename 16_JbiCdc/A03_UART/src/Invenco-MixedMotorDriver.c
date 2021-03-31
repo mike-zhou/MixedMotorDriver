@@ -49,6 +49,7 @@ enum MMD_command_e
 	COMMAND_STEPPER_QUREY = 61,			// C 61 stepperIndex cmdId
 	COMMAND_STEPPER_SET_STATE = 62,		// C 62 stepperIndex state cmdId
 	COMMAND_STEPPER_FORWARD_CLOCKWISE = 63,				// C 63 stepperIndex 1/0 cmdId
+	COMMAND_STEPPER_MAX_EXEC = 64,		// C 64 cmdId
 	COMMAND_LOCATOR_QUERY = 100			// C 100 locatorHubIndex cmdId
 };
 
@@ -217,6 +218,7 @@ struct MMD_command
 	
 	unsigned char workingStepper;
 	bool isStepperRunning;
+	unsigned short longestInterrupt;
 	struct MMD_stepper_data steppersData[MMD_STEPPERS_AMOUNT];
 	struct MMD_DeviceDelay deviceDelay;
 	struct MMD_bdc_data bdcData;
@@ -1540,6 +1542,15 @@ static enum MMD_BDC_STATE MMD_bdc_get_state(unsigned char index)
 	}
 }
 
+static inline mmd_update_interrupt_execution_meter()
+{
+	unsigned short meter = stepper_interrupt_get_counter();
+	
+	if(meter > mmdCommand.longestInterrupt) {
+		mmdCommand.longestInterrupt = meter;
+	}
+}
+
 //write command and parameters to output buffer.
 static void mmd_write_succeess_reply(void) 
 {
@@ -1857,7 +1868,7 @@ static inline void mmd_stepper_decelerate(struct MMD_stepper_data * pData)
 	}
 }
 
-static void mmd_steppers_run(void)
+static void mmd_stepper_run(void)
 {
 	struct MMD_stepper_data * pStepper = &(mmdCommand.steppersData[mmdCommand.workingStepper]);
 	
@@ -1916,6 +1927,7 @@ static void mmd_steppers_run(void)
 	}
 		
 	mmd_stepper_check_scope(pStepper);
+	mmd_update_interrupt_execution_meter();
 }
 
 static void mmd_stepper_query(unsigned char stepperIndex)
@@ -2318,6 +2330,7 @@ static void mmd_parse_command(void)
 		case COMMAND_STEPPER_QUREY:
 		case COMMAND_STEPPER_SET_STATE:
 		case COMMAND_STEPPER_FORWARD_CLOCKWISE:
+		case COMMAND_STEPPER_MAX_EXEC:
 		case COMMAND_LOCATOR_QUERY:
 		{
 			mmdCommand.command = cmd;
@@ -2760,6 +2773,21 @@ static void mmd_run_command(void)
 			}
 			break;
 			
+			case COMMAND_STEPPER_MAX_EXEC:
+			{
+				if(mmdCommand.parameterAmount != 2){
+					mmd_write_reply_header();
+					writeOutputBufferString(STR_WRONG_PARAMETER_AMOUNT);
+					writeOutputBufferString(STR_CARRIAGE_RETURN);
+					clearInternalBuffer();
+					mmdCommand.state = AWAITING_COMMAND;
+				}
+				else {
+					mmdCommand.state = EXECUTING_COMMAND;
+				}
+			}
+			break;
+			
 			case COMMAND_LOCATOR_QUERY:
 			{
 				if(mmdCommand.parameterAmount != 2){
@@ -3171,7 +3199,7 @@ static void mmd_run_command(void)
 						mmdCommand.steppersData[stepperIndex].speedVariation = mmdCommand.steppersData[stepperIndex].accelerationTop;
 						period += mmdCommand.steppersData[stepperIndex].speedVariation;
 					}
-					stepper_interrupt_reset();
+					stepper_interrupt_reset_counter();
 					stepper_interrupt_set_period(period);
 					stepper_interrupt_enable();
 					mmdCommand.isStepperRunning = true;
@@ -3268,6 +3296,19 @@ static void mmd_run_command(void)
 
 				mmdCommand.steppersData[stepperIndex].forwardClockwise = clockwise;
 				mmd_write_succeess_reply();
+				mmdCommand.state = AWAITING_COMMAND;
+			}
+			break;
+			
+			case COMMAND_STEPPER_MAX_EXEC:
+			{
+				mmd_write_reply_header();
+				writeOutputBufferString("\"maxExecution\":\"");
+				writeOutputBufferHex(mmdCommand.longestInterrupt >> 8);
+				writeOutputBufferHex(mmdCommand.longestInterrupt & 0xff);
+				writeOutputBufferString("\"");
+				writeOutputBufferString(STR_CARRIAGE_RETURN);
+				
 				mmdCommand.state = AWAITING_COMMAND;
 			}
 			break;
@@ -3578,6 +3619,7 @@ static void MMD_init(void)
 	mmdCommand.state = AWAITING_COMMAND;
 	mmdCommand.parameterAmount = 0;
 	mmdCommand.workingStepper = 0;
+	mmdCommand.longestInterrupt = 0;
 	for(index=0; index<MMD_STEPPERS_AMOUNT; index++)
 	{
 		mmdCommand.steppersData[index].state = STEPPER_STATE_UNKNOWN_POSITION;
@@ -3629,7 +3671,7 @@ static void MMD_init(void)
 	}
 	mmdStatus.cmdState = AWAITING_COMMAND;
 	
-	stepper_interrupt_register(mmd_steppers_run);
+	stepper_interrupt_register(mmd_stepper_run);
 }
 
 void ecd300MixedMotorDrivers(void)

@@ -58,9 +58,10 @@ unsigned short counter_clock_length(void);
 /////////////////////////////////
 void stepper_interrupt_init(void);
 void stepper_interrupt_enable(void);
-void inline stepper_interrupt_disable(void);
-void stepper_interrupt_reset(void);
-void inline stepper_interrupt_set_period(unsigned short period);
+inline void stepper_interrupt_disable(void);
+void stepper_interrupt_reset_counter(void);
+inline unsigned short stepper_interrupt_get_counter(void);
+inline void stepper_interrupt_set_period(unsigned short period);
 void stepper_interrupt_register(void(* callback)(void));
 
 enum CommandState
