@@ -1055,6 +1055,38 @@ void initScsDataExchange(void)
 	_scsOutputStage.ackedDataPktId = SCS_INVALID_PACKET_ID;
 }
 
+void stepper_interrupt_init(void)
+{
+	tc_enable(&TCC1);
+	tc_write_clock_source(&TCC1, TC_CLKSEL_DIV8_gc); //TCC1 take 16ms to overflow at 31MHz clk_per
+	tc_set_direction(&TCC1, TC_UP);
+}
+
+void stepper_interrupt_enable(void)
+{
+	tc_set_overflow_interrupt_level(&TCC1, TC_INT_LVL_HI);	
+}
+
+void stepper_interrupt_disable(void)
+{
+	tc_set_overflow_interrupt_level(&TCC1, TC_INT_LVL_OFF);		
+}
+
+void stepper_interrupt_reset(void)
+{
+	tc_write_count(&TCC1, 0);	
+}
+
+void stepper_interrupt_set_period(unsigned short period)
+{
+	tc_write_period(&TCC1, period);	
+}
+
+void stepper_interrupt_register(void(* callback)(void))
+{
+	tc_set_overflow_interrupt_callback(&TCC1, callback);
+}
+
 void Invenco_init(void)
 {
 	usart_rs232_options_t uartOption;
@@ -1077,6 +1109,8 @@ void Invenco_init(void)
 	
 	//counter
 	counter_init();
+	stepper_interrupt_init();
+	stepper_interrupt_disable();
 
 	//UART
 	uartOption.baudrate=115200;

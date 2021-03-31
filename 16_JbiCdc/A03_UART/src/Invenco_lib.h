@@ -53,6 +53,16 @@ unsigned short counter_diff(unsigned short prevCounter);
 //return length of a clock in microsecond
 unsigned short counter_clock_length(void);
 
+/////////////////////////////////
+// interrupt related
+/////////////////////////////////
+void stepper_interrupt_init(void);
+void stepper_interrupt_enable(void);
+void inline stepper_interrupt_disable(void);
+void stepper_interrupt_reset(void);
+void inline stepper_interrupt_set_period(unsigned short period);
+void stepper_interrupt_register(void(* callback)(void));
+
 enum CommandState
 {
 	AWAITING_COMMAND = 0,
