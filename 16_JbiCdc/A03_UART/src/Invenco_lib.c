@@ -44,6 +44,19 @@ static inline unsigned char _putCharsUart(unsigned char * pBuffer, unsigned char
 	return counter;
 }
 
+static inline unsigned char _putCharsMonitor(unsigned char * pBuffer, unsigned char size)
+{
+	unsigned char amount;
+	
+#if DATA_EXCHANGE_THROUGH_USB
+	amount = _putCharsUart(pBuffer, size);
+#else
+	amount = _putCharsUsb(pBuffer, size);
+#endif
+
+	return amount;
+}
+
 //monitor traffic is through USB
 static unsigned char _monitorOutputBuffer[MONITOR_OUTPUT_BUFFER_LENGTH_MASK + 1];
 static unsigned short _monitorOutputBufferConsumerIndex;
@@ -73,12 +86,8 @@ static void _processMonitorStage(void)
 		
 		if(size > 0xff) {
 			size = 0xff;
-		}			
-#if DATA_EXCHANGE_THROUGH_USB
-		amount = _putCharsUart(pBuffer, size);	
-#else
-		amount = _putCharsUsb(pBuffer, size);
-#endif	
+		}
+		amount = _putCharsMonitor(pBuffer, size);			
 		_monitorOutputBufferConsumerIndex += amount;
 	}
 	else 
@@ -91,11 +100,7 @@ static void _processMonitorStage(void)
 		if(size > 0xff) {
 			size = 0xff;
 		}
-#if DATA_EXCHANGE_THROUGH_USB
-		amount = _putCharsUart(pBuffer, size);
-#else
-		amount = _putCharsUsb(pBuffer, size);
-#endif
+		amount = _putCharsMonitor(pBuffer, size);
 		_monitorOutputBufferConsumerIndex = (_monitorOutputBufferConsumerIndex + amount) & MONITOR_OUTPUT_BUFFER_LENGTH_MASK;
 	}
 }
@@ -1053,6 +1058,10 @@ void initScsDataExchange(void)
 	_scsOutputStage.state = SCS_OUTPUT_IDLE;
 	_scsOutputStage.currentDataPktId = SCS_INVALID_PACKET_ID;
 	_scsOutputStage.ackedDataPktId = SCS_INVALID_PACKET_ID;
+	
+	//monitor
+	_monitorOutputBufferConsumerIndex = 0;
+	_monitorOutputBufferProducerIndex = 0;
 }
 
 void stepper_interrupt_init(void)
